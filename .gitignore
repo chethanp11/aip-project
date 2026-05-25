@@ -1,0 +1,44 @@
+# Python
+
+**/.venv/
+**/__pycache__/
+*.pyc
+
+# Secrets
+
+.env
+.env.*
+
+# Mac
+
+.DS_Store
+
+# Runtime infra data
+
+AIP-Infra/postgres/
+AIP-Infra/neo4j/
+AIP-Infra/redis/
+
+# Storage outputs
+
+AIP-Infra/storage/reports/*
+AIP-Infra/storage/artifacts/*
+AIP-Infra/storage/archives/*
+
+# Logs
+
+AIP-Infra/logs/*
+
+# Runtime
+
+AIP-Infra/runtime/*
+
+# Backups
+
+AIP-Infra/backups/*
+
+# Keep folder structure
+
+!AIP-Infra/storage/.gitkeep
+!AIP-Infra/logs/.gitkeep
+!AIP-Infra/backups/.gitkeep
