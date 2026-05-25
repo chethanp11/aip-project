@@ -1,0 +1,2 @@
+Grounded operational policies retrieved from Treasury ALCO Policies Git (Git Repository) for domain Treasury & Capital Management.
+Under Basel III LCR and NSFR rules, corporate cash sweep aggregations are subject to maximum outflow volatility. The bank Asset-Liability Committee (ALCO) requires Level 1 HQLA buffer coverage of at least 110% target to absorb potential digital run stress.
