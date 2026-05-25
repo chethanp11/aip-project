@@ -15,9 +15,9 @@
 
 # Runtime infra data
 
-AIP-Infra/postgres/
-AIP-Infra/neo4j/
-AIP-Infra/redis/
+AIP-Infra/postgres/*
+AIP-Infra/neo4j/*
+AIP-Infra/redis/*
 
 # Storage outputs
 
@@ -39,6 +39,14 @@ AIP-Infra/backups/*
 
 # Keep folder structure
 
+!AIP-Infra/analytics-data/.gitkeep
 !AIP-Infra/storage/.gitkeep
 !AIP-Infra/logs/.gitkeep
 !AIP-Infra/backups/.gitkeep
+!AIP-Infra/docker/.gitkeep
+!AIP-Infra/neo4j/.gitkeep
+!AIP-Infra/postgres/.gitkeep
+!AIP-Infra/redis/.gitkeep
+!AIP-Infra/retrieval/.gitkeep
+!AIP-Infra/runtime/.gitkeep
+!AIP-Infra/secrets/.gitkeep

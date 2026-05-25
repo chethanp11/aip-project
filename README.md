@@ -247,6 +247,8 @@ The intended dependency direction is:
 Suite workflow -> shared capability -> shared infra client -> AIP-Infra service/storage
 ```
 
+Code should cross the AIP/AIP-Infra boundary only through `src.shared.config` and `src.shared.infra` clients. Product workflows should depend on capabilities and workflow inputs, not on physical Docker volume paths, seed-file layouts, or database driver details.
+
 Examples:
 
 - A reporting workflow that needs corporate ledger data calls `shared.lms.get_lms_table(...)`; it does not read local JSON/SQLite files.
@@ -473,6 +475,10 @@ The development of AIP is governed by this precise 10-step build sequence:
 └── AIP-Infra/
     ├── docker/docker-compose.yml     # PostgreSQL, Neo4j, Redis, analytics PostgreSQL
     ├── logs/                         # Runtime logs
+    ├── backups/                      # Backup output root
+    ├── retrieval/                    # Retrieval-service infrastructure root
+    ├── runtime/                      # Runtime-only generated files
+    ├── secrets/                      # Local secret material placeholder; do not commit secrets
     ├── postgres/                     # pgvector PostgreSQL volume
     ├── analytics-data/               # Analytics/LMS PostgreSQL volume
     ├── neo4j/                        # Neo4j volume
