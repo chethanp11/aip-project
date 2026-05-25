@@ -1,11 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
+if [ -z "${BASH_VERSION:-}" ]; then
+  exec /usr/bin/env bash "$0" "$@"
+fi
+set -euo pipefail
 
 PROJECT_ROOT="/Users/chethan/GitHub/AIP-Project/AIP"
 INFRA_ROOT="/Users/chethan/GitHub/AIP-Project/AIP-Infra"
 
 cd "$PROJECT_ROOT" || exit 1
 
-if [ -z "$VIRTUAL_ENV" ]; then
+if [ -z "${VIRTUAL_ENV:-}" ]; then
   echo ""
   echo "Activating .venv..."
   source .venv/bin/activate
@@ -49,6 +53,18 @@ fi
 
 echo ""
 echo "===== STARTING INFRA ====="
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker is not installed or not on PATH." >&2
+  echo "Install/start Docker Desktop, then rerun: sh check.sh" >&2
+  exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker daemon is not running or is not reachable." >&2
+  echo "Start Docker Desktop, wait until it is ready, then rerun: sh check.sh" >&2
+  exit 1
+fi
 
 cd "$INFRA_ROOT/docker" || exit 1
 
