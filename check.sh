@@ -4,10 +4,16 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 set -euo pipefail
 
-PROJECT_ROOT="/Users/chethan/GitHub/AIP-Project/AIP"
-INFRA_ROOT="/Users/chethan/GitHub/AIP-Project/AIP-Infra"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INFRA_ROOT="$PROJECT_ROOT/AIP-Infra"
 
 cd "$PROJECT_ROOT" || exit 1
+
+# Load environment variables if they exist in the secrets directory
+if [ -f "$INFRA_ROOT/secrets/.env" ]; then
+  # Export non-comment lines
+  export $(grep -v '^#' "$INFRA_ROOT/secrets/.env" | xargs)
+fi
 
 if [ -z "${VIRTUAL_ENV:-}" ]; then
   echo ""
@@ -91,8 +97,8 @@ echo "===== VECTOR ====="
 
 docker exec -i aip-postgres \
 psql \
--U aip \
--d aipdb \
+-U "${AIP_POSTGRES_USER:-aip}" \
+-d "${AIP_POSTGRES_DB:-aipdb}" \
 -c "\dx" \
 | grep vector
 
@@ -101,8 +107,8 @@ echo "===== NEO4J ====="
 
 docker exec aip-neo4j \
 cypher-shell \
--u neo4j \
--p password123 \
+-u "${NEO4J_USER:-neo4j}" \
+-p "${NEO4J_PASSWORD:-password123}" \
 "RETURN 'CONNECTED';"
 
 echo ""
@@ -110,7 +116,47 @@ echo "===== INFRA CONNECTIVITY ====="
 
 cd "$PROJECT_ROOT"
 
-python test_infra.py
+python - << 'EOF'
+import os
+import sys
+import psycopg2
+
+# Ensure workspace root and src/ are in python path
+sys.path.insert(0, os.path.join(os.getcwd(), "AIP"))
+sys.path.insert(0, os.path.join(os.getcwd(), "AIP", "src"))
+
+from src.shared.config import config
+from src.shared.infra.postgres_client import PostgresClient
+from src.shared.infra.redis_client import RedisClient
+from src.shared.infra.neo4j_client import Neo4jClient
+
+print("POSTGRES")
+pg = PostgresClient()
+conn = pg.get_connection()
+print("CONNECTED")
+conn.close()
+
+print("REDIS")
+r = RedisClient()
+print(r.ping())
+
+print("NEO4J")
+n4j = Neo4jClient()
+n4j.verify_connectivity()
+print("CONNECTED")
+n4j.close()
+
+print("BUSINESS DB")
+conn = psycopg2.connect(
+    host=config.POSTGRES_HOST,
+    database=config.POSTGRES_DB,
+    user=config.POSTGRES_USER,
+    password=config.POSTGRES_PASSWORD,
+    port=config.POSTGRES_PORT
+)
+print("CONNECTED")
+conn.close()
+EOF
 
 echo ""
 echo "===== STORAGE ====="

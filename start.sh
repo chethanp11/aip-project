@@ -15,8 +15,14 @@ fi
 
 cd "$REPO_ROOT"
 
+# Load environment variables if they exist in the secrets directory
+if [ -f "$REPO_ROOT/AIP-Infra/secrets/.env" ]; then
+  # Export non-comment lines
+  export $(grep -v '^#' "$REPO_ROOT/AIP-Infra/secrets/.env" | xargs)
+fi
+
 PYTHON_BIN="${PYTHON_BIN:-python3}"
-VENV_DIR="${VENV_DIR:-$APP_DIR/.venv}"
+VENV_DIR="${VENV_DIR:-$REPO_ROOT/.venv}"
 if [[ "$VENV_DIR" != /* ]]; then
   VENV_DIR="$REPO_ROOT/$VENV_DIR"
 fi
@@ -44,7 +50,7 @@ else
   echo "Preparing Python dependencies..."
   python -m pip install --upgrade pip setuptools wheel
   cd "$APP_DIR"
-  python -m pip install --prefer-binary -r requirements.txt
+  python -m pip install --prefer-binary -r "$REPO_ROOT/requirements.txt"
   cd "$REPO_ROOT"
 fi
 
@@ -71,7 +77,7 @@ if [ "${AIP_SKIP_INFRA:-}" != "1" ]; then
 
   echo "Waiting for analytics PostgreSQL..."
   for attempt in {1..30}; do
-    if docker exec analytics-source-db pg_isready -U analytics -d analyticsdb >/dev/null 2>&1; then
+    if docker exec analytics-source-db pg_isready -U "${POSTGRES_USER:-analytics}" -d "${POSTGRES_DB:-analyticsdb}" >/dev/null 2>&1; then
       break
     fi
     if [ "$attempt" -eq 30 ]; then
