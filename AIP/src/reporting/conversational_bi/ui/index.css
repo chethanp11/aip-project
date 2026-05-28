@@ -290,3 +290,202 @@ input[type="text"]:focus {
     gap: 8px;
     margin-bottom: 12px;
 }
+
+/* Conv BI rendered answer */
+.message.bot {
+    max-width: 96%;
+}
+
+.convbi-answer-html {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.convbi-answer-html h1,
+.convbi-answer-html h2,
+.convbi-answer-html h3 {
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.convbi-answer-html h2 {
+    font-size: 17px;
+    margin-top: 2px;
+}
+
+.convbi-answer-html h3 {
+    font-size: 14px;
+    margin-top: 6px;
+}
+
+.convbi-answer-html p,
+.convbi-answer-html li {
+    color: #334155;
+    line-height: 1.55;
+}
+
+.convbi-answer-html ul {
+    padding-left: 18px;
+}
+
+.convbi-table-wrap {
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.convbi-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.convbi-table-wrap th {
+    background: #f8fafc;
+    color: #475569;
+    text-align: left;
+    padding: 9px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 700;
+}
+
+.convbi-table-wrap td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eef2f7;
+    color: #0f172a;
+}
+
+.convbi-dynamic-visual,
+.convbi-visual-card {
+    margin-top: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #dbeafe;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+}
+
+.convbi-visual-title span,
+.convbi-kicker {
+    display: inline-flex;
+    color: #2563eb;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.convbi-visual-title h3,
+.convbi-visual-header h3 {
+    font-size: 15px;
+    margin: 0 0 4px;
+}
+
+.convbi-visual-title p,
+.convbi-visual-header p {
+    color: #64748b;
+    font-size: 12px;
+    margin-bottom: 12px;
+}
+
+.convbi-dynamic-bars,
+.convbi-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.convbi-dynamic-label,
+.convbi-bar-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    color: #334155;
+    margin-bottom: 4px;
+}
+
+.convbi-dynamic-label strong,
+.convbi-bar-label strong {
+    color: #0f172a;
+}
+
+.convbi-dynamic-track,
+.convbi-bar-track {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.convbi-dynamic-track > div,
+.convbi-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #60a5fa, #2563eb);
+    border-radius: 999px;
+}
+
+.convbi-visual-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.convbi-status-pill {
+    font-size: 11px;
+    color: #0369a1;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+    border-radius: 999px;
+    padding: 4px 8px;
+    white-space: nowrap;
+}
+
+.convbi-metric-grid,
+.convbi-visual-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.convbi-visual-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.convbi-metric,
+.convbi-panel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.convbi-metric span {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 5px;
+}
+
+.convbi-metric strong {
+    color: #0f172a;
+    font-size: 15px;
+}
+
+.convbi-panel h4 {
+    font-size: 12px;
+    color: #334155;
+    margin-bottom: 8px;
+}
+
+.convbi-empty {
+    color: #64748b;
+    font-size: 12px;
+}
