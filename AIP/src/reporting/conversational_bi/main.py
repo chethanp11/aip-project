@@ -2,7 +2,7 @@
 Product 3: Conversational BI Assistant (Stateful Agentic AI)
 Assigned Enterprise Agent: Conversational BI Agent
 
-Acts strictly as a multi-agent orchestrator using the Google Antigravity SDK.
+Acts strictly as a multi-agent orchestrator using pure LangGraph.
 No business logic, prompt strings, or formatting HTML are stored in this file.
 """
 
@@ -10,11 +10,52 @@ import json
 import os
 import sys
 import importlib.util
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Callable
 
-from google.antigravity import Agent, LocalAgentConfig
+from langgraph.graph import StateGraph, END
+from typing import TypedDict
+
 from shared.intelligence import invoke_capability, call_llm
 from src.shared.infra.analytics_client import AnalyticsClient
+
+# --- Reusable LangGraph Stateful Agent Runtime ---
+
+class AgentState(TypedDict):
+    messages: List[Dict[str, str]]
+    system_instructions: str
+    json_mode: bool
+    output: str
+
+
+class LangGraphAgent:
+    """A stateful agent compiled and executed entirely using LangGraph."""
+    def __init__(self, system_instructions: str, tools: List[Callable] = None):
+        self.system_instructions = system_instructions
+        self.tools = tools or []
+        
+        # Compile LangGraph StateGraph
+        workflow = StateGraph(AgentState)
+        workflow.add_node("agent", self._call_model)
+        workflow.set_entry_point("agent")
+        workflow.add_edge("agent", END)
+        self.graph = workflow.compile()
+        
+    async def _call_model(self, state: AgentState) -> Dict[str, Any]:
+        messages = state.get("messages", [])
+        user_prompt = messages[-1]["content"] if messages else ""
+        res = await call_llm(self.system_instructions, user_prompt, json_mode=state.get("json_mode", False))
+        return {"output": res or ""}
+        
+    async def chat(self, prompt: str, json_mode: bool = False) -> str:
+        state = {
+            "messages": [{"role": "user", "content": prompt}],
+            "system_instructions": self.system_instructions,
+            "json_mode": json_mode,
+            "output": ""
+        }
+        res_state = await self.graph.ainvoke(state)
+        return res_state.get("output", "")
+
 
 from src.shared.tools.database_tool import (
     get_database_schema,
@@ -59,54 +100,83 @@ def _load_subagent(name: str):
     return module
 
 
-def _get_kms_retrieval_agent() -> Agent:
-    return _load_subagent("kms_retrieval_agent").get_kms_retrieval_agent()
+def _get_kms_retrieval_agent() -> LangGraphAgent:
+    module = _load_subagent("kms_retrieval_agent")
+    return LangGraphAgent(
+        system_instructions=module.SYSTEM_INSTRUCTIONS,
+        tools=getattr(module, "get_tools", lambda: [])()
+    )
 
 
-def _get_sql_planner_agent() -> Agent:
-    return _load_subagent("sql_planner_agent").get_sql_planner_agent()
+def _get_sql_planner_agent() -> LangGraphAgent:
+    module = _load_subagent("sql_planner_agent")
+    return LangGraphAgent(
+        system_instructions=module.SYSTEM_INSTRUCTIONS,
+        tools=getattr(module, "get_tools", lambda: [])()
+    )
 
 
-def _get_sql_debugger_agent() -> Agent:
-    return _load_subagent("sql_debugger_agent").get_sql_debugger_agent()
+def _get_sql_debugger_agent() -> LangGraphAgent:
+    module = _load_subagent("sql_debugger_agent")
+    return LangGraphAgent(
+        system_instructions=module.SYSTEM_INSTRUCTIONS,
+        tools=getattr(module, "get_tools", lambda: [])()
+    )
 
 
-def _get_narrative_writer_agent() -> Agent:
-    return _load_subagent("narrative_writer_agent").get_narrative_writer_agent()
+def _get_narrative_writer_agent() -> LangGraphAgent:
+    module = _load_subagent("narrative_writer_agent")
+    return LangGraphAgent(
+        system_instructions=module.SYSTEM_INSTRUCTIONS
+    )
 
 
-def _get_qc_auditor_agent() -> Agent:
-    return _load_subagent("qc_auditor_agent").get_qc_auditor_agent()
+def _get_qc_auditor_agent() -> LangGraphAgent:
+    module = _load_subagent("qc_auditor_agent")
+    return LangGraphAgent(
+        system_instructions=module.SYSTEM_INSTRUCTIONS
+    )
 
 
-def _get_narrative_revision_agent() -> Agent:
-    return _load_subagent("narrative_revision_agent").get_narrative_revision_agent()
+def _get_narrative_revision_agent() -> LangGraphAgent:
+    module = _load_subagent("narrative_revision_agent")
+    return LangGraphAgent(
+        system_instructions=module.SYSTEM_INSTRUCTIONS
+    )
 
 
-def _get_visualization_planner_agent() -> Agent:
-    return _load_subagent("visualization_planner_agent").get_visualization_planner_agent()
+def _get_visualization_planner_agent() -> LangGraphAgent:
+    module = _load_subagent("visualization_planner_agent")
+    return LangGraphAgent(
+        system_instructions=module.SYSTEM_INSTRUCTIONS
+    )
 
 
-def _get_intent_classifier_agent() -> Agent:
-    return _load_subagent("intent_classifier_agent").get_intent_classifier_agent()
+def _get_intent_classifier_agent() -> LangGraphAgent:
+    module = _load_subagent("intent_classifier_agent")
+    return LangGraphAgent(
+        system_instructions=module.SYSTEM_INSTRUCTIONS
+    )
 
 
-def _get_lineage_resolver_agent() -> Agent:
-    return _load_subagent("lineage_resolver_agent").get_lineage_resolver_agent()
+def _get_lineage_resolver_agent() -> LangGraphAgent:
+    module = _load_subagent("lineage_resolver_agent")
+    return LangGraphAgent(
+        system_instructions=module.SYSTEM_INSTRUCTIONS,
+        tools=getattr(module, "get_tools", lambda: [])()
+    )
 
 
-def _get_statistical_auditor_agent() -> Agent:
-    return _load_subagent("statistical_auditor_agent").get_statistical_auditor_agent()
+def _get_statistical_auditor_agent() -> LangGraphAgent:
+    module = _load_subagent("statistical_auditor_agent")
+    return LangGraphAgent(
+        system_instructions=module.SYSTEM_INSTRUCTIONS
+    )
 
 
-async def _chat_with_agent(agent: Agent, system_instructions: str, prompt: str, json_mode: bool = False) -> str:
-    """Invokes the agent turn using either the Google Antigravity SDK or standard call_llm routing to support test mocking."""
-    if "pytest" in sys.modules:
-        return await call_llm(system_instructions, prompt, json_mode=json_mode)
-        
-    async with agent:
-        response = await agent.chat(prompt)
-        return await response.text()
+async def _chat_with_agent(agent: LangGraphAgent, system_instructions: str, prompt: str, json_mode: bool = False) -> str:
+    """Invokes the agent turn using the stateful LangGraph compiled runtime."""
+    return await agent.chat(prompt, json_mode=json_mode)
 
 
 # --- Bridged / Simplified Helper Methods to satisfy external signatures and tests ---
@@ -178,11 +248,10 @@ async def _run_intent_classifier(question: str) -> Dict[str, Any]:
     if "pytest" in sys.modules:
         return {'intent': 'analytical', 'route': 'analytical'}
         
-    module = _load_subagent("intent_classifier_agent")
-    agent = module.get_intent_classifier_agent()
+    agent = _get_intent_classifier_agent()
     
     try:
-        response_text = await _chat_with_agent(agent, module.SYSTEM_INSTRUCTIONS, question, json_mode=True)
+        response_text = await _chat_with_agent(agent, agent.system_instructions, question, json_mode=True)
         if response_text:
             cleaned = response_text.strip()
             # Remove markdown JSON fences if present
@@ -205,11 +274,10 @@ async def _run_lineage_resolver(question: str) -> Dict[str, Any]:
     if "pytest" in sys.modules:
         return {'resolved': True, 'mappings': []}
         
-    module = _load_subagent("lineage_resolver_agent")
-    agent = module.get_lineage_resolver_agent()
+    agent = _get_lineage_resolver_agent()
     
     try:
-        response_text = await _chat_with_agent(agent, module.SYSTEM_INSTRUCTIONS, question, json_mode=True)
+        response_text = await _chat_with_agent(agent, agent.system_instructions, question, json_mode=True)
         if response_text:
             cleaned = response_text.strip()
             if cleaned.startswith("```"):
@@ -230,8 +298,7 @@ async def _run_statistical_audit(question: str, trend_telemetry: Dict[str, Any],
     if "pytest" in sys.modules:
         return {'passed': True, 'violations': [], 'revision_instruction': None}
         
-    module = _load_subagent("statistical_auditor_agent")
-    agent = module.get_statistical_auditor_agent()
+    agent = _get_statistical_auditor_agent()
     user_prompt = json.dumps({
         'question': question,
         'TREND_TELEMETRY': trend_telemetry,
@@ -239,7 +306,7 @@ async def _run_statistical_audit(question: str, trend_telemetry: Dict[str, Any],
     }, default=str, indent=2)
     
     try:
-        response_text = await _chat_with_agent(agent, module.SYSTEM_INSTRUCTIONS, user_prompt, json_mode=True)
+        response_text = await _chat_with_agent(agent, agent.system_instructions, user_prompt, json_mode=True)
         if response_text:
             cleaned = response_text.strip()
             if cleaned.startswith("```"):
@@ -265,8 +332,7 @@ async def _generate_query_plan(question: str, schema_catalog: Dict[str, Any], re
     else:
         context_text = "No KMS context matched."
 
-    module = _load_subagent("sql_planner_agent")
-    agent = module.get_sql_planner_agent()
+    agent = _get_sql_planner_agent()
     user_prompt = json.dumps({
         'question': question,
         'AUTHORIZED_SCHEMA': schema_catalog,
@@ -274,7 +340,7 @@ async def _generate_query_plan(question: str, schema_catalog: Dict[str, Any], re
     }, default=str, indent=2)
 
     try:
-        response_text = await _chat_with_agent(agent, module.SYSTEM_INSTRUCTIONS, user_prompt, json_mode=True)
+        response_text = await _chat_with_agent(agent, agent.system_instructions, user_prompt, json_mode=True)
         if response_text:
             cleaned = response_text.strip()
             if cleaned.startswith("```"):
@@ -293,8 +359,7 @@ async def _generate_query_plan(question: str, schema_catalog: Dict[str, Any], re
 
 async def _repair_sql_query(question: str, failed_sql: str, error_msg: str, schema_catalog: Dict[str, Any]) -> str:
     """Chat with SQL Debugger Agent to correct a failing SQL query."""
-    module = _load_subagent("sql_debugger_agent")
-    agent = module.get_sql_debugger_agent()
+    agent = _get_sql_debugger_agent()
     user_prompt = json.dumps({
         'question': question,
         'failing_sql': failed_sql,
@@ -303,7 +368,7 @@ async def _repair_sql_query(question: str, failed_sql: str, error_msg: str, sche
     }, default=str, indent=2)
     
     try:
-        response_text = await _chat_with_agent(agent, module.SYSTEM_INSTRUCTIONS, user_prompt, json_mode=True)
+        response_text = await _chat_with_agent(agent, agent.system_instructions, user_prompt, json_mode=True)
         if response_text:
             cleaned = response_text.strip()
             if cleaned.startswith("```"):
@@ -332,8 +397,7 @@ async def _build_llm_narrative(question: str, fact_pack: Dict[str, Any], retriev
     else:
         context_text = "No KMS context matched."
 
-    module = _load_subagent("narrative_writer_agent")
-    agent = module.get_narrative_writer_agent()
+    agent = _get_narrative_writer_agent()
     user_prompt = json.dumps({
         "question": question,
         "LIVE_DATA_FACTS": fact_pack,
@@ -342,7 +406,7 @@ async def _build_llm_narrative(question: str, fact_pack: Dict[str, Any], retriev
     }, default=str, indent=2)
 
     try:
-        response_text = await _chat_with_agent(agent, module.SYSTEM_INSTRUCTIONS, user_prompt)
+        response_text = await _chat_with_agent(agent, agent.system_instructions, user_prompt)
         if response_text and response_text.strip():
             return response_text.strip()
     except Exception as exc:
@@ -360,8 +424,7 @@ async def _run_quality_control(question: str, fact_pack: Dict[str, Any], narrati
     else:
         context_text = "No KMS context matched."
 
-    module = _load_subagent("qc_auditor_agent")
-    agent = module.get_qc_auditor_agent()
+    agent = _get_qc_auditor_agent()
     simplified_facts = {
         'question': question,
         'authorized_tables': fact_pack.get('authorized_tables'),
@@ -383,7 +446,7 @@ async def _run_quality_control(question: str, fact_pack: Dict[str, Any], narrati
     }, default=str, indent=2)
 
     try:
-        response_text = await _chat_with_agent(agent, module.SYSTEM_INSTRUCTIONS, user_prompt, json_mode=True)
+        response_text = await _chat_with_agent(agent, agent.system_instructions, user_prompt, json_mode=True)
         if response_text:
             cleaned = response_text.strip()
             if cleaned.startswith("```"):
@@ -418,8 +481,7 @@ async def _revise_llm_narrative(
     else:
         context_text = "No KMS context matched."
 
-    module = _load_subagent("narrative_revision_agent")
-    agent = module.get_narrative_revision_agent()
+    agent = _get_narrative_revision_agent()
     user_prompt = json.dumps({
         "question": question,
         "LIVE_DATA_FACTS": fact_pack,
@@ -430,7 +492,7 @@ async def _revise_llm_narrative(
     }, default=str, indent=2)
 
     try:
-        response_text = await _chat_with_agent(agent, module.SYSTEM_INSTRUCTIONS, user_prompt)
+        response_text = await _chat_with_agent(agent, agent.system_instructions, user_prompt)
         if response_text and response_text.strip():
             return response_text.strip()
     except Exception as exc:
@@ -453,15 +515,14 @@ async def _plan_visualizations(question: str, executed_queries: List[Dict[str, A
     if not visualizable:
         return {'has_visual': False, 'visuals': []}
 
-    module = _load_subagent("visualization_planner_agent")
-    agent = module.get_visualization_planner_agent()
+    agent = _get_visualization_planner_agent()
     user_prompt = json.dumps({
         'question': question,
         'datasets': visualizable
     }, default=str, indent=2)
 
     try:
-        response_text = await _chat_with_agent(agent, module.SYSTEM_INSTRUCTIONS, user_prompt, json_mode=True)
+        response_text = await _chat_with_agent(agent, agent.system_instructions, user_prompt, json_mode=True)
         if response_text:
             cleaned = response_text.strip()
             if cleaned.startswith("```"):
@@ -552,12 +613,14 @@ async def run_conversational_bi_workflow(question: str) -> Dict[str, Any]:
         # Discover Neo4j lineage relations for semantic context package
         lineage_data = retrieve_graph_lineage(question)
         
+        schema_catalog = _schema_catalog()
         fact_pack = {
             'fact_source_rule': 'All factual definitions must match KMS.',
             'question': question,
             'kms_lineage': lineage_data,
             'executed_queries': [],
-            'authorized_tables': []
+            'authorized_tables': list(schema_catalog.keys()),
+            'accessible_table_metadata': _build_accessible_table_facts(schema_catalog),
         }
         
         response_narrative = await _build_llm_narrative(question, fact_pack, retrieve_result)
