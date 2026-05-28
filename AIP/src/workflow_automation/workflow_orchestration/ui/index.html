@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Workflow Orchestration Gateway</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css" />
+    <style>
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+        }
+        .card {
+            background: #1e293b;
+            border-color: #334155;
+            color: #f8fafc;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h2 {
+            color: #06b6d4;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+        }
+        .desc {
+            color: #94a3b8;
+        }
+        select, input[type="text"], textarea {
+            background: #0f172a !important;
+            border: 1px solid #334155 !important;
+            color: #f8fafc !important;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 13px;
+            outline: none;
+            width: 100%;
+        }
+        .flow-container {
+            background: #0f172a;
+            border: 1px dashed #334155;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            min-height: 80px;
+        }
+        .flow-node {
+            background: #0369a1;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-weight: 600;
+            font-size: 11px;
+        }
+        .flow-node.approval {
+            background: #b45309;
+            border-color: #d97706;
+        }
+        .flow-arrow {
+            color: #94a3b8;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .btn {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            font-weight: 700;
+            border-radius: 6px;
+            padding: 12px 24px;
+            font-size: 13px;
+        }
+        .btn:hover {
+            opacity: 0.95;
+        }
+        .trace-item {
+            border: 1px solid #334155;
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 10px;
+            transition: transform 0.2s;
+        }
+        .trace-item:hover {
+            transform: translateX(4px);
+        }
+        .trace-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .trace-status {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+        .trace-status.completed {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid #10b981;
+        }
+        .trace-status.paused {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            border: 1px solid #f59e0b;
+        }
+        .trace-status.failed {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+        .trace-detail {
+            margin-top: 10px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+            color: #38bdf8;
+            white-space: pre-wrap;
+        }
+        .alert-card.paused-gate {
+            border-left: 4px solid #f59e0b;
+            background: rgba(245, 158, 11, 0.05);
+            padding: 16px;
+            border-radius: 8px;
+            border-top: 1px solid #334155;
+            border-right: 1px solid #334155;
+            border-bottom: 1px solid #334155;
+            margin-top: 20px;
+        }
+        .loader {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="sub-portal">
+        <div class="card">
+            <h2>🚀 Workflow Orchestrator</h2>
+            <p class="desc">Query designed analytical DAG pipelines from the KMS, execute state machine sequences, and trace dynamic capability executions.</p>
+            
+            <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px;">
+                <div style="width: 70%;">
+                    <select id="workflow-selector">
+                        <option value="">-- Load Designed Workflows from KMS --</option>
+                    </select>
+                </div>
+                <div style="width: 30%;">
+                    <button class="btn" id="load-workflows-btn" style="width: 100%; padding: 10px; background: #334155; border: 1px solid #475569;">🔄 Fetch KMS Registry</button>
+                </div>
+            </div>
+
+            <!-- Flowchart of selected DAG -->
+            <div class="mt-20 hide" id="dag-flowchart-box">
+                <h4 style="font-size:13px; color:#38bdf8; margin-bottom:6px;">Designed Flowchart Topology</h4>
+                <div class="flow-container" id="dag-canvas"></div>
+            </div>
+
+            <button class="btn" id="orch-btn" style="width: 100%;" disabled>Execute Pipeline DAG</button>
+            
+            <!-- Pause Notification Card -->
+            <div class="alert-card paused-gate hide" id="pause-alert">
+                <h4 style="color: #f59e0b; display: flex; align-items: center; gap: 6px;">🛡️ Manual Approval Guard Active</h4>
+                <p style="color: #94a3b8; font-size: 12px; margin-top: 6px; line-height: 1.4;">
+                    Workflow execution has been safely paused at node <strong id="pause-node-id" style="color: #f8fafc;"></strong>. An approval session <strong id="pause-app-id" style="color: #38bdf8;"></strong> has been stored in Redis. 
+                    Please navigate to the <strong>Compliance Sign-off</strong> tab to approve or reject this execution.
+                </p>
+            </div>
+
+            <!-- Trace Outputs -->
+            <div class="results-box hide mt-20" id="orch-results" style="background: #1e293b; border-color: #334155;">
+                <h3 style="font-size: 15px; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 12px; color: #38bdf8;">📈 Sequential Execution Node Traces</h3>
+                <div id="traces-container"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const token = localStorage.getItem('AIP_API_KEY') || '';
+            if (url.includes('/api/v1')) {
+                options.headers = options.headers || {};
+                if (token) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>

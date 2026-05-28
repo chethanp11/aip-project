@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Workflow Observability Telemetry</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css" />
+    <style>
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+        }
+        .card {
+            background: #1e293b;
+            border-color: #334155;
+            color: #f8fafc;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h2 {
+            color: #06b6d4;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+        }
+        .desc {
+            color: #94a3b8;
+        }
+        .grid-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+        }
+        .stat-card span {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-card h3 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #06b6d4;
+            margin-top: 6px;
+        }
+        .chart-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        .chart-title {
+            font-size: 13px;
+            color: #38bdf8;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .lineage-pane {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .cypher-console {
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #38bdf8;
+            margin-bottom: 16px;
+        }
+        .lineage-node {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+        .badge-status {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+        .badge-status.completed {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid #10b981;
+        }
+        .badge-status.failed {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+        .loader {
+            color: #38bdf8;
+        }
+        .btn-refresh {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            font-weight: 700;
+            border-radius: 6px;
+            padding: 10px 16px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sub-portal">
+        <div class="card">
+            <h2>📈 Telemetry & Operational Health</h2>
+            <p class="desc">Query real-time process execution logs, aggregate latency metrics from Postgres, and trace Neo4j database process lineage graphs.</p>
+            
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+                <button class="btn btn-refresh" id="load-mon">🔄 Refresh Telemetry Grid</button>
+            </div>
+
+            <!-- Grid Stats -->
+            <div class="grid-stats">
+                <div class="stat-card">
+                    <span>Total Invocations</span>
+                    <h3 id="stat-total">0</h3>
+                </div>
+                <div class="stat-card">
+                    <span>Success Rate</span>
+                    <h3 id="stat-success">100%</h3>
+                </div>
+                <div class="stat-card">
+                    <span>Average Latency</span>
+                    <h3 id="stat-latency">0ms</h3>
+                </div>
+                <div class="stat-card">
+                    <span>AIP Token Cost</span>
+                    <h3 id="stat-cost">$0.00</h3>
+                </div>
+            </div>
+
+            <!-- SVG Chart for Latency Trend -->
+            <div class="chart-box">
+                <div class="chart-title">📈 System Latency Execution Trends (ms)</div>
+                <div id="chart-canvas" style="display: flex; justify-content: center; align-items: flex-end; height: 120px; gap: 8px;">
+                    <!-- Dynamically rendered bars -->
+                </div>
+            </div>
+
+            <!-- Neo4j Lineage Trace -->
+            <div class="lineage-pane">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                    <h3 style="font-size: 14px; color: #38bdf8; font-weight: 600;">🌿 Centralized Graph Network (Neo4j) Lineage</h3>
+                    <button class="btn" id="btn-query-neo4j" style="padding: 6px 12px; font-size:11px; background:#0284c7;">Query Lineage Graph</button>
+                </div>
+                <div class="cypher-console">
+                    MATCH (w:Workflow)-[:HAS_RUN]->(r:WorkflowRun)-[:EXECUTED_STEP]->(sr:WorkflowStepRun)<br/>
+                    OPTIONAL MATCH (sr)-[:PRODUCED]->(a:WorkflowArtifact)<br/>
+                    RETURN w.name, r.id, r.status, sr.nodeId, sr.status, a.filename LIMIT 15;
+                </div>
+                <div id="lineage-feed">
+                    <p style="color: #64748b; font-style: italic; font-size: 12px; text-align:center; padding: 12px;">Click Query Lineage Graph to inspect graph network relationships.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const token = localStorage.getItem('AIP_API_KEY') || '';
+            if (url.includes('/api/v1')) {
+                options.headers = options.headers || {};
+                if (token) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+# Shared infra package entrypoint

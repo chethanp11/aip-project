@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Task Automation & Stateful Sign-off</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css" />
+    <style>
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+        }
+        .card {
+            background: #1e293b;
+            border-color: #334155;
+            color: #f8fafc;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        h2 {
+            color: #06b6d4;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+        }
+        .desc {
+            color: #94a3b8;
+        }
+        .split-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 20px;
+        }
+        .pane {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .pane h3 {
+            font-size: 15px;
+            color: #38bdf8;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+        input[type="text"], select, textarea {
+            background: #0f172a !important;
+            border: 1px solid #334155 !important;
+            color: #f8fafc !important;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 13px;
+            outline: none;
+            width: 100%;
+        }
+        .approval-card {
+            border: 1px solid #334155;
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .btn-approve {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-reject {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-approve:hover, .btn-reject:hover { opacity: 0.9; }
+        .history-item {
+            border: 1px solid #334155;
+            background: #0f172a;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-status {
+            font-size: 10px;
+            padding: 1px 4px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+        .badge-status.completed {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid #10b981;
+        }
+        .badge-status.failed {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+        .badge-status.running {
+            background: rgba(14, 165, 233, 0.1);
+            color: #0ea5e9;
+            border: 1px solid #0ea5e9;
+        }
+        .btn-trigger {
+            background: linear-gradient(135deg, #0ea5e9, #0284c7);
+            font-weight: 700;
+            border-radius: 6px;
+            padding: 10px 16px;
+            font-size: 13px;
+            border: none;
+            color: white;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-trigger:hover { opacity: 0.95; }
+        .loader {
+            color: #38bdf8;
+        }
+        .console-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #38bdf8;
+            max-height: 100px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sub-portal">
+        <div class="card">
+            <h2>🛡️ Task Automation & Compliance Gateway</h2>
+            <p class="desc">Govern human-in-the-loop approvals routing gates and launch schedule-based sandboxed analytics execution tasks.</p>
+            
+            <div class="split-grid">
+                <!-- Left Pane: HITL Compliance Sign-off -->
+                <div class="pane">
+                    <h3>🛡️ Compliance Sign-off Queue</h3>
+                    <button class="btn" id="load-approvals" style="width: 100%; padding: 8px; background: #334155; border: 1px solid #475569; font-size:12px; margin-bottom: 16px;">🔄 Query Compliance Gates</button>
+                    <div id="approvals-feed">
+                        <!-- Active Approvals -->
+                    </div>
+                    
+                    <div class="results-box hide mt-20" id="resumed-traces-box" style="background: #0f172a; border-color: #334155;">
+                        <h4 style="font-size: 13px; color: #10b981; margin-bottom: 8px;">📈 Resumed Execution Traces</h4>
+                        <div id="resumed-traces" style="font-size: 12px;"></div>
+                    </div>
+                </div>
+
+                <!-- Right Pane: Sandboxed Background Task Runner -->
+                <div class="pane">
+                    <h3>⚙️ Sandboxed Asynchronous Runner</h3>
+                    <div class="form-section" style="background:transparent; border:none; padding:0; margin-bottom:12px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                            <input type="text" id="task-id-in" value="auto_ldr_report" placeholder="Task ID" />
+                            <select id="task-trigger-in">
+                                <option value="schedule_cron">Cron (*/5 * * * *)</option>
+                                <option value="webhook_event">Webhook External Trigger</option>
+                                <option value="manual_run">Manual Force Fire</option>
+                            </select>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <textarea id="task-code-in" rows="6" style="font-family: monospace; font-size: 11px; color:#38bdf8;" placeholder='Isolated Python Code String (e.g. print("LDR check completed"))'></textarea>
+                        </div>
+                        <button class="btn-trigger" id="btn-submit-task">Submit to Isolated Sandbox</button>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <h4 style="font-size:13px; color:#38bdf8; margin-bottom:8px; border-bottom:1px solid #334155; padding-bottom:4px;">🔄 Sandbox Runs History</h4>
+                        <div id="tasks-history-feed" style="max-height: 250px; overflow-y: auto;">
+                            <p style="color: #64748b; font-style: italic; font-size: 12px;">No runs triggered yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const token = localStorage.getItem('AIP_API_KEY') || '';
+            if (url.includes('/api/v1')) {
+                options.headers = options.headers || {};
+                if (token) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>

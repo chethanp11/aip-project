@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PRISM Report Rationalizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css" />
+    <style>
+        /* Custom Modern Enhancements for PRISM Interface */
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --primary-light: rgba(79, 70, 229, 0.08);
+            --success: #10b981;
+            --success-light: rgba(16, 185, 129, 0.08);
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            --glass-bg: rgba(255, 255, 255, 0.75);
+            --glass-border: rgba(226, 232, 240, 0.8);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        .prism-workspace {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 24px;
+            max-width: 1300px;
+            margin: 0 auto;
+            align-items: start;
+        }
+
+        /* Glassmorphism sidebar card */
+        .workspace-sidebar {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sidebar-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(to right, #4f46e5, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        /* Drag and Drop area */
+        .dropzone-container {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 24px 16px;
+            text-align: center;
+            cursor: pointer;
+            background: rgba(248, 250, 252, 0.5);
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .dropzone-container:hover, .dropzone-container.dragover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .dropzone-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+
+        .dropzone-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .dropzone-sub {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .file-list {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .file-badge {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+        }
+
+        .file-badge span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 180px;
+            font-weight: 500;
+        }
+
+        .file-remove {
+            color: var(--danger);
+            cursor: pointer;
+            font-weight: 700;
+            padding: 0 4px;
+        }
+
+        /* Action Buttons */
+        .btn-glow {
+            background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+            transition: var(--transition);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .btn-glow:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+        }
+
+        .btn-glow:disabled {
+            background: #94a3b8;
+            box-shadow: none;
+            transform: none;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary-outline {
+            background: white;
+            border: 1px solid #cbd5e1;
+            color: #475569;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .btn-secondary-outline:hover {
+            background: #f8fafc;
+            border-color: #94a3b8;
+        }
+
+        /* Guidelines prompt */
+        .guidelines-box {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .guidelines-box label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .guidelines-box textarea {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 12px;
+            min-height: 70px;
+            resize: vertical;
+            outline: none;
+            background: #fff;
+            font-family: inherit;
+        }
+
+        .guidelines-box textarea:focus {
+            border-color: var(--primary);
+        }
+
+        /* Right Canvas Dashboard */
+        .workspace-canvas {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary);
+        }
+
+        .stat-card.success::after { background: var(--success); }
+        .stat-card.warning::after { background: var(--warning); }
+        .stat-card.danger::after { background: var(--danger); }
+
+        .stat-card span {
+            font-size: 11px;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-top: 4px;
+        }
+
+        .stat-card .desc {
+            font-size: 11px;
+            color: #94a3b8;
+            margin: 0;
+            margin-top: 2px;
+        }
+
+        /* Dashboard panels */
+        .dashboard-panel {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+        }
+
+        .panel-title h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .panel-title p {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+
+        /* AI Recommendation Alert box */
+        .ai-alert-banner {
+            background: linear-gradient(to right, #e0e7ff, #f3e8ff);
+            border: 1px solid #c7d2fe;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .ai-banner-icon {
+            font-size: 20px;
+        }
+
+        .ai-banner-text h5 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: #312e81;
+            margin-bottom: 3px;
+        }
+
+        .ai-banner-text p {
+            font-size: 12px;
+            color: #4338ca;
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        /* Grid for details */
+        .sections-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        /* Accordion list */
+        .accordion-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .accordion-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .accordion-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .accordion-item-header span.name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .accordion-item-header span.badge {
+            background: #fee2e2;
+            color: #ef4444;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .accordion-item-header span.badge.overlap {
+            background: #fff3c7;
+            color: #d97706;
+        }
+
+        .accordion-item-body {
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.4;
+            background: white;
+            border: 1px solid #f1f5f9;
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+
+        .accordion-item-body code {
+            font-family: Consolas, monospace;
+            background: #f1f5f9;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 10px;
+        }
+
+        /* Consolidation Plan Cards */
+        .plan-cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .plan-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01);
+            transition: var(--transition);
+        }
+
+        .plan-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+            border-color: #cbd5e1;
+        }
+
+        .plan-card-header {
+            background: #fafbfe;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .plan-title-wrapper h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .plan-title-wrapper p {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 2px;
+            margin-bottom: 0;
+        }
+
+        .plan-badge {
+            background: var(--success-light);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .plan-card-body {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .plan-detail-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .plan-detail-row label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .plan-detail-row p {
+            font-size: 12px;
+            color: #334155;
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        .plan-card-footer {
+            border-top: 1px solid #f1f5f9;
+            padding: 12px 20px;
+            background: #fafbfe;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn-action-builder {
+            background: var(--primary);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-action-builder:hover {
+            background: var(--primary-hover);
+            transform: translateX(2px);
+        }
+
+        .empty-placeholder {
+            text-align: center;
+            padding: 80px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-placeholder .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .empty-placeholder h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .empty-placeholder p {
+            font-size: 12px;
+            max-width: 400px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="prism-workspace">
+        
+        <!-- Sidebar Workspace Parameters -->
+        <aside class="workspace-sidebar">
+            <div class="sidebar-header">
+                <h2>💎 PRISM Inventory Audit</h2>
+                <p>Rationalize duplicate report structures, calculate relational metrics overlaps, and auto-compose consolidated builds.</p>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid #e2e8f0;" />
+            
+            <!-- File screening input zone -->
+            <div class="guidelines-box">
+                <label>Screen Banking Reports</label>
+                <div class="dropzone-container" id="dropzone">
+                    <span class="dropzone-icon">📥</span>
+                    <div class="dropzone-text">Drop files here or click to browse</div>
+                    <div class="dropzone-sub">Supports Excel (.xlsx, .xls) & HTML reports</div>
+                    <input type="file" id="file-uploader" multiple accept=".xlsx,.xls,.html,.htm,.csv" style="display: none;" />
+                </div>
+                <div class="file-list" id="selected-files-list">
+                    <!-- Dynamic uploaded files go here -->
+                </div>
+            </div>
+            
+            <!-- Sandbox seed configurations -->
+            <button class="btn-secondary-outline" id="btn-load-sandbox">
+                📦 Load Sandbox Seed Reports
+            </button>
+            
+            <!-- Auditer prompting instructions -->
+            <div class="guidelines-box">
+                <label>Auditer Strategic Directive</label>
+                <textarea id="prism-directive" placeholder="e.g. Prioritize interest-margin alignment and deprecate non-retail trackers..."></textarea>
+            </div>
+            
+            <!-- Audit Action Button -->
+            <button class="btn-glow" id="prism-audit-btn">
+                ⚡ Screen & Rationalize Inventory
+            </button>
+        </aside>
+
+        <!-- Right Hand Dashboard Workspace -->
+        <main class="workspace-canvas">
+            
+            <!-- Welcome placeholder / Initial State -->
+            <div class="dashboard-panel" id="canvas-empty-state">
+                <div class="empty-placeholder">
+                    <span class="icon">🔍</span>
+                    <h4>No Active Audit Log Compiled</h4>
+                    <p>Load the default sandbox corporate banking seeds or drag and drop your actual Excel sheets and HTML documents to generate duplication overlap reports and auto-consolidation build plans.</p>
+                </div>
+            </div>
+
+            <!-- Active audit canvas state (hidden until audit clicked) -->
+            <div class="hide" id="canvas-active-state" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
+                
+                <!-- Quick stats Dashboard -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span>Total Reports Audited</span>
+                        <h3 id="stat-total-reports">0</h3>
+                        <p class="desc">Screened excel & templates</p>
+                    </div>
+                    <div class="stat-card danger">
+                        <span>Duplicate Schemas</span>
+                        <h3 id="stat-duplicates">0</h3>
+                        <p class="desc">Exact duplicate items</p>
+                    </div>
+                    <div class="stat-card warning">
+                        <span>Overlapping Sets</span>
+                        <h3 id="stat-overlaps">0</h3>
+                        <p class="desc">Similarity coefficient &ge; 50%</p>
+                    </div>
+                    <div class="stat-card success">
+                        <span>Transaction Savings</span>
+                        <h3 id="stat-savings">0%</h3>
+                        <p class="desc">DB query load recovery potential</p>
+                    </div>
+                </div>
+
+                <!-- AI audit findings alert -->
+                <div class="ai-alert-banner">
+                    <div class="ai-banner-icon">✨</div>
+                    <div class="ai-banner-text">
+                        <h5>PRISM Lead Auditor Executive Assessment</h5>
+                        <p id="ai-banner-summary">AI rationalizer compiling report duplication calculations...</p>
+                    </div>
+                </div>
+
+                <!-- Dual Columns: Duplicate List vs Consolidation Plans -->
+                <div class="sections-row">
+                    
+                    <!-- Left: Detected duplicates and overlaps -->
+                    <div class="dashboard-panel">
+                        <div class="panel-title">
+                            <h3>📑 Inventory Overlap & Schema Duplicates</h3>
+                            <p>Identifies exact redundant query paths and similar metric sets across teams.</p>
+                        </div>
+                        <div class="accordion-list" id="duplicates-accordion">
+                            <!-- Dynamic duplication items -->
+                        </div>
+                    </div>
+
+                    <!-- Right: Consolidation plans -->
+                    <div class="dashboard-panel">
+                        <div class="panel-title">
+                            <h3>🗺️ Proposed Auto-Consolidation Plans</h3>
+                            <p>Actionable templates ready to be exported to the Report Builder module for HITL consolidation.</p>
+                        </div>
+                        <div class="plan-cards-container" id="plans-container">
+                            <!-- Dynamic plans cards -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </main>
+
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const token = localStorage.getItem('AIP_API_KEY') || '';
+            if (url.includes('/api/v1')) {
+                options.headers = options.headers || {};
+                if (token) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>

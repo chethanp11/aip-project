@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporting Workspace</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22 fill=%22%233b82f6%22>▲</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-display: 'Outfit', sans-serif;
+            --accent-color: #3b82f6; /* Blue */
+            --accent-light: #3b82f61a;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --background: #f8fafc;
+            --card-bg: #ffffff;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--background);
+            color: #1e293b;
+            padding: 24px;
+        }
+
+        .report-workspace {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        h1, h2, h3 {
+            font-family: var(--font-display);
+        }
+
+        .header-section {
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+
+        .header-section h1 {
+            font-size: 24px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .header-section p {
+            color: #64748b;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        /* Mode Selection */
+        .mode-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            background: #f1f5f9;
+            padding: 6px;
+            border-radius: 8px;
+            width: fit-content;
+        }
+
+        .mode-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            background: transparent;
+            color: #64748b;
+            transition: all 0.2s;
+        }
+
+        .mode-btn.active {
+            background: #fff;
+            color: var(--accent-color);
+            box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1);
+        }
+
+        /* Wizard Progress Bar */
+        .progress-bar-container {
+            margin-bottom: 30px;
+        }
+
+        .steps-bar {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .steps-bar::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #e2e8f0;
+            z-index: 1;
+        }
+
+        .step-indicator {
+            position: relative;
+            z-index: 2;
+            background: #f8fafc;
+            padding: 0 8px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+
+        .step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            border: 3px solid #f8fafc;
+            transition: all 0.3s;
+        }
+
+        .step-indicator.active .step-circle {
+            background: var(--accent-color);
+            color: #fff;
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+
+        .step-indicator.completed .step-circle {
+            background: var(--success-color);
+            color: #fff;
+        }
+
+        .step-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .step-indicator.active .step-label {
+            color: var(--accent-color);
+        }
+
+        .step-indicator.completed .step-label {
+            color: var(--success-color);
+        }
+
+        /* Two columns layout */
+        .workspace-grid {
+            display: grid;
+            grid-template-columns: 3.5fr 2.5fr;
+            gap: 24px;
+        }
+
+        .main-panel {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            min-height: 480px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .sidebar-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .reports-list-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+
+        .reports-list-card h3 {
+            font-size: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #0f172a;
+        }
+
+        .published-reports-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .published-item {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8fafc;
+        }
+
+        .published-item:hover {
+            border-color: var(--accent-color);
+            background: var(--accent-light);
+        }
+
+        .published-item span {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .published-item code {
+            font-size: 10px;
+            background: #e2e8f0;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        /* Step Panels */
+        .step-panel {
+            display: none;
+        }
+
+        .step-panel.active {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Prompt inputs */
+        .textarea-box {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .textarea-box:focus {
+            border-color: var(--accent-color);
+        }
+
+        /* Review box styling */
+        .review-container {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 12px;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .review-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #475569;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+
+        .checkpoint-msg {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* Feedback Area */
+        .feedback-chat-box {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .feedback-chat-box label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #856404;
+            text-transform: uppercase;
+        }
+
+        /* Actions row */
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+            padding-top: 16px;
+            margin-top: 24px;
+        }
+        
+        .badge-kpi {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 4px 8px;
+            border-radius: 12px;
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+
+        /* 🤖 Multi-Agent Decisions Dashboard Visual Styles */
+        .agent-decisions-box {
+            background: #f0fdfa; /* light teal */
+            border: 1px solid #5eead4;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 12px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .agent-decisions-box h4 {
+            color: #0f766e;
+            font-family: var(--font-display);
+            font-size: 13px;
+            margin: 0 0 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+        }
+        .agent-decision-item {
+            border-bottom: 1px dashed #ccfbf1;
+            padding-bottom: 6px;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+        .agent-decision-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        .agent-badge {
+            background: #0f766e;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        .agent-rationale {
+            color: #475569;
+            font-size: 11px;
+            margin-top: 2px;
+            padding-left: 12px;
+            border-left: 2px solid #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+    <div class="report-workspace">
+        <div class="header-section">
+            <h1>✍️ Reporting Workspace</h1>
+            <p>Stateful Agentic AI pipeline to compose and audit regulated Banking Analytics briefing layouts with HITL approvals.</p>
+        </div>
+
+        <!-- Mode selection tab -->
+        <div class="mode-row">
+            <button class="mode-btn active" id="mode-create">Create New Report</button>
+            <button class="mode-btn" id="mode-update">Update Existing Report</button>
+        </div>
+
+        <div class="workspace-grid">
+            <!-- Left: Sequential step processor panel -->
+            <div class="main-panel">
+                <!-- 6 Steps Progress Bar -->
+                <div class="progress-bar-container">
+                    <div class="steps-bar">
+                        <div class="step-indicator active" id="indicator-1">
+                            <div class="step-circle">1</div>
+                            <div class="step-label">Context</div>
+                        </div>
+                        <div class="step-indicator" id="indicator-2">
+                            <div class="step-circle">2</div>
+                            <div class="step-label">KPIs & ER</div>
+                        </div>
+                        <div class="step-indicator" id="indicator-3">
+                            <div class="step-circle">3</div>
+                            <div class="step-label">Data</div>
+                        </div>
+                        <div class="step-indicator" id="indicator-4">
+                            <div class="step-circle">4</div>
+                            <div class="step-label">Schema</div>
+                        </div>
+                        <div class="step-indicator" id="indicator-5">
+                            <div class="step-circle">5</div>
+                            <div class="step-label">Skeleton</div>
+                        </div>
+                        <div class="step-indicator" id="indicator-6">
+                            <div class="step-circle">6</div>
+                            <div class="step-label">Publish</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step Panels -->
+                <div class="workflow-steps-content">
+                    
+                    <!-- Step 1: Requirements Input -->
+                    <div class="step-panel active" id="panel-1">
+                        <h3>Step 1: Provide Requirements & Context</h3>
+                        <p class="desc">Specify the financial parameters and business contexts for the target report card.</p>
+                        
+                        <!-- PRISM Consolidation Plan Alert Box -->
+                        <div id="prism-plan-alert" class="hide" style="background: linear-gradient(135deg, rgba(79, 70, 229, 0.15) 0%, rgba(99, 102, 241, 0.15) 100%); border: 1px solid rgba(79, 70, 229, 0.3); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <span style="font-size: 20px;">✨</span>
+                                <div style="font-size: 12px;">
+                                    <strong style="color: #4f46e5; display: block; font-family: 'Outfit', sans-serif;">PRISM Consolidation Plan Loaded</strong>
+                                    <span style="color: #475569; font-weight: 500;" id="prism-plan-alert-title">Merging NIM & Interest Spread reports...</span>
+                                </div>
+                            </div>
+                            <button class="btn" id="prism-clear-plan-btn" style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 4px 8px; font-size: 10px;">Clear</button>
+                        </div>
+                        
+                        <div class="form-group" style="display:none;" id="update-select-row">
+                            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Select Report to Update:</label>
+                            <select id="update-report-dropdown" class="input-select" style="width:100%;"></select>
+                        </div>
+
+                        <div class="form-group">
+                            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Enter Report Requirements:</label>
+                            <textarea class="textarea-box" id="step1-req" placeholder="e.g. Build an executive summary detailing corporate accounts sweeps performance and outstanding balances across branches..."></textarea>
+                        </div>
+                        
+                        <!-- Working Browse button attachment -->
+                        <div class="form-group">
+                            <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Attach Additional Context:</label>
+                            <div style="display:flex; gap:8px;">
+                                <input type="text" id="step1-ctx" placeholder="e.g. Risk score thresholds, historical variance benchmarks..." style="flex-grow:1;" />
+                                <button class="btn" style="background:#64748b; font-size:11px;" id="browse-btn">📁 Browse...</button>
+                                <input type="file" id="step1-file-input" style="display:none;" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Identify relevant KPIs & ER Data Models -->
+                    <div class="step-panel" id="panel-2">
+                        <h3>Step 2: KPIs & Grounded Relational ER Models</h3>
+                        <p class="desc">The Agent parsed your instructions and matched credit/liquidity metrics with detailed data blueprints.</p>
+                        
+                        <!-- 🤖 Multi-Agent Decisions Dashboard -->
+                        <div class="agent-decisions-box" id="agent-decisions-2"></div>
+                        
+                        <div class="review-container" style="max-height: 250px;">
+                            <div class="review-title">Matched Core KPIs:</div>
+                            <div id="step2-kpis-list" style="margin-bottom:12px;"></div>
+                            
+                            <div class="review-title">Entity-Relationship (ER) Blueprint:</div>
+                            <pre id="step2-er-diagram" style="font-size:10px; background:#fff; border:1px solid #ddd; padding:10px; border-radius:4px; font-family:monospace; overflow-x:auto;"></pre>
+                            
+                            <div class="review-title" style="margin-top:12px;">Fact & Dimension Tables Structures:</div>
+                            <div id="step2-tables-structure" style="font-size:11px;"></div>
+                        </div>
+                        
+                        <div class="feedback-chat-box">
+                            <label>💬 Analyst Feedback Chat / Modify KPIs & Modeling Schema:</label>
+                            <textarea class="textarea-box" id="feedback-2" style="height:50px;" placeholder="Request modifications (e.g. 'Add Net Interest Margin to matched KPIs list' or 'Focus strictly on sweep transaction facts')..."></textarea>
+                            <button class="btn" style="background:var(--warning-color); padding:6px 12px; font-size:11px;" id="feedback-btn-2">Modify Step with Feedback ➔</button>
+                        </div>
+                        
+                        <div class="checkpoint-msg">
+                            🔒 <strong>HITL Checkpoint:</strong> Review modeling schemas and KPIs. Confirm to run transformation.
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Perform Data Transformation -->
+                    <div class="step-panel" id="panel-3">
+                        <h3>Step 3: Perform Data Transformation</h3>
+                        <p class="desc">Agent running SQL aggregate statements on SQLite transactions database tables.</p>
+                        
+                        <!-- 🤖 Multi-Agent Decisions Dashboard -->
+                        <div class="agent-decisions-box" id="agent-decisions-3"></div>
+                        
+                        <div class="review-container">
+                            <div class="review-title">Transformed SQLite Summary:</div>
+                            <pre id="step3-sql-data" style="font-size:11px; white-space:pre-wrap;"></pre>
+                        </div>
+                        
+                        <div class="feedback-chat-box">
+                            <label>💬 Analyst Feedback Chat / Modify SQL Aggregation:</label>
+                            <textarea class="textarea-box" id="feedback-3" style="height:50px;" placeholder="Request modifications (e.g. 'filter balances strictly by branch Metro Hub' or 'restrict transactions logs')..."></textarea>
+                            <button class="btn" style="background:var(--warning-color); padding:6px 12px; font-size:11px;" id="feedback-btn-3">Modify Step with Feedback ➔</button>
+                        </div>
+                        
+                        <div class="checkpoint-msg">
+                            🔒 <strong>HITL Checkpoint:</strong> Verify the data aggregates. Confirm to establish report data structure.
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Create Data Model -->
+                    <div class="step-panel" id="panel-4">
+                        <h3>Step 4: Create Report Data Model</h3>
+                        <p class="desc">The Agent structures the parsed accounts and sweeps information into a structured model.</p>
+                        
+                        <!-- 🤖 Multi-Agent Decisions Dashboard -->
+                        <div class="agent-decisions-box" id="agent-decisions-4"></div>
+                        
+                        <div class="review-container">
+                            <div class="review-title">Data Schema Definition:</div>
+                            <pre id="step4-schema-json" style="font-size:11px; white-space:pre-wrap;"></pre>
+                        </div>
+                        
+                        <div class="feedback-chat-box">
+                            <label>💬 Analyst Feedback Chat / Modify Data Model:</label>
+                            <textarea class="textarea-box" id="feedback-4" style="height:50px;" placeholder="Request modifications (e.g. 'add manual override text field variable')..."></textarea>
+                            <button class="btn" style="background:var(--warning-color); padding:6px 12px; font-size:11px;" id="feedback-btn-4">Modify Step with Feedback ➔</button>
+                        </div>
+                        
+                        <div class="checkpoint-msg">
+                            🔒 <strong>HITL Checkpoint:</strong> Verify the structured variables fields. Proceed to build visual layout skeleton.
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Create Visual HTML Skeleton -->
+                    <div class="step-panel" id="panel-5">
+                        <h3>Step 5: Create Visual HTML Report Skeleton</h3>
+                        <p class="desc">The Agent compiles a premium responsive HTML skeleton outline complete with styling sheets.</p>
+                        
+                        <!-- 🤖 Multi-Agent Decisions Dashboard -->
+                        <div class="agent-decisions-box" id="agent-decisions-5"></div>
+                        
+                        <div class="review-container">
+                            <div class="review-title">Visual CSS/HTML Scaffolding:</div>
+                            <pre id="step5-skeleton-html" style="font-size:10px; color:#0f172a; white-space:pre-wrap;"></pre>
+                        </div>
+                        
+                        <div class="feedback-chat-box">
+                            <label>💬 Analyst Feedback Chat / Modify Visual Skeleton styling:</label>
+                            <textarea class="textarea-box" id="feedback-5" style="height:50px;" placeholder="Request modifications (e.g. 'change corporate theme colors to green' or 'make headers borders red')..."></textarea>
+                            <button class="btn" style="background:var(--warning-color); padding:6px 12px; font-size:11px;" id="feedback-btn-5">Modify Step with Feedback ➔</button>
+                        </div>
+                        
+                        <div class="checkpoint-msg">
+                            🔒 <strong>HITL Checkpoint:</strong> Review visual layout properties. Click approve to populate actual numbers and publish!
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Create Final Report using Actual Data and Publish -->
+                    <div class="step-panel" id="panel-6">
+                        <h3>Step 6: Renders & Publish Standalone Report</h3>
+                        <p class="desc">Report created successfully! The Agent populated actual database records and wrote physical directories.</p>
+                        <div class="review-container" style="background:#f0fdf4; border-color:#bbf7d0;">
+                            <h4 style="color:#166534; font-family:var(--font-display); font-size:14px;">🎉 Report Successfully Published!</h4>
+                            <p style="margin-top:6px; font-size:12px; color:#14532d;">Your executive bank report has been written physically inside its own module workspace folder.</p>
+                            <div style="margin-top:12px;" id="published-report-meta"></div>
+                        </div>
+                        <button class="btn" style="background:var(--success-color); width:100%; padding:12px;" id="open-published-btn">
+                            🚀 View Report in Standalone Browser Tab
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- Step Actions row -->
+                <div class="action-row">
+                    <!-- Fully functional back button -->
+                    <button class="btn" id="prev-btn" style="background:#64748b;" disabled>Back</button>
+                    <button class="btn" id="next-btn">Approve & Progress Step ➔</button>
+                </div>
+            </div>
+
+            <!-- Right: List of Published Reports Grid -->
+            <div class="sidebar-panel">
+                <div class="reports-list-card">
+                    <h3>📋 Published Executive Reports</h3>
+                    <p style="font-size:11px; color:#64748b; margin-bottom:12px;">Click any published file card below to open it as standalone HTML in a new tab.</p>
+                    <div class="published-reports-grid" id="published-grid">
+                        <div class="placeholder-msg" style="text-align:center; font-size:12px; color:#94a3b8; padding:20px;">No published reports cataloged.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const token = localStorage.getItem('AIP_API_KEY') || '';
+            if (url.includes('/api/v1')) {
+                options.headers = options.headers || {};
+                if (token) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>

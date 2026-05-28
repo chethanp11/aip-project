@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Root Cause Analysis (RCA)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+    <div class="sub-portal">
+        
+            <div class="card">
+                <h2>🔍 Liquidity Variance Root Cause Analysis</h2>
+                <p class="desc">Identify primary drivers for balance compressions or sweeping delays.</p>
+                <select class="input-select" id="rca-metric">
+                    <option value="Deposit Outflows">Deposit Outflows</option>
+                    <option value="NPL Surcharge">Non-Performing Loans Surge</option>
+                </select>
+                <button class="btn" id="rca-btn">Decompose Drivers</button>
+                <div class="results-box hide mt-20" id="rca-results">
+                    <h4>Decomposition Summary</h4>
+                    <p id="rca-summary" class="bold"></p>
+                    <div id="rca-drivers" class="mt-10"></div>
+                </div>
+            </div>
+        
+    </div>
+    
+    <script>
+        const API_BASE = '/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const token = localStorage.getItem('AIP_API_KEY') || '';
+            if (url.includes('/api/v1')) {
+                options.headers = options.headers || {};
+                if (token) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>

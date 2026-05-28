@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>What-if Simulation Sandbox</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+    <div class="sub-portal">
+        
+            <div class="card">
+                <h2>📊 Dynamic Banking Margins Simulator</h2>
+                <p class="desc">Compute interest yields, default overheads, and Net Interest Margin dynamically.</p>
+                <div class="slider-row">
+                    <label>Average Loan Rate (<span id="lbl-loan">6.5</span>%)</label>
+                    <input type="range" id="sim-loan" min="1.0" max="15.0" step="0.1" value="6.5" />
+                </div>
+                <div class="slider-row">
+                    <label>Average Deposit Rate (<span id="lbl-dep">2.2</span>%)</label>
+                    <input type="range" id="sim-dep" min="0.1" max="8.0" step="0.1" value="2.2" />
+                </div>
+                <div class="slider-row">
+                    <label>Assets Under Management (AUM: <span id="lbl-assets">150</span>M)</label>
+                    <input type="range" id="sim-assets" min="10" max="500" step="5" value="150" />
+                </div>
+                <div class="slider-row">
+                    <label>Non-Performing Loan Rate (NPL: <span id="lbl-npl">2.5</span>%)</label>
+                    <input type="range" id="sim-npl" min="0.0" max="10.0" step="0.1" value="2.5" />
+                </div>
+                <div class="results-grid mt-20">
+                    <div class="metric-card">
+                        <span>Projected NIM</span>
+                        <h3 id="res-nim">0.0%</h3>
+                    </div>
+                    <div class="metric-card">
+                        <span>Spread Profit</span>
+                        <h3 id="res-profit">$0</h3>
+                    </div>
+                </div>
+            </div>
+        
+    </div>
+    
+    <script>
+        const API_BASE = '/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const token = localStorage.getItem('AIP_API_KEY') || '';
+            if (url.includes('/api/v1')) {
+                options.headers = options.headers || {};
+                if (token) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>

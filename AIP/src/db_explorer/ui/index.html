@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Database Explorer - AIM Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <div class="db-explorer-container">
+    
+    <!-- Sidebar for Tables list -->
+    <aside class="db-sidebar">
+      <div class="sidebar-header">
+        <span class="database-icon">🛢️</span>
+        <h3>Tables Catalog</h3>
+      </div>
+      <div class="table-list-container">
+        <ul id="tables-list" class="tables-list">
+          <li class="loading-item">Loading tables...</li>
+        </ul>
+      </div>
+      <div class="sidebar-footer">
+        <span class="db-badge">analytics-source-db</span>
+        <span class="port-badge">5433</span>
+      </div>
+    </aside>
+
+    <!-- Main Explorer Section -->
+    <main class="db-main">
+      
+      <!-- Explorer Header -->
+      <header class="explorer-header">
+        <div class="header-info">
+          <h2 id="active-table-title">Select a table to begin</h2>
+          <p id="active-table-desc">Explore schemas, construct dynamic query filters, or write raw SELECT queries.</p>
+        </div>
+        <div class="header-actions">
+          <span id="connection-status" class="status-pill status-loading">
+            <span class="status-dot"></span> Checking DB connection...
+          </span>
+        </div>
+      </header>
+
+      <!-- Control Tabs -->
+      <div class="control-tabs">
+        <button class="tab-btn active" id="tab-btn-builder">
+          <span class="tab-icon">⚙️</span> Visual Query Builder
+        </button>
+        <button class="tab-btn" id="tab-btn-sql">
+          <span class="tab-icon">💻</span> SQL Console
+        </button>
+      </div>
+
+      <!-- Tab Content Area -->
+      <div class="tab-content-container">
+        
+        <!-- Tab 1: Visual Query Builder -->
+        <section id="panel-builder" class="tab-panel active">
+          
+          <!-- Schema Viewer -->
+          <div class="schema-viewer-section">
+            <h4 class="sub-title">Table Schema</h4>
+            <div id="schema-columns-container" class="schema-pills">
+              <span class="schema-empty-text">No table selected</span>
+            </div>
+          </div>
+
+          <!-- Query Filter Builder -->
+          <div class="filter-builder-section">
+            <div class="section-header-row">
+              <h4 class="sub-title">Filter Criteria (AND)</h4>
+              <button class="btn btn-secondary btn-sm" id="btn-add-filter" disabled>
+                <span class="btn-icon">+</span> Add Filter Rule
+              </button>
+            </div>
+            
+            <div id="filter-rows-container" class="filter-rows-list">
+              <!-- Dynamically populated filter rows go here -->
+              <p class="filter-empty-text">No active filters. Query will retrieve all records (capped at 100 rows).</p>
+            </div>
+
+            <!-- Limit Control & Submit -->
+            <div class="query-actions-row">
+              <div class="limit-control">
+                <label for="query-limit">Limit Results:</label>
+                <select id="query-limit">
+                  <option value="50">50 rows</option>
+                  <option value="100" selected>100 rows</option>
+                  <option value="250">250 rows</option>
+                  <option value="500">500 rows</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" id="btn-run-visual-query" disabled>
+                🚀 Execute Filtered Query
+              </button>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Tab 2: SQL Console -->
+        <section id="panel-sql" class="tab-panel">
+          <div class="sql-console-section">
+            <div class="section-header-row">
+              <h4 class="sub-title">Raw SQL Terminal (Read-Only)</h4>
+              <span class="security-warning-badge">⚠️ SELECT/WITH queries only</span>
+            </div>
+            <div class="editor-wrapper">
+              <textarea id="sql-query-editor" placeholder="-- Write a SQL query against the selected table&#10;SELECT * FROM accounts WHERE balance > 100000000 LIMIT 10;" spellcheck="false"></textarea>
+            </div>
+            <div class="query-actions-row">
+              <div class="console-metrics" id="console-metrics-display">
+                Ready to execute custom query.
+              </div>
+              <button class="btn btn-primary" id="btn-run-custom-query">
+                ⚡ Run SQL Query
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Results Grid Panel -->
+      <section class="results-panel">
+        <div class="results-header">
+          <div class="results-title-group">
+            <h3 class="results-title">Query Results</h3>
+            <span class="results-count-badge" id="results-count">0 rows</span>
+          </div>
+          <div class="results-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-export-json" disabled>
+              📥 Export JSON
+            </button>
+          </div>
+        </div>
+
+        <div class="grid-scroll-container">
+          <div id="results-grid" class="results-grid-table">
+            <div class="grid-empty-state">
+              <span class="empty-icon">🔍</span>
+              <p>Execute a query to retrieve and inspect records from the source database.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

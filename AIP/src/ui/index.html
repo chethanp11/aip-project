@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIM Intelligence Platform</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2280%22 fill=%22%236366f1%22>▲</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+  <style>
+    /* Styling specifically for Micro-Frontend Embedding */
+    .subproduct-iframe {
+      width: 100%;
+      height: calc(100vh - 200px);
+      border: none;
+      background: transparent;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Analyst Login Screen -->
+  <div id="auth-login-screen" class="login-screen">
+    <div class="login-card-container">
+      <div class="login-brand">
+        <span class="login-logo">▲</span>
+        <h2>AIM Intelligence Platform</h2>
+        <p>Banking Analytics Operating System (AIP)</p>
+      </div>
+      
+      <!-- Role-based Authentication Tabs -->
+      <div class="login-tabs" style="display: flex; gap: 8px; background: rgba(255,255,255,0.03); padding: 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+        <button type="button" id="login-tab-analyst" class="tab-btn active" style="flex: 1; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); transition: all 0.2s;">Analyst Console</button>
+        <button type="button" id="login-tab-sme" class="tab-btn" style="flex: 1; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.5); background: transparent; transition: all 0.2s;">SME Console</button>
+      </div>
+
+      <form id="login-form" class="login-form">
+        <!-- Analyst User IDs Dropdown -->
+        <div class="form-group" id="group-analyst-ids">
+          <label for="login-analyst-id" style="color: rgba(255,255,255,0.6);">Select Analyst ID:</label>
+          <select id="login-analyst-id" class="btn" style="width: 100%; background: rgba(255,255,255,0.06); color: white; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
+            <option value="Treasury_Analyst" style="color: black;">Treasury_Analyst (Corporate Treasury)</option>
+            <option value="Compliance_Analyst" style="color: black;">Compliance_Analyst (Regulatory Compliance)</option>
+            <option value="Model_Analyst" style="color: black;">Model_Analyst (Model Risk)</option>
+            <option value="Credit_Analyst" style="color: black;">Credit_Analyst (Credit Portfolio)</option>
+          </select>
+        </div>
+
+        <!-- SME User IDs Dropdown (Hidden by default) -->
+        <div class="form-group hide" id="group-sme-ids">
+          <label for="login-sme-id" style="color: rgba(255,255,255,0.6);">Select SME ID:</label>
+          <select id="login-sme-id" class="btn" style="width: 100%; background: rgba(255,255,255,0.06); color: white; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
+            <option value="Treasury_SME" style="color: black;">Treasury_SME (Corporate Treasury SME)</option>
+            <option value="Compliance_SME" style="color: black;">Compliance_SME (Regulatory Compliance SME)</option>
+            <option value="Model_SME" style="color: black;">Model_SME (Model Risk SME)</option>
+            <option value="Credit_SME" style="color: black;">Credit_SME (Credit Portfolio SME)</option>
+          </select>
+        </div>
+
+        <!-- Hidden input to track target username dynamically populated by JS -->
+        <input type="hidden" id="login-username" value="Treasury_Analyst" />
+
+        <!-- Premium Password Field -->
+        <div class="form-group">
+          <label for="login-password" style="color: rgba(255,255,255,0.6);">Console Access Password:</label>
+          <input type="password" id="login-password" value="password" style="width: 100%; background: rgba(255,255,255,0.06); color: white; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px; font-size: 14px; outline: none; transition: border-color 0.2s;" required />
+        </div>
+        
+        <div class="login-error-message hide" id="login-error-msg"></div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px; padding: 12px; font-size: 14px; font-weight: 600; border-radius: 8px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); cursor: pointer; color: white;">Authenticate & Access OS</button>
+      </form>
+      
+      <div class="login-card-footer">
+        Tenant ID: 994821 | Core Security Layer Active
+      </div>
+    </div>
+  </div>
+
+  <!-- Unified Shell Layout (hidden by default until auth) -->
+  <div class="app-container hide" id="main-app-shell">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-logo">▲</span>
+        <span class="brand-text">AIM Intelligence Platform</span>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-page="home">
+          <span class="nav-icon">📊</span> Dashboard Home
+        </a>
+        <div class="nav-section-title">Suites</div>
+        <a href="#" class="nav-item" data-page="reporting">
+          <span class="nav-icon">📰</span> Reporting Suite
+        </a>
+        <a href="#" class="nav-item" data-page="analytics">
+          <span class="nav-icon">📈</span> Business Analytics
+        </a>
+        <a href="#" class="nav-item" data-page="automation">
+          <span class="nav-icon">⚡</span> Workflow Automation
+        </a>
+        <a href="#" class="nav-item" data-page="data-science">
+          <span class="nav-icon">🧪</span> Data Science & ML
+        </a>
+        <div class="nav-section-title">Knowledge & System</div>
+        <a href="#" class="nav-item" data-page="kms">
+          <span class="nav-icon">📚</span> KMS Workspace
+        </a>
+        <a href="#" class="nav-item" data-page="db-explorer">
+          <span class="nav-icon">🛢️</span> Database Explorer
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 10px;">
+        <div class="user-profile">
+          <div class="user-avatar" id="shell-user-avatar">AP</div>
+          <div class="user-info">
+            <div class="user-name" id="shell-user-name">Analytics Pro</div>
+            <div class="user-role" id="shell-user-role">Tenant ID: 994821</div>
+          </div>
+        </div>
+        <button id="shell-logout-btn" class="btn btn-danger" style="width: 100%; padding: 8px 12px; font-size: 12px; border-radius: 6px; background: #ef4444; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; transition: background 0.2s;">
+          🚪 Logout Profile
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Canvas -->
+    <main class="main-canvas">
+      
+      <!-- Shared Header -->
+      <header class="app-header">
+        <button id="clear-cache-btn" class="btn" style="background: rgba(255, 255, 255, 0.05); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); font-family: 'Inter', sans-serif;" onmouseover="this.style.background='rgba(244, 63, 94, 0.1)'; this.style.borderColor='rgba(244, 63, 94, 0.4)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='rgba(244, 63, 94, 0.2)';">
+          🧹 Clear Cache
+        </button>
+        <div class="header-status">
+          <span class="status-indicator"></span> Platform Core: Operational
+        </div>
+      </header>
+
+      <div class="scrollable-content">
+        <!-- Auth Lock Overlay -->
+        <div id="auth-lock-overlay" class="auth-lock-overlay">
+          <div class="lock-card">
+            <span class="lock-icon">🔒</span>
+            <h3>Banking Agentic OS Locked</h3>
+            <p>Authorization Required: Please authenticate through the login gate to initialize specialized Banking AI Agents.</p>
+          </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 1. HOME DASHBOARD VIEW -->
+        <!-- ========================================== -->
+        <section id="page-home" class="page-view active">
+          <div class="hero-card">
+            <h1>AIM Intelligence Platform (AIP)</h1>
+            <p>A unified, modular cognitive operating layer bridging high-performance enterprise data warehouses, structured knowledge repositories, and automated banking workflows. Ground metrics calculations in an enterprise PostgreSQL banking database, govern semantic definitions through hybrid graph-and-vector KMS indices, and orchestrate stateful AI-driven analysis across reporting, business analytics, and data science suites.</p>
+          </div>
+
+          <h2 class="section-title">Explore Modular Application Suites</h2>
+          <div class="product-grid">
+            <div class="product-card" onclick="switchPage('reporting')">
+              <div class="product-icon">📰</div>
+              <h3>Reporting Suite</h3>
+              <p>Audit catalog indexes in PRISM, co-write standard summaries, Conversational BI, and proactive metrics anomaly feeds.</p>
+            </div>
+            <div class="product-card" onclick="switchPage('analytics')">
+              <div class="product-icon">📈</div>
+              <h3>Business Analytics</h3>
+              <p>Discover segment micro-trends, RCA driver contribution charts, dynamic Monte Carlo sliders, and board-tailored storytelling.</p>
+            </div>
+            <div class="product-card" onclick="switchPage('automation')">
+              <div class="product-icon">⚡</div>
+              <h3>Workflow Automation</h3>
+              <p>Design trigger-based pipelines, sequence orchestrations, track approval checkpoints, and observe telemetry histories.</p>
+            </div>
+            <div class="product-card" onclick="switchPage('data-science')">
+              <div class="product-icon">🧪</div>
+              <h3>Data Science & ML</h3>
+              <p>Profile dataset prep nulls, compare model experimental ROC scores, download governance booklets, and monitor concept drift.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 2. REPORTING SUITE VIEW (Embedded UIs) -->
+        <!-- ========================================== -->
+        <section id="page-reporting" class="page-view">
+          <div class="suite-header">
+            <h2>Reporting Suite Workspace</h2>
+            <p>Modernize reporting lifecycles and reduce operational reporting duplication overhead.</p>
+          </div>
+
+          <div class="suite-tabs">
+            <button class="tab-btn active" onclick="switchSubProduct('reporting', 'prism')">PRISM (Rationalize)</button>
+            <button class="tab-btn" onclick="switchSubProduct('reporting', 'builder')">Reporting</button>
+            <button class="tab-btn" onclick="switchSubProduct('reporting', 'bi')">Conversational BI</button>
+            <button class="tab-btn" onclick="switchSubProduct('reporting', 'proactive')">Proactive Insights</button>
+          </div>
+
+          <div id="subproduct-reporting-prism" class="subproduct-panel active">
+             <iframe src="/ui/reporting/prism/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-reporting-builder" class="subproduct-panel">
+             <iframe src="/ui/reporting/report_building/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-reporting-bi" class="subproduct-panel">
+             <iframe src="/ui/reporting/conversational_bi/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-reporting-proactive" class="subproduct-panel">
+             <iframe src="/ui/reporting/proactive_insights/" class="subproduct-iframe"></iframe>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 3. BUSINESS ANALYTICS SUITE (Embedded UIs) -->
+        <!-- ========================================== -->
+        <section id="page-analytics" class="page-view">
+          <div class="suite-header">
+            <h2>Business Analytics Workspace</h2>
+            <p>Accelerate diagnostic execution and reduce manual analytical overhead.</p>
+          </div>
+
+          <div class="suite-tabs">
+            <button class="tab-btn active" onclick="switchSubProduct('analytics', 'discovery')">Insight Discovery</button>
+            <button class="tab-btn" onclick="switchSubProduct('analytics', 'rca')">Root Cause Analysis</button>
+            <button class="tab-btn" onclick="switchSubProduct('analytics', 'whatif')">What-if simulation</button>
+            <button class="tab-btn" onclick="switchSubProduct('analytics', 'narratives')">Business Narratives</button>
+          </div>
+
+          <div id="subproduct-analytics-discovery" class="subproduct-panel active">
+             <iframe src="/ui/business_analytics/insight_discovery/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-analytics-rca" class="subproduct-panel">
+             <iframe src="/ui/business_analytics/root_cause_analysis/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-analytics-whatif" class="subproduct-panel">
+             <iframe src="/ui/business_analytics/what_if_analysis/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-analytics-narratives" class="subproduct-panel">
+             <iframe src="/ui/business_analytics/business_narratives/" class="subproduct-iframe"></iframe>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 4. WORKFLOW AUTOMATION SUITE (Embedded UIs) -->
+        <!-- ========================================== -->
+        <section id="page-automation" class="page-view">
+          <div class="suite-header">
+            <h2>Workflow Automation Workspace</h2>
+            <p>Design trigger-based pipelines, sequence orchestrations, and check approval gates.</p>
+          </div>
+
+          <div class="suite-tabs">
+            <button class="tab-btn active" onclick="switchSubProduct('automation', 'design')">Workflow Design</button>
+            <button class="tab-btn" onclick="switchSubProduct('automation', 'orchestration')">Workflow Orchestration</button>
+            <button class="tab-btn" onclick="switchSubProduct('automation', 'approvals')">Task Automation (Approvals)</button>
+            <button class="tab-btn" onclick="switchSubProduct('automation', 'monitor')">Monitoring Telemetry</button>
+          </div>
+
+          <div id="subproduct-automation-design" class="subproduct-panel active">
+             <iframe src="/ui/workflow_automation/workflow_design/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-automation-orchestration" class="subproduct-panel">
+             <iframe src="/ui/workflow_automation/workflow_orchestration/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-automation-approvals" class="subproduct-panel">
+             <iframe src="/ui/workflow_automation/task_automation/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-automation-monitor" class="subproduct-panel">
+             <iframe src="/ui/workflow_automation/monitoring/" class="subproduct-iframe"></iframe>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 5. DATA SCIENCE & ML SUITE (Embedded UIs) -->
+        <!-- ========================================== -->
+        <section id="page-data-science" class="page-view">
+          <div class="suite-header">
+            <h2>Data Science & ML Workspace</h2>
+            <p>Governed model experimentation, validation feature preparation, and Concept Drift tracking dashboards.</p>
+          </div>
+
+          <div class="suite-tabs">
+            <button class="tab-btn active" onclick="switchSubProduct('data-science', 'prep')">Data Preparation</button>
+            <button class="tab-btn" onclick="switchSubProduct('data-science', 'develop')">Model Development</button>
+            <button class="tab-btn" onclick="switchSubProduct('data-science', 'document')">Model Documentation</button>
+            <button class="tab-btn" onclick="switchSubProduct('data-science', 'pulse')">Model Pulse</button>
+          </div>
+
+          <div id="subproduct-data-science-prep" class="subproduct-panel active">
+             <iframe src="/ui/data_science_ml/data_preparation/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-data-science-develop" class="subproduct-panel">
+             <iframe src="/ui/data_science_ml/model_development/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-data-science-document" class="subproduct-panel">
+             <iframe src="/ui/data_science_ml/model_documentation/" class="subproduct-iframe"></iframe>
+          </div>
+          <div id="subproduct-data-science-pulse" class="subproduct-panel">
+             <iframe src="/ui/data_science_ml/model_pulse/" class="subproduct-iframe"></iframe>
+          </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 6. KMS WORKSPACE VIEW (Embedded UI) -->
+        <!-- ========================================== -->
+        <section id="page-kms" class="page-view">
+          <iframe src="/ui/kms/" class="subproduct-iframe" style="height: calc(100vh - 160px);"></iframe>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 7. DATABASE EXPLORER VIEW (Embedded UI) -->
+        <!-- ========================================== -->
+        <section id="page-db-explorer" class="page-view">
+          <iframe src="/ui/db_explorer/" class="subproduct-iframe" style="height: calc(100vh - 160px);"></iframe>
+        </section>
+
+        <!-- Remove Shared capabilities and System audit logs pages -->
+
+      </div>
+    </main>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Model Governance & Compliance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css" />
+    <style>
+        :root {
+            --accent-color: #818cf8;
+            --accent-light: #818cf81a;
+            --bg-dark: #0f172a;
+            --card-dark: #1e293b;
+            --border-dark: #334155;
+            --text-gold: #f59e0b;
+            --text-success: #10b981;
+            --text-danger: #ef4444;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0b0f19 0%, #030712 100%);
+            color: #f1f5f9;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .portal-header {
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-dark);
+            padding-bottom: 16px;
+        }
+
+        .portal-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            background: linear-gradient(to right, #818cf8, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 24px;
+        }
+
+        .premium-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-dark);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+            margin-bottom: 24px;
+        }
+
+        .agent-registry {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .agent-chip {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-dark);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .agent-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--accent-light);
+            border: 1px solid var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .agent-info h5 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .agent-info span {
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+
+        /* Config inputs */
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 2fr;
+            gap: 16px;
+            align-items: flex-end;
+            margin-bottom: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+
+        .input-text {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-dark);
+            border-radius: 6px;
+            padding: 10px;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .input-text:focus {
+            border-color: var(--accent-color);
+        }
+
+        .glow-btn {
+            background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+            box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.4);
+            border: none;
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            padding: 11px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .glow-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px 0 rgba(99, 102, 241, 0.6);
+        }
+
+        /* Dialogue Box */
+        .agent-chat {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-dark);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .chat-bubble {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #33415540;
+            padding-bottom: 12px;
+        }
+
+        .chat-bubble:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .chat-text h6 {
+            font-size: 12px;
+            color: #a5b4fc;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .chat-text p {
+            font-size: 13px;
+            line-height: 1.4;
+            color: #cbd5e1;
+        }
+
+        .action-badge {
+            font-size: 9px;
+            background: rgba(129, 140, 248, 0.15);
+            color: #a5b4fc;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 700;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        /* Checklist */
+        .check-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .check-card {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-dark);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .check-icon {
+            font-size: 20px;
+        }
+
+        .check-info h5 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .check-info p {
+            font-size: 11px;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        /* Booklet reader */
+        .booklet-reader {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-dark);
+            border-radius: 16px;
+            padding: 32px;
+            max-height: 500px;
+            overflow-y: auto;
+            color: #e2e8f0;
+            line-height: 1.6;
+            font-size: 13px;
+            margin-bottom: 20px;
+        }
+
+        .booklet-reader h1, .booklet-reader h2, .booklet-reader h3 {
+            font-family: 'Outfit', sans-serif;
+            color: #fff;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #33415550;
+            padding-bottom: 6px;
+        }
+
+        .booklet-reader h1 {
+            font-size: 20px;
+            margin-top: 0;
+            color: #a5b4fc;
+        }
+
+        .booklet-reader h2 { font-size: 16px; }
+        .booklet-reader h3 { font-size: 14px; }
+
+        .booklet-reader ul {
+            padding-left: 20px;
+            margin-bottom: 16px;
+        }
+
+        .booklet-reader li {
+            margin-bottom: 6px;
+        }
+
+        .booklet-reader strong {
+            color: #818cf8;
+        }
+    </style>
+</head>
+<body>
+    <div class="sub-portal">
+        <div class="portal-header">
+            <h1>📘 Phase 3: SR 11-7 Model Governance & Compliance</h1>
+            <p style="color: #94a3b8; font-size: 13px;">Auto-generates regulatory compliance booklets and audits feature table lineages against KMS grounding rules.</p>
+        </div>
+
+        <!-- 1. Agent Registry -->
+        <div class="agent-registry">
+            <div class="agent-chip">
+                <div class="agent-avatar">✍️</div>
+                <div class="agent-info">
+                    <h5>Governance Writer</h5>
+                    <span>Doc Compiler</span>
+                </div>
+            </div>
+            <div class="agent-chip">
+                <div class="agent-avatar">🔍</div>
+                <div class="agent-info">
+                    <h5>Lineage Auditor</h5>
+                    <span>DB Lineage SME</span>
+                </div>
+            </div>
+            <div class="agent-chip">
+                <div class="agent-avatar">🛡️</div>
+                <div class="agent-info">
+                    <h5>Chief Risk Officer</h5>
+                    <span>Board Approver</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Controls Ingestion Card -->
+        <div class="premium-card">
+            <div class="config-grid">
+                <div class="input-group">
+                    <label>Registered Model ID</label>
+                    <input type="text" id="model-id-input" value="MD-902" class="input-text" />
+                </div>
+                <div class="input-group">
+                    <label>Champion Run ID</label>
+                    <input type="text" id="run-id-input" value="run_xgb_credit_003" class="input-text" />
+                </div>
+                <div class="input-group" style="flex-grow:1;">
+                    <label>Auditor Focus Guidelines (Optional)</label>
+                    <input type="text" id="guidance-input" placeholder="e.g. Include Basel 3 liquidity checks and fair lending validation." class="input-text" />
+                </div>
+                
+                <button class="glow-btn" id="doc-btn">Compile Compliance Booklet</button>
+            </div>
+
+            <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;">
+                🛡️ Governed by active RBAC clearances. Lineage audits verify that training arrays map perfectly to authorized databases.
+            </div>
+        </div>
+
+        <!-- 3. Dynamic Results Container -->
+        <div id="results-container" class="hide">
+            
+            <!-- A. Multi-Agent Reasoning Feed -->
+            <div class="premium-card">
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    🗣️ Multi-Agent Compliance Board Debate
+                </h3>
+                <div class="agent-chat" id="chat-feed">
+                    <!-- Dialogue dynamically appended here -->
+                </div>
+            </div>
+
+            <!-- B. Checklist Grid -->
+            <h3 style="font-family: 'Outfit', sans-serif; font-size: 15px; margin-bottom: 16px; color: #818cf8;">
+                📋 Completed Governance Validation Checklist
+            </h3>
+            <div class="check-grid" id="checks-grid">
+                <!-- Checks dynamically appended here -->
+            </div>
+
+            <!-- C. Compiled Booklet Markdown Reader -->
+            <div class="premium-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3 style="font-family: 'Outfit', sans-serif; font-size: 15px; color: #a7f3d0; margin:0;">
+                        📄 Compiled Governance & Compliance Booklet
+                    </h3>
+                    <button class="glow-btn" id="download-btn" style="padding: 6px 12px; font-size: 11px;">Download Booklet (.md)</button>
+                </div>
+                
+                <div class="booklet-reader" id="booklet-content">
+                    <!-- Markdown transformed HTML loaded here -->
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const token = localStorage.getItem('AIP_API_KEY') || '';
+            if (url.includes('/api/v1')) {
+                options.headers = options.headers || {};
+                if (token) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Grounded ML Feature Profiler</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css" />
+    <style>
+        /* Unified Theme Customization */
+        :root {
+            --accent-color: #6366f1;
+            --accent-light: #6366f11a;
+            --bg-dark: #0f172a;
+            --card-dark: #1e293b;
+            --border-dark: #334155;
+            --text-gold: #f59e0b;
+            --text-success: #10b981;
+            --text-danger: #ef4444;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0b0f19 0%, #1e1b4b 100%);
+            color: #f1f5f9;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+
+        .portal-header {
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-dark);
+            padding-bottom: 16px;
+        }
+
+        .portal-header h1 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 24px;
+        }
+
+        .premium-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-dark);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+            margin-bottom: 24px;
+        }
+
+        .agent-registry {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .agent-chip {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-dark);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .agent-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--accent-light);
+            border: 1px solid var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .agent-info h5 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .agent-info span {
+            font-size: 10px;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+
+        .config-row {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .pill-select {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pill-item {
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid var(--border-dark);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pill-item.active {
+            background: var(--accent-light);
+            border-color: var(--accent-color);
+            color: #a5b4fc;
+        }
+
+        .glow-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            box-shadow: 0 4px 14px 0 rgba(99, 102, 241, 0.4);
+            border: none;
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .glow-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px 0 rgba(99, 102, 241, 0.6);
+        }
+
+        /* Dialogue Box */
+        .agent-chat {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-dark);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .chat-bubble {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #33415540;
+            padding-bottom: 12px;
+        }
+
+        .chat-bubble:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .chat-text h6 {
+            font-size: 12px;
+            color: #818cf8;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .chat-text p {
+            font-size: 13px;
+            line-height: 1.4;
+            color: #cbd5e1;
+        }
+
+        .action-badge {
+            font-size: 9px;
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-weight: 700;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        /* Stats Grid */
+        .columns-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-dark);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .stat-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .stat-card-header h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+        }
+
+        /* Table styles */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.7);
+            padding: 10px;
+            border-bottom: 2px solid var(--border-dark);
+            font-weight: 600;
+            color: #94a3b8;
+        }
+
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-dark);
+        }
+
+        tr:hover td {
+            background: rgba(51, 65, 85, 0.2);
+        }
+
+        .null-cell {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            font-weight: 600;
+            font-style: italic;
+            border-radius: 4px;
+            padding: 2px 6px;
+        }
+
+        .imputed-cell {
+            background: rgba(16, 185, 129, 0.2);
+            color: #a7f3d0;
+            font-weight: 700;
+            border-radius: 4px;
+            padding: 2px 6px;
+        }
+
+        .visual-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .visual-split {
+                grid-template-columns: 1fr;
+            }
+            .agent-registry {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sub-portal">
+        <div class="portal-header">
+            <h1>🧹 Phase 1: Governed Feature Table Profiler</h1>
+            <p style="color: #94a3b8; font-size: 13px;">Assembles a credit defaults model training feature table by grounding client files directly in transactional ledgers.</p>
+        </div>
+
+        <!-- 1. Agent Registry -->
+        <div class="agent-registry">
+            <div class="agent-chip">
+                <div class="agent-avatar">📊</div>
+                <div class="agent-info">
+                    <h5>Data Profiler</h5>
+                    <span>Data Auditor</span>
+                </div>
+            </div>
+            <div class="agent-chip">
+                <div class="agent-avatar">🛠️</div>
+                <div class="agent-info">
+                    <h5>Feature Engineer</h5>
+                    <span>Transformer</span>
+                </div>
+            </div>
+            <div class="agent-chip">
+                <div class="agent-avatar">📚</div>
+                <div class="agent-info">
+                    <h5>KMS Alignment</h5>
+                    <span>SME Compliance</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Controls Card -->
+        <div class="premium-card">
+            <div class="config-row">
+                <div style="font-weight: 600; font-size: 13px;">Select Ingestion Ledgers:</div>
+                <div class="pill-select">
+                    <div class="pill-item active" onclick="this.classList.toggle('active')">corporate_clients</div>
+                    <div class="pill-item active" onclick="this.classList.toggle('active')">accounts</div>
+                    <div class="pill-item" onclick="this.classList.toggle('active')">transactions</div>
+                </div>
+                
+                <button class="glow-btn" id="prep-btn">Profile Features Dataset</button>
+            </div>
+
+            <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;">
+                🔒 Enforces strict request-scope isolation and reads only authorized LMS tables mapped to user session profiles.
+            </div>
+        </div>
+
+        <!-- 3. Dynamic Results Container -->
+        <div id="results-container" class="hide">
+            
+            <!-- A. Multi-Agent Reasoning Feed -->
+            <div class="premium-card">
+                <h3 style="font-family: 'Outfit', sans-serif; font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    🗣️ Multi-Agent Auditing Transcript
+                </h3>
+                <div class="agent-chat" id="chat-feed">
+                    <!-- Dialogue dynamically appended here -->
+                </div>
+            </div>
+
+            <!-- B. Columns Profiling Summary Cards -->
+            <div class="columns-stats" id="stats-container">
+                <!-- Columns stats cards dynamically loaded -->
+            </div>
+
+            <!-- C. Side-by-Side Data Comparison tables -->
+            <div class="visual-split">
+                
+                <div class="premium-card">
+                    <h3 style="font-family: 'Outfit', sans-serif; font-size: 14px; margin-bottom: 12px; color: #fca5a5;">
+                        🛑 Raw Grounded Banking Ledgers
+                    </h3>
+                    <div class="table-container">
+                        <table id="raw-table">
+                            <!-- Raw table columns and rows dynamically loaded -->
+                        </table>
+                    </div>
+                </div>
+
+                <div class="premium-card">
+                    <h3 style="font-family: 'Outfit', sans-serif; font-size: 14px; margin-bottom: 12px; color: #a7f3d0;">
+                        ✅ Cleaned & Scaled Model Features
+                    </h3>
+                    <div class="table-container">
+                        <table id="cleaned-table">
+                            <!-- Cleaned table columns and rows dynamically loaded -->
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const token = localStorage.getItem('AIP_API_KEY') || '';
+            if (url.includes('/api/v1')) {
+                options.headers = options.headers || {};
+                if (token) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>

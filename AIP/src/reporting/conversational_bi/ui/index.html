@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Conversational BI Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+    <div class="sub-portal">
+        
+            <div class="card">
+                <h2>💬 Conversational BI Assistant</h2>
+                <p class="desc">Ask natural questions about liquidity buffers, sweeping performance, or margin trends.</p>
+                <div class="chat-container">
+                    <div class="chat-box" id="chat-box">
+                        <div class="message bot">Hello! I am your Conversational BI Agent. Ask me anything grounded in our Liquidity database.</div>
+                    </div>
+                    <div class="chat-input-row">
+                        <input type="text" id="chat-in" placeholder="Ask a question (e.g., Explain our current liquidity reserves)..." />
+                        <button class="btn" id="chat-send">Send Query</button>
+                    </div>
+                </div>
+            </div>
+        
+    </div>
+    
+    <script>
+        const API_BASE = '/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const token = localStorage.getItem('AIP_API_KEY') || '';
+            if (url.includes('/api/v1')) {
+                options.headers = options.headers || {};
+                if (token) {
+                    options.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>
