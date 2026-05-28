@@ -1,0 +1,12 @@
+[
+  {
+    "id": "briefing_brief",
+    "name": "Executive Summary Template",
+    "structure": "# Analytical Summary: :metricName\n\n## 📈 Performance Review\nDuring the evaluated period, **:metricName** registered a value of **:metricValue** against the baseline comparison of **:compareValue**.\n\n## 🔍 Statistical Interpretations\n- **Calculated Formula**: `:metricFormula`\n- **Identified Change**: :explanation\n- **Summary Profile**: :summaryText\n\n*Document synthesized dynamically via AIM Intelligence Platform (AIP).*"
+  },
+  {
+    "id": "rca_template",
+    "name": "RCA Decomposition Brief",
+    "structure": "# Root Cause Audit: :metricName\n\n## 🚨 Findings Overview\nOur automated decomposition scan isolated the core driver behind the metric shift.\n\n## 📊 Analytical Drivers\n- **Target Column Profiling**: Missing Values: :missingCount, Feature Suggestion: :featureSuggestion\n- **Core Driver Contribution**: :driversList\n- **Executive Trend Summary**: :summary"
+  }
+]

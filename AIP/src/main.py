@@ -19,6 +19,7 @@ from fastapi import FastAPI, Request, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse, FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from src.shared.config import config
 
 class NoCacheStaticFiles(StaticFiles):
     def is_not_modified(self, response_headers, request_headers) -> bool:
@@ -198,13 +199,17 @@ async def login(payload: Dict[str, Any]):
         secure_token = f"AIP-{role.upper()}-SESSION-{session_suffix}"
         
         # Store user profile in active session
+        allowed_domains = [d.strip() for d in (user.get('allowed_domains') or '').split(',') if d.strip()] if user.get('allowed_domains') else None
+        kms_team = config.resolve_kms_team(user['username'], allowed_domains)
         session_payload = {
             'username': user['username'],
             'role': user['role'],
             'clearance': user['clearance'],
             'display_name': user['display_name'],
-            'allowed_domains': [d.strip() for d in (user.get('allowed_domains') or '').split(',') if d.strip()] if user.get('allowed_domains') else None,
-            'allowed_tables': [t.strip().lower() for t in (user.get('allowed_tables') or '').split(',') if t.strip()] if user.get('allowed_tables') else None
+            'allowed_domains': allowed_domains,
+            'allowed_tables': [t.strip().lower() for t in (user.get('allowed_tables') or '').split(',') if t.strip()] if user.get('allowed_tables') else None,
+            'kms_team': kms_team,
+            'kms_context_path': config.get_kms_team_path(kms_team)
         }
         from shared.session import set_session
         set_session(secure_token, session_payload)

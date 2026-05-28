@@ -78,7 +78,7 @@ async function approveGate(id, state) {
                     <p class="success-msg" style="margin-bottom: 10px;">✅ Pipeline successfully approved and executed to completion!</p>
                     <div style="display:flex; flex-direction:column; gap:6px;">
                         ${(data.traces || []).map(t => `
-                            <div style="background:#0f172a; padding:6px 10px; border-radius:4px; border:1px solid #334155;">
+                            <div style="background:#ffffff; padding:6px 10px; border-radius:4px; border:1px solid #dbe3ef;">
                                 <span style="color:#0ea5e9;">${t.stepId}</span>: ${t.status.toUpperCase()} (${t.durationMs || 0}ms)
                             </div>
                         `).join('')}

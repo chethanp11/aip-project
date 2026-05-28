@@ -1,0 +1,34 @@
+[
+  {
+    "id": "net_interest_margin",
+    "name": "Net Interest Margin (NIM)",
+    "description": "The difference between interest income generated and interest paid to lenders/depositors, relative to the amount of interest-earning assets.",
+    "formula": "(interest_income - interest_expense) / average_earning_assets",
+    "format": "percentage",
+    "trends": [3.12, 3.08, 3.15, 2.95, 2.88, 2.82, 2.65]
+  },
+  {
+    "id": "npl_ratio",
+    "name": "Non-Performing Loans (NPL) Ratio",
+    "description": "The percentage of bank loans that are in default or close to default (typically 90+ days past due).",
+    "formula": "(total_non_performing_loans / total_outstanding_loans) * 100",
+    "format": "percentage",
+    "trends": [1.42, 1.45, 1.38, 1.49, 1.55, 1.62, 1.85]
+  },
+  {
+    "id": "loan_to_deposit_ratio",
+    "name": "Loan-to-Deposit Ratio (LDR)",
+    "description": "A core liquidity metric assessing bank stability by dividing total loans by total deposits in the same period.",
+    "formula": "(total_outstanding_loans / total_deposits) * 100",
+    "format": "percentage",
+    "trends": [78.5, 79.2, 80.5, 81.2, 80.8, 82.5, 85.8]
+  },
+  {
+    "id": "banking_card_cac",
+    "name": "Credit Card Acquisition Cost (CAC)",
+    "description": "Average total expense incurred to acquire a single active new credit card customer, including advertising, sales overhead, and introductory point rewards.",
+    "formula": "credit_sales_marketing_spend / total_new_cardholders",
+    "format": "currency",
+    "trends": [180, 175, 192, 185, 178, 172, 215]
+  }
+]

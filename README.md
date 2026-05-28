@@ -218,9 +218,12 @@ REPORT_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/reports
 ARTIFACT_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/artifacts
 ARCHIVE_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/archives
 LOG_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/logs
-KMS_SEED_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/kms/seeds
-KMS_RUNTIME_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/kms/runtime
-LMS_SEED_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/lms/seeds
+KMS_ROOT=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms
+KMS_TEAM_ROOT=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms/<Team>
+KMS_TEAM_SEED_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms/<Team>/seeds
+KMS_TEAM_RUNTIME_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms/<Team>/runtime
+LMS_ROOT=/Users/chethan/GitHub/AIP-Project/AIP-Infra/lms
+LMS_SEED_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/lms/seeds
 ```
 
 Application code should use `src.shared.config.config` instead of hardcoded filesystem paths.
@@ -237,7 +240,7 @@ AIP code never talks to Docker volumes or seed files directly from product workf
 | `AIP/src/shared/infra/redis_client.py` | `aip-redis` on `REDIS_HOST:REDIS_PORT` | Provides Redis connectivity for cache/session-style infrastructure. |
 | `AIP/src/shared/infra/storage_client.py` | `AIP-Infra/storage/{reports,artifacts,archives}` and `AIP-Infra/logs` | Writes generated files outside the application tree. |
 | `AIP/src/shared/infra/retrieval_client.py` | PostgreSQL + Neo4j through KMS | Keeps retrieval consumers decoupled from physical database details. |
-| `AIP/src/kms/index.py` | `KMS_SEED_PATH`, `KMS_RUNTIME_PATH`, PostgreSQL, Neo4j, logs | Loads KMS seed files, creates/updates KMS tables, writes graph data, stages ingested documents, and records audit/ingestion logs. |
+| `AIP/src/kms/index.py` | `AIP-Infra/kms/<Team>/seeds`, `AIP-Infra/kms/<Team>/runtime`, PostgreSQL, Neo4j, logs | Loads KMS seed files, creates/updates KMS tables, writes graph data, stages ingested documents, and records audit/ingestion logs. |
 | `AIP/src/shared/lms.py` | `LMS_SEED_PATH`, PostgreSQL | Loads deterministic LMS seed inputs only when PostgreSQL LMS tables are empty. |
 | `AIP/src/main.py` | `REPORT_PATH` and static AIP UI folders | Mounts generated report output from AIP-Infra at `/reports` and serves app UIs/API routes. |
 
@@ -282,9 +285,9 @@ AIP-Infra/storage/
 
 Important boundary rules:
 
-- KMS glossary, articles, templates, domains, and initial graph/candidate knowledge are loaded from `KMS_SEED_PATH`.
+- KMS glossary, articles, templates, domains, and initial graph/candidate knowledge are loaded from the active team seed folder.
 - LMS/corporate banking demo data is loaded from `LMS_SEED_PATH`.
-- Runtime KMS ingestion staging and logs are written to `KMS_RUNTIME_PATH` and `LOG_PATH`.
+- Runtime KMS ingestion staging and logs are written to the active team runtime folder and `LOG_PATH`.
 - Published reports are written to `REPORT_PATH` and served at `/reports`.
 - AIP code should not reintroduce local files such as `src/kms/*.json`, `src/kms/data/*`, or local SQLite databases.
 
@@ -300,9 +303,10 @@ On first access, KMS:
 
 1. Connects to PostgreSQL through `PostgresClient`.
 2. Creates KMS tables such as `vector_chunks`, `canonical_knowledge`, `candidate_knowledge`, `business_terms`, `metrics_glossary`, `analytical_templates`, `knowledge_articles`, audit logs, approvals, connectors, and domains.
-3. Loads seed/reference data from `AIP-Infra/storage/kms/seeds`.
-4. Writes graph nodes and relationships through `Neo4jClient`.
-5. Tokenizes knowledge into `vector_chunks` for retrieval.
+3. Loads seed/reference data only from the authenticated team folder `AIP-Infra/kms/<Team>/seeds`.
+4. Stores team-specific KMS context under `AIP-Infra/kms/<Team>/context` and attaches the authenticated team folder to the active Analyst or SME login session.
+5. Writes graph nodes and relationships through `Neo4jClient`.
+6. Tokenizes knowledge into `vector_chunks` for retrieval.
 
 Retrieval flow:
 
@@ -323,7 +327,7 @@ On import, LMS:
 
 1. Connects to external PostgreSQL through `PostgresClient`.
 2. Ensures corporate banking tables exist.
-3. Loads deterministic seed inputs from `AIP-Infra/storage/lms/seeds/corporate_banking_seed.json` when the tables are empty.
+3. Loads deterministic seed inputs from `AIP-Infra/lms/seeds/corporate_banking_seed.json` when the tables are empty.
 4. Serves workflow reads through `get_lms_table` and `run_sqlite_query`.
 
 `run_sqlite_query` is a compatibility wrapper: it accepts legacy `?` placeholders but executes against PostgreSQL.

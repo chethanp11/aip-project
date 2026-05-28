@@ -41,9 +41,10 @@ AIP uses AIP-Infra through configuration and client abstractions only.
 | Redis | `aip-redis`, port `6379` | `RedisClient`, workflow state persistence |
 | Reports | `AIP-Infra/storage/reports` | Report Builder, FastAPI `/reports` static mount |
 | Artifacts/archives | `AIP-Infra/storage/{artifacts,archives}` | `StorageClient`, workflow/report outputs |
-| KMS seeds | `AIP-Infra/storage/kms/seeds` | `load_kms_seed_file`, KMS bootstrap |
-| KMS runtime | `AIP-Infra/storage/kms/runtime` | KMS ingestion staging/runtime directories |
-| LMS seeds | `AIP-Infra/storage/lms/seeds` | `shared.lms._load_lms_seed` |
+| Team KMS seeds | `AIP-Infra/kms/<Team>/seeds` | Team-specific KMS bootstrap and active-session seed loading |
+| Team KMS runtime | `AIP-Infra/kms/<Team>/runtime` | Team-specific KMS ingestion staging/runtime directories |
+| Team KMS contexts | `AIP-Infra/kms/<Team>/context` | Login session context, retrieval context attachment |
+| LMS seeds | `AIP-Infra/lms/seeds` | `shared.lms._load_lms_seed` |
 | Logs | `AIP-Infra/logs` | KMS ingestion logging and infra checks |
 
 Configuration is centralized in `AIP/src/shared/config/config.py`. It loads `.env`, sets database credentials, sets storage paths, and creates expected directories.
@@ -176,7 +177,7 @@ On first KMS database access:
 
 1. Open PostgreSQL connection through `PostgresClient`.
 2. Create graph, vector, canonical, candidate, governance, audit, connector, glossary, domain, user, and observability tables.
-3. Seed KMS glossary/template/article/domain records from `KMS_SEED_PATH`.
+3. Seed KMS glossary/template/article/domain records from the active team seed folder.
 4. Seed graph/canonical/candidate/source connector baseline from `knowledge_seed.json` when baseline nodes are absent.
 5. Sync graph nodes/edges to Neo4j when available.
 6. Verify Neo4j connectivity without blocking KMS if Neo4j is unavailable.

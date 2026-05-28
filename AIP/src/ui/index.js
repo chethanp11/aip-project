@@ -60,7 +60,7 @@ function setupAuthHandler() {
       tabSme.classList.remove('active');
       tabSme.style.background = 'transparent';
       tabSme.style.boxShadow = 'none';
-      tabSme.style.color = 'rgba(255, 255, 255, 0.5)';
+      tabSme.style.color = '#64748b';
       
       groupAnalyst.classList.remove('hide');
       groupSme.classList.add('hide');
@@ -79,7 +79,7 @@ function setupAuthHandler() {
       tabAnalyst.classList.remove('active');
       tabAnalyst.style.background = 'transparent';
       tabAnalyst.style.boxShadow = 'none';
-      tabAnalyst.style.color = 'rgba(255, 255, 255, 0.5)';
+      tabAnalyst.style.color = '#64748b';
       
       groupSme.classList.remove('hide');
       groupAnalyst.classList.add('hide');

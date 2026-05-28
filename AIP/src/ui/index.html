@@ -32,16 +32,16 @@
       </div>
       
       <!-- Role-based Authentication Tabs -->
-      <div class="login-tabs" style="display: flex; gap: 8px; background: rgba(255,255,255,0.03); padding: 4px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);">
+      <div class="login-tabs" style="display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 10px; border: 1px solid #e2e8f0;">
         <button type="button" id="login-tab-analyst" class="tab-btn active" style="flex: 1; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); transition: all 0.2s;">Analyst Console</button>
-        <button type="button" id="login-tab-sme" class="tab-btn" style="flex: 1; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.5); background: transparent; transition: all 0.2s;">SME Console</button>
+        <button type="button" id="login-tab-sme" class="tab-btn" style="flex: 1; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #64748b; background: transparent; transition: all 0.2s;">SME Console</button>
       </div>
 
       <form id="login-form" class="login-form">
         <!-- Analyst User IDs Dropdown -->
         <div class="form-group" id="group-analyst-ids">
-          <label for="login-analyst-id" style="color: rgba(255,255,255,0.6);">Select Analyst ID:</label>
-          <select id="login-analyst-id" class="btn" style="width: 100%; background: rgba(255,255,255,0.06); color: white; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
+          <label for="login-analyst-id" style="color: #475569;">Select Analyst ID:</label>
+          <select id="login-analyst-id" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
             <option value="Treasury_Analyst" style="color: black;">Treasury_Analyst (Corporate Treasury)</option>
             <option value="Compliance_Analyst" style="color: black;">Compliance_Analyst (Regulatory Compliance)</option>
             <option value="Model_Analyst" style="color: black;">Model_Analyst (Model Risk)</option>
@@ -51,8 +51,8 @@
 
         <!-- SME User IDs Dropdown (Hidden by default) -->
         <div class="form-group hide" id="group-sme-ids">
-          <label for="login-sme-id" style="color: rgba(255,255,255,0.6);">Select SME ID:</label>
-          <select id="login-sme-id" class="btn" style="width: 100%; background: rgba(255,255,255,0.06); color: white; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
+          <label for="login-sme-id" style="color: #475569;">Select SME ID:</label>
+          <select id="login-sme-id" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
             <option value="Treasury_SME" style="color: black;">Treasury_SME (Corporate Treasury SME)</option>
             <option value="Compliance_SME" style="color: black;">Compliance_SME (Regulatory Compliance SME)</option>
             <option value="Model_SME" style="color: black;">Model_SME (Model Risk SME)</option>
@@ -65,8 +65,8 @@
 
         <!-- Premium Password Field -->
         <div class="form-group">
-          <label for="login-password" style="color: rgba(255,255,255,0.6);">Console Access Password:</label>
-          <input type="password" id="login-password" value="password" style="width: 100%; background: rgba(255,255,255,0.06); color: white; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 10px; font-size: 14px; outline: none; transition: border-color 0.2s;" required />
+          <label for="login-password" style="color: #475569;">Console Access Password:</label>
+          <input type="password" id="login-password" value="password" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-size: 14px; outline: none; transition: border-color 0.2s;" required />
         </div>
         
         <div class="login-error-message hide" id="login-error-msg"></div>
@@ -134,7 +134,7 @@
       
       <!-- Shared Header -->
       <header class="app-header">
-        <button id="clear-cache-btn" class="btn" style="background: rgba(255, 255, 255, 0.05); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); font-family: 'Inter', sans-serif;" onmouseover="this.style.background='rgba(244, 63, 94, 0.1)'; this.style.borderColor='rgba(244, 63, 94, 0.4)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.05)'; this.style.borderColor='rgba(244, 63, 94, 0.2)';">
+        <button id="clear-cache-btn" class="btn" style="background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); font-family: 'Inter', sans-serif;" onmouseover="this.style.background='#ffe4e6'; this.style.borderColor='#fda4af';" onmouseout="this.style.background='#fff1f2'; this.style.borderColor='#fecdd3';">
           🧹 Clear Cache
         </button>
         <div class="header-status">
@@ -157,8 +157,28 @@
         <!-- ========================================== -->
         <section id="page-home" class="page-view active">
           <div class="hero-card">
-            <h1>AIM Intelligence Platform (AIP)</h1>
-            <p>A unified, modular cognitive operating layer bridging high-performance enterprise data warehouses, structured knowledge repositories, and automated banking workflows. Ground metrics calculations in an enterprise PostgreSQL banking database, govern semantic definitions through hybrid graph-and-vector KMS indices, and orchestrate stateful AI-driven analysis across reporting, business analytics, and data science suites.</p>
+            <div class="hero-content">
+              <div class="hero-copy">
+                <span class="hero-eyebrow">Enterprise Banking Intelligence</span>
+                <h1>AIM Intelligence Platform</h1>
+                <p>Unify governed knowledge, trusted banking data, and AI-assisted workflows in one professional command center for reporting, analytics, automation, and model operations.</p>
+                <div class="hero-actions">
+                  <button class="hero-action primary" onclick="switchPage('reporting')">Explore Suites</button>
+                  <button class="hero-action secondary" onclick="switchPage('db-explorer')">Open Data Explorer</button>
+                </div>
+              </div>
+              <div class="hero-visual" aria-hidden="true">
+                <div class="hero-node hero-node-main">AIP</div>
+                <div class="hero-node node-kms">KMS</div>
+                <div class="hero-node node-data">Data</div>
+                <div class="hero-node node-ai">AI</div>
+              </div>
+            </div>
+            <div class="hero-metrics">
+              <div class="hero-metric"><strong>4</strong><span>Application Suites</span></div>
+              <div class="hero-metric"><strong>Governed</strong><span>Knowledge Layer</span></div>
+              <div class="hero-metric"><strong>Live</strong><span>Banking Data Access</span></div>
+            </div>
           </div>
 
           <h2 class="section-title">Explore Modular Application Suites</h2>

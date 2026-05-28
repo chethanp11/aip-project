@@ -56,7 +56,7 @@ class PostgresCursorWrapper:
         try:
             # Translate SQLite parameter binding '?' to PostgreSQL '%s'
             query_pg = query.replace('?', '%s')
-            
+
             # Emulate SQLite "INSERT OR REPLACE" via PostgreSQL DELETE-then-INSERT
             if "INSERT OR REPLACE INTO graph_nodes" in query_pg:
                 self._cursor.execute("DELETE FROM graph_nodes WHERE node_id = %s;", (params[0],))
@@ -108,7 +108,7 @@ class PostgresCursorWrapper:
     def executemany(self, query: str, params_list: list):
         try:
             query_pg = query.replace('?', '%s')
-            
+
             # Emulate SQLite "INSERT OR REPLACE" bulk actions in PostgreSQL
             if "INSERT OR REPLACE INTO graph_edges" in query_pg:
                 for p in params_list:
@@ -220,17 +220,77 @@ def log_ingestion_activity(msg: str):
     print(f"[Ingestion Log] {msg}")
 
 def load_kms_seed_file(filename: str) -> Any:
-    """Load KMS seed/reference data from AIP-Infra."""
-    seed_path = os.path.join(config.KMS_SEED_PATH, filename)
+    """Load KMS seed/reference data from the active team folder."""
+    team = get_active_kms_team()
+    if not team:
+        raise RuntimeError("KMS seed loading requires an authenticated team context.")
+    seed_path = os.path.join(config.get_kms_team_seed_path(team), filename)
     if not os.path.exists(seed_path):
         raise FileNotFoundError(f"KMS seed data not found in AIP-Infra: {seed_path}")
     with open(seed_path, 'r', encoding='utf-8') as seed_file:
         return json.load(seed_file)
 
+def load_kms_seed_file_for_team(team: str, filename: str) -> Any:
+    """Load KMS seed/reference data for a specific team."""
+    seed_path = os.path.join(config.get_kms_team_seed_path(team), filename)
+    if not os.path.exists(seed_path):
+        raise FileNotFoundError(f"KMS team seed data not found in AIP-Infra: {seed_path}")
+    with open(seed_path, 'r', encoding='utf-8') as seed_file:
+        return json.load(seed_file)
+
+def get_active_kms_team() -> Optional[str]:
+    """Return the authenticated KMS team, if a session is active."""
+    try:
+        from shared.session import active_sessions
+        from shared.intelligence import active_agent_context
+        active_ctx = active_agent_context.get()
+        api_key = active_ctx.get('api_key', '') if active_ctx else ''
+        if api_key in active_sessions:
+            session = active_sessions[api_key]
+            return session.get('kms_team') or config.resolve_kms_team(session.get('username', ''), session.get('allowed_domains'))
+    except Exception as exc:
+        print(f"[KMS Context] Unable to resolve active team: {str(exc)}")
+    return None
+
+def get_active_kms_context_path() -> Optional[str]:
+    """Return the authenticated team KMS context folder, if a session is active."""
+    try:
+        from shared.session import active_sessions
+        from shared.intelligence import active_agent_context
+        active_ctx = active_agent_context.get()
+        api_key = active_ctx.get('api_key', '') if active_ctx else ''
+        if api_key in active_sessions:
+            session = active_sessions[api_key]
+            team = session.get('kms_team') or config.resolve_kms_team(session.get('username', ''), session.get('allowed_domains'))
+            return session.get('kms_context_path') or config.get_kms_team_path(team)
+    except Exception as exc:
+        print(f"[KMS Context] Unable to resolve active profile context path: {str(exc)}")
+    return None
+
+def load_active_kms_folder_context() -> str:
+    """Load team-specific context files from AIP-Infra/kms/<Team>/context."""
+    context_path = get_active_kms_context_path()
+    if not context_path:
+        return ""
+
+    context_dir = os.path.join(context_path, "context")
+    if not os.path.isdir(context_dir):
+        return ""
+
+    snippets = []
+    for filename in sorted(os.listdir(context_dir)):
+        if not filename.endswith((".md", ".txt")):
+            continue
+        file_path = os.path.join(context_dir, filename)
+        with open(file_path, "r", encoding="utf-8") as context_file:
+            snippets.append(f"--- {filename} ---\n{context_file.read().strip()}")
+    return "\n\n".join(snippets)
+
 def get_kms_data_paths() -> Dict[str, str]:
-    """Ensures directories exist and returns absolute paths for staging and runtime storage inside AIP-Infra."""
-    runtime_dir = config.KMS_RUNTIME_PATH
-    
+    """Ensures directories exist and returns absolute paths for active team runtime storage inside AIP-Infra."""
+    team = get_active_kms_team() or "Treasury"
+    runtime_dir = config.get_kms_team_runtime_path(team)
+
     paths = {
         'vector_db': os.path.join(runtime_dir, 'vector_db'),
         'graph_db': os.path.join(runtime_dir, 'graph_db'),
@@ -238,7 +298,7 @@ def get_kms_data_paths() -> Dict[str, str]:
         'ingestion_staging': os.path.join(runtime_dir, 'ingestion_staging'),
         'ingestion_logs': os.path.join(runtime_dir, 'ingestion_logs'),
     }
-    
+
     os.makedirs(paths['ingestion_staging'], exist_ok=True)
     os.makedirs(paths['ingestion_logs'], exist_ok=True)
     return paths
@@ -250,13 +310,14 @@ def get_postgres_db():
         client = PostgresClient()
         raw_conn = client.get_connection()
         _postgres_conn = PostgresConnectionWrapper(raw_conn)
-        
+
         cursor = _postgres_conn.cursor()
-        
+
         # Create Vector Chunk Table
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS vector_chunks (
             chunk_id SERIAL PRIMARY KEY,
+            team TEXT NOT NULL DEFAULT 'Treasury',
             node_id TEXT NOT NULL,
             chunk_text TEXT NOT NULL,
             tokens TEXT NOT NULL
@@ -267,6 +328,7 @@ def get_postgres_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS canonical_knowledge (
             knowledge_id TEXT PRIMARY KEY,
+            team TEXT NOT NULL DEFAULT 'Treasury',
             node_id TEXT NOT NULL,
             title TEXT NOT NULL,
             content TEXT NOT NULL,
@@ -342,6 +404,7 @@ def get_postgres_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS candidate_knowledge (
             candidate_id TEXT PRIMARY KEY,
+            team TEXT NOT NULL DEFAULT 'Treasury',
             title TEXT NOT NULL,
             summary TEXT,
             extracted_text TEXT NOT NULL,
@@ -438,16 +501,18 @@ def get_postgres_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS graph_nodes (
             node_id TEXT PRIMARY KEY,
+            team TEXT NOT NULL DEFAULT 'Treasury',
             type TEXT NOT NULL,
             title TEXT NOT NULL,
             content TEXT NOT NULL,
             metadata TEXT
         );
         """)
-        
+
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS graph_edges (
             edge_id TEXT PRIMARY KEY,
+            team TEXT NOT NULL DEFAULT 'Treasury',
             source_id TEXT NOT NULL,
             target_id TEXT NOT NULL,
             relationship TEXT NOT NULL,
@@ -458,7 +523,17 @@ def get_postgres_db():
         """)
 
         _postgres_conn.commit()
-        
+
+        # Backfill team columns for existing KMS databases created before team isolation.
+        for table in ["vector_chunks", "canonical_knowledge", "candidate_knowledge", "graph_nodes", "graph_edges"]:
+            try:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN team TEXT NOT NULL DEFAULT 'Treasury';")
+            except Exception:
+                try:
+                    _postgres_conn.rollback()
+                except Exception:
+                    pass
+
         # Always clear and seed default tables to ensure profile updates are active
         cursor.execute("DELETE FROM kms_users;")
         cursor.executemany("INSERT INTO kms_users VALUES (?, ?, ?, ?, ?, ?, ?);", [
@@ -489,48 +564,50 @@ def get_postgres_db():
         ])
         _postgres_conn.commit()
 
+        bootstrap_team = "Treasury"
         cursor.execute("SELECT COUNT(*) FROM business_domains;")
         if cursor.fetchone()[0] == 0:
-            lob_domains = [tuple(row) for row in load_kms_seed_file('business_domains.json')]
+            lob_domains = [tuple(row) for row in load_kms_seed_file_for_team(bootstrap_team, 'business_domains.json')]
             cursor.executemany("INSERT INTO business_domains VALUES (?, ?, ?);", lob_domains)
             _postgres_conn.commit()
 
         cursor.execute("SELECT COUNT(*) FROM business_terms;")
         if cursor.fetchone()[0] == 0:
-            terms = load_kms_seed_file('business_terms.json')
-            cursor.executemany("INSERT INTO business_terms VALUES (?, ?);", 
+            terms = load_kms_seed_file_for_team(bootstrap_team, 'business_terms.json')
+            cursor.executemany("INSERT INTO business_terms VALUES (?, ?);",
                                 [(t['term'], t['definition']) for t in terms])
             _postgres_conn.commit()
 
         cursor.execute("SELECT COUNT(*) FROM metrics_glossary;")
         if cursor.fetchone()[0] == 0:
-            metrics = load_kms_seed_file('metrics_glossary.json')
-            cursor.executemany("INSERT INTO metrics_glossary VALUES (?, ?, ?, ?, ?, ?);", 
+            metrics = load_kms_seed_file_for_team(bootstrap_team, 'metrics_glossary.json')
+            cursor.executemany("INSERT INTO metrics_glossary VALUES (?, ?, ?, ?, ?, ?);",
                                 [(m['id'], m['name'], m['description'], m['formula'], m['format'], json.dumps(m['trends'])) for m in metrics])
             _postgres_conn.commit()
 
         cursor.execute("SELECT COUNT(*) FROM analytical_templates;")
         if cursor.fetchone()[0] == 0:
-            templates = load_kms_seed_file('analytical_templates.json')
-            cursor.executemany("INSERT INTO analytical_templates VALUES (?, ?, ?);", 
+            templates = load_kms_seed_file_for_team(bootstrap_team, 'analytical_templates.json')
+            cursor.executemany("INSERT INTO analytical_templates VALUES (?, ?, ?);",
                                 [(t['id'], t['name'], t['structure']) for t in templates])
             _postgres_conn.commit()
 
         cursor.execute("SELECT COUNT(*) FROM knowledge_articles;")
         if cursor.fetchone()[0] == 0:
-            articles = load_kms_seed_file('knowledge_articles.json')
-            cursor.executemany("INSERT INTO knowledge_articles VALUES (?, ?, ?);", 
+            articles = load_kms_seed_file_for_team(bootstrap_team, 'knowledge_articles.json')
+            cursor.executemany("INSERT INTO knowledge_articles VALUES (?, ?, ?);",
                                 [(a['title'], a['category'], a['content']) for a in articles])
             _postgres_conn.commit()
 
-        # Seed canonical and graph nodes inside PostgreSQL AND Neo4j if empty
-        cursor.execute("SELECT COUNT(*) FROM graph_nodes WHERE node_id = 'node_basel_3';")
-        if cursor.fetchone()[0] == 0:
-            prepopulate_kms_knowledge(_postgres_conn)
-            
+        # Seed canonical and graph nodes inside PostgreSQL per team if empty.
+        for team in ["Treasury", "Compliance", "Model", "Credit"]:
+            cursor.execute("SELECT COUNT(*) FROM graph_nodes WHERE team = ?;", (team,))
+            if cursor.fetchone()[0] == 0:
+                prepopulate_kms_knowledge(_postgres_conn, team)
+
         # Initialize and verify Neo4j Graph Database
         get_graph_db()
-        
+
     return _postgres_conn
 
 def get_graph_db():
@@ -553,14 +630,21 @@ def get_kms_db():
 # ==========================================================
 # 📚 PRE-POPULATE DATAblueprints
 # ==========================================================
-def prepopulate_kms_knowledge(conn):
-    seed = load_kms_seed_file('knowledge_seed.json')
+def _team_node_id(team: str, node_id: str) -> str:
+    return f"{team}::{node_id}"
+
+def _team_edge_id(team: str, edge_id: str) -> str:
+    return f"{team}::{edge_id}"
+
+def prepopulate_kms_knowledge(conn, team: str):
+    seed = load_kms_seed_file_for_team(team, 'knowledge_seed.json')
     cursor = conn.cursor()
 
     # 1. Broad regulatory and policy corpus nodes loaded from AIP-Infra.
     for n_id, n_type, n_title, n_content in seed.get('nodes', []):
-        cursor.execute("INSERT OR REPLACE INTO graph_nodes VALUES (?, ?, ?, ?, ?);", (n_id, n_type, n_title, n_content, "{}"))
-        tokenize_and_store_vector_chunk(n_id, n_content)
+        team_node_id = _team_node_id(team, n_id)
+        cursor.execute("INSERT OR REPLACE INTO graph_nodes (node_id, team, type, title, content, metadata) VALUES (?, ?, ?, ?, ?, ?);", (team_node_id, team, n_type, n_title, n_content, "{}"))
+        tokenize_and_store_vector_chunk(team_node_id, n_content, team)
 
         tags = "basel3,liquidity" if "basel" in n_id else "federal,treasury"
         sme = "Dr. Sarah Lin" if "basel" in n_id else "Marcus Vance"
@@ -569,19 +653,19 @@ def prepopulate_kms_knowledge(conn):
 
         cursor.execute("""
         INSERT OR REPLACE INTO canonical_knowledge (
-            knowledge_id, node_id, title, content, owner, sme, business_domain,
+            knowledge_id, team, node_id, title, content, owner, sme, business_domain,
             tags, confidence, approval_status, version, freshness_date,
             security_classification, source_traceability, lineage, superseded_by, deprecation_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, (
-            "k_" + n_id, n_id, n_title, n_content, "Regulatory Risk ALCO", sme, domain,
+            _team_node_id(team, "k_" + n_id), team, team_node_id, n_title, n_content, "Regulatory Risk ALCO", sme, domain,
             tags, 1.0, "Approved", 1, "2026-05-01", sec_class, "U.S. Fed Reserve / BCBS Policy Papers",
             "Initial Seed", "", ""
         ))
 
     cursor.executemany(
-        "INSERT OR REPLACE INTO graph_edges VALUES (?, ?, ?, ?, ?);",
-        [(edge_id, source_id, target_id, relationship, "{}") for edge_id, source_id, target_id, relationship in seed.get('edges', [])]
+        "INSERT OR REPLACE INTO graph_edges (edge_id, team, source_id, target_id, relationship, metadata) VALUES (?, ?, ?, ?, ?, ?);",
+        [(_team_edge_id(team, edge_id), team, _team_node_id(team, source_id), _team_node_id(team, target_id), relationship, "{}") for edge_id, source_id, target_id, relationship in seed.get('edges', [])]
     )
 
     cursor.execute("INSERT OR REPLACE INTO security_audit_logs VALUES (?, ?, ?, ?, ?, ?);",
@@ -592,13 +676,13 @@ def prepopulate_kms_knowledge(conn):
     cursor.executemany("INSERT OR REPLACE INTO source_connectors VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", seed.get('connectors', []))
     cursor.executemany("""
     INSERT OR REPLACE INTO candidate_knowledge (
-        candidate_id, title, summary, extracted_text, knowledge_type, source_document,
+        candidate_id, team, title, summary, extracted_text, knowledge_type, source_document,
         source_application, source_url_path, source_timestamp, domain, tags,
         entities, relationships, suggested_owner, suggested_sme, confidence_score,
         duplicate_score, conflict_warning, freshness_score, review_status,
         reviewer_comments, created_timestamp
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-    """, seed.get('candidates', []))
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    """, [(_team_node_id(team, row[0]), team, *row[1:]) for row in seed.get('candidates', [])])
 
     cursor.execute("INSERT OR REPLACE INTO observability_metrics (timestamp, metric_name, value, metadata) VALUES (?, ?, ?, ?);",
                    ("2026-05-23T22:00:00Z", "KMS_TOTAL_KNOWLEDGE_ENTITIES", float(len(seed.get('nodes', []))), "{}"))
@@ -614,11 +698,12 @@ def tokenize(text: str) -> List[str]:
     cleaned = text.lower().replace('.', ' ').replace(',', ' ').replace('(', ' ').replace(')', ' ').replace('-', ' ')
     return [t.strip() for t in cleaned.split() if len(t.strip()) > 2]
 
-def tokenize_and_store_vector_chunk(node_id: str, text: str):
+def tokenize_and_store_vector_chunk(node_id: str, text: str, team: Optional[str] = None):
     """Chunks text, tokenizes, and saves into vector table."""
     conn = get_kms_db()
     cursor = conn.cursor()
-    
+    active_team = team or get_active_kms_team() or "Treasury"
+
     # Split text into sentences or chunks of ~150 characters
     sentences = text.split('. ')
     for s in sentences:
@@ -626,8 +711,8 @@ def tokenize_and_store_vector_chunk(node_id: str, text: str):
         if len(s_clean) < 15:
             continue
         tokens_str = " ".join(tokenize(s_clean))
-        cursor.execute("INSERT INTO vector_chunks (node_id, chunk_text, tokens) VALUES (?, ?, ?);", 
-                       (node_id, s_clean, tokens_str))
+        cursor.execute("INSERT INTO vector_chunks (team, node_id, chunk_text, tokens) VALUES (?, ?, ?, ?);",
+                       (active_team, node_id, s_clean, tokens_str))
     conn.commit()
 
 # ==========================================================
@@ -641,8 +726,8 @@ def search_kms_vector_and_graph(query_str: str, limit: int = 4) -> Dict[str, Any
 # 🧠 ADVANCED RETRIEVAL ORCHESTRATION & CONTEXT ENGINEERING
 # ==========================================================
 def advanced_retrieval_orchestration(
-    query_str: str, 
-    user_role: str = "Analyst", 
+    query_str: str,
+    user_role: str = "Analyst",
     security_clearance: str = "Internal",
     limit: int = 4,
     search_mode: str = "Hybrid", # Keyword, Semantic, Hybrid, Graph
@@ -654,21 +739,21 @@ def advanced_retrieval_orchestration(
     """
     conn = get_kms_db()
     cursor = conn.cursor()
-    
+
     start_time = time.time()
-    
+
     query_tokens = tokenize(query_str)
     if not query_tokens:
         return {
-            'context': '', 
-            'matched_nodes': [], 
-            'matched_chunks': [], 
-            'agent_traces': [], 
-            'contradictions': [], 
-            'missing_context': [], 
+            'context': '',
+            'matched_nodes': [],
+            'matched_chunks': [],
+            'agent_traces': [],
+            'contradictions': [],
+            'missing_context': [],
             'latency_ms': 0
         }
-        
+
     agent_traces = []
     def log_agent_action(agent_name: str, action: str, details: str):
         agent_traces.append({
@@ -680,30 +765,31 @@ def advanced_retrieval_orchestration(
 
     # Step 14: Retrieval Planner Agent
     log_agent_action("Retrieval Planner Agent", "PLAN_RETRIEVAL", f"Received query: '{query_str}' using Search Mode: {search_mode}.")
+    active_team = get_active_kms_team() or "Treasury"
 
     # Fetch chunks
-    cursor.execute("SELECT * FROM vector_chunks;")
+    cursor.execute("SELECT * FROM vector_chunks WHERE team = ?;", (active_team,))
     all_chunks = cursor.fetchall()
-    
+
     scored_chunks = []
     for chunk in all_chunks:
         chunk_tokens = chunk['tokens'].split()
         if not chunk_tokens:
             continue
-            
+
         match_count = sum(1 for t in query_tokens if t in chunk_tokens)
         score = match_count / math.sqrt(len(query_tokens) * len(chunk_tokens))
-        
+
         if score > 0:
             scored_chunks.append({
                 'node_id': chunk['node_id'],
                 'text': chunk['chunk_text'],
                 'score': score
             })
-            
+
     scored_chunks.sort(key=lambda x: x['score'], reverse=True)
     top_chunks = scored_chunks[:limit]
-    
+
     if not top_chunks:
         log_agent_action("Retrieval Planner Agent", "ZERO_MATCHES", "No vector overlapping chunks matched in corporate repository.")
         return {
@@ -718,7 +804,7 @@ def advanced_retrieval_orchestration(
 
     # Step 15: Context Builder Agent
     log_agent_action("Context Builder Agent", "RBAC_FILTER", f"Applying role-aware security filters (User Role: {user_role} | Clearance: {security_clearance})")
-    
+
     # RBAC filtering: only allow nodes that are public or match clearance level
     clearance_hierarchy = {'Public': 0, 'Internal': 1, 'Confidential': 2, 'Restricted': 3}
     user_val = clearance_hierarchy.get(security_clearance, 1)
@@ -734,16 +820,16 @@ def advanced_retrieval_orchestration(
 
     filtered_chunks = []
     filtered_node_ids = set()
-    
+
     for c in top_chunks:
         # Check canonical knowledge security grade AND approved-only filter for Analysts!
-        cursor.execute("SELECT security_classification, approval_status, business_domain FROM canonical_knowledge WHERE node_id = ?;", (c['node_id'],))
+        cursor.execute("SELECT security_classification, approval_status, business_domain FROM canonical_knowledge WHERE node_id = ? AND team = ?;", (c['node_id'], active_team))
         row = cursor.fetchone()
         if row:
             node_clearance = row['security_classification']
             node_status = row['approval_status']
             node_domain = row['business_domain']
-            
+
             # Enforce dynamic domain checking based on logged in user profile context
             if allowed_domains is not None and node_domain not in allowed_domains:
                 log_agent_action("Context Builder Agent", "DOMAIN_BLOCK", f"Filtered chunk on node '{c['node_id']}' because domain '{node_domain}' is not authorized for active user profile.")
@@ -753,7 +839,7 @@ def advanced_retrieval_orchestration(
             if user_role == "Analyst" and node_status != "Approved":
                 log_agent_action("Context Builder Agent", "STATUS_BLOCK", f"Filtered chunk on node '{c['node_id']}' because it is in status '{node_status}' (Analyst retrieve approved-only).")
                 continue
-                
+
             node_val = clearance_hierarchy.get(node_clearance, 1)
             if node_val > user_val:
                 log_agent_action("Context Builder Agent", "SECURITY_BLOCK", f"Filtered chunk on node '{c['node_id']}' due to insufficient security clearance (Required: {node_clearance} vs User: {security_clearance}).")
@@ -763,20 +849,20 @@ def advanced_retrieval_orchestration(
 
     # Multi-hop relationship traversal:
     log_agent_action("Context Builder Agent", "GRAPH_TRAVERSAL", "Traversing graph relationships edges to retrieve neighboring policy rules...")
-    
+
     nodes_info = []
     traversed_node_ids = set()
-    
+
     for n_id in filtered_node_ids:
-        cursor.execute("SELECT * FROM graph_nodes WHERE node_id = ?;", (n_id,))
+        cursor.execute("SELECT * FROM graph_nodes WHERE node_id = ? AND team = ?;", (n_id, active_team))
         node = cursor.fetchone()
         if node:
             node_dict = dict(node)
-            cursor.execute("SELECT owner, sme, business_domain, confidence, approval_status, version, freshness_date, security_classification, source_traceability, tags FROM canonical_knowledge WHERE node_id = ?;", (n_id,))
+            cursor.execute("SELECT owner, sme, business_domain, confidence, approval_status, version, freshness_date, security_classification, source_traceability, tags FROM canonical_knowledge WHERE node_id = ? AND team = ?;", (n_id, active_team))
             ck = cursor.fetchone()
             if ck:
                 node_dict.update(dict(ck))
-            
+
             # Apply Analyst search filters if present
             if filters:
                 if filters.get('domain') and filters.get('domain') != node_dict.get('business_domain'):
@@ -791,39 +877,39 @@ def advanced_retrieval_orchestration(
                     continue
                 if filters.get('freshness') == 'recent' and not (node_dict.get('freshness_date') or '').startswith('2026'):
                     continue
-                    
+
             nodes_info.append(node_dict)
             traversed_node_ids.add(n_id)
-            
+
             # Hop 1 traversal
             cursor.execute("""
-            SELECT n.* FROM graph_nodes n 
+            SELECT n.* FROM graph_nodes n
             JOIN graph_edges e ON (e.source_id = n.node_id OR e.target_id = n.node_id)
-            WHERE (e.source_id = ? OR e.target_id = ?) AND n.node_id != ?;
-            """, (n_id, n_id, n_id))
+            WHERE e.team = ? AND n.team = ? AND (e.source_id = ? OR e.target_id = ?) AND n.node_id != ?;
+            """, (active_team, active_team, n_id, n_id, n_id))
             neighbors = cursor.fetchall()
             for neighbor in neighbors:
                 neigh_id = neighbor['node_id']
                 if neigh_id not in traversed_node_ids:
                     # Apply security and status filter to neighbors too
-                    cursor.execute("SELECT security_classification, approval_status, owner, sme, business_domain, confidence, version, freshness_date, source_traceability, tags FROM canonical_knowledge WHERE node_id = ?;", (neigh_id,))
+                    cursor.execute("SELECT security_classification, approval_status, owner, sme, business_domain, confidence, version, freshness_date, source_traceability, tags FROM canonical_knowledge WHERE node_id = ? AND team = ?;", (neigh_id, active_team))
                     n_ck = cursor.fetchone()
                     if n_ck:
                         n_clearance = n_ck['security_classification']
                         n_status = n_ck['approval_status']
                         n_domain = n_ck['business_domain']
-                        
+
                         if allowed_domains is not None and n_domain not in allowed_domains:
                             continue
                         if user_role == "Analyst" and n_status != "Approved":
                             continue
                         if clearance_hierarchy.get(n_clearance, 1) > user_val:
                             continue
-                            
+
                     neighbor_dict = dict(neighbor)
                     if n_ck:
                         neighbor_dict.update(dict(n_ck))
-                        
+
                     # Apply Analyst search filters if present
                     if filters:
                         if filters.get('domain') and filters.get('domain') != neighbor_dict.get('business_domain'):
@@ -838,20 +924,20 @@ def advanced_retrieval_orchestration(
                             continue
                         if filters.get('freshness') == 'recent' and not (neighbor_dict.get('freshness_date') or '').startswith('2026'):
                             continue
-                            
+
                     nodes_info.append(neighbor_dict)
                     traversed_node_ids.add(neigh_id)
 
     # Step 16: Retrieval QA Agent
     log_agent_action("Retrieval QA Agent", "EVALUATE_CONTEXT", "Running evidence quality checks and contradiction detection algorithms...")
-    
+
     contradictions = []
     missing_context = []
-    
+
     all_contents = " ".join([n['content'].lower() for n in nodes_info])
     if 'haircut' in all_contents and '0%' in all_contents and '15%' in all_contents:
         contradictions.append("Detected possible haircut rate variance across Level 1 (0%) and Level 2A (15%) asset pools.")
-    
+
     query_words = query_str.lower().split()
     matched_words = all_contents.split()
     missing = [w for w in query_words if len(w) > 4 and w not in matched_words]
@@ -859,12 +945,18 @@ def advanced_retrieval_orchestration(
         missing_context.append(f"Query keyword terms not fully grounded in extracted corpus: {', '.join(missing[:3])}")
 
     log_agent_action("Retrieval QA Agent", "CONTEXT_COMPRESS", "Applying token deduplication and relevance sorting...")
-    
+
     matches_text = []
+    profile_context = load_active_kms_folder_context()
+    if profile_context:
+        matches_text.append("=== Authenticated Analyst KMS Folder Context ===")
+        matches_text.append(profile_context)
+        log_agent_action("Context Builder Agent", "TEAM_CONTEXT_LOAD", "Loaded authenticated team context from AIP-Infra/kms team folder.")
+
     matches_text.append("=== Matched Regulation & Policies Vector Chunks ===")
     for idx, c in enumerate(filtered_chunks):
         matches_text.append(f"[{idx+1}] Chunk: {c['text']} (Similarity Score: {c['score']:.3f})")
-        
+
     matches_text.append("\n=== Graph DB Grounded Relational Nodes ===")
     for node in nodes_info:
         matches_text.append(
@@ -874,19 +966,19 @@ def advanced_retrieval_orchestration(
             f"| Security: {node.get('security_classification', 'Internal')} "
             f"\nContent: {node['content']}"
         )
-        
+
     compiled_context = "\n".join(matches_text)
-    
+
     duration_ms = int((time.time() - start_time) * 1000)
-    
+
     # Log security audit trail
-    cursor.execute("INSERT INTO security_audit_logs VALUES (?, ?, ?, ?, ?, ?);", 
+    cursor.execute("INSERT INTO security_audit_logs VALUES (?, ?, ?, ?, ?, ?);",
                    ("log_" + uuid_suffix(), time.strftime('%Y-%m-%dT%H:%M:%SZ'), "RETRIEVE_KNOWLEDGE", user_role, "", "Success"))
 
     # Log performance metrics
-    cursor.execute("INSERT INTO observability_metrics (timestamp, metric_name, value, metadata) VALUES (?, ?, ?, ?);", 
+    cursor.execute("INSERT INTO observability_metrics (timestamp, metric_name, value, metadata) VALUES (?, ?, ?, ?);",
                    (time.strftime('%Y-%m-%dT%H:%M:%SZ'), "KMS_RETRIEVAL_LATENCY_MS", float(duration_ms), json.dumps({'query': query_str})))
-    
+
     conn.commit()
 
     return {
@@ -905,22 +997,22 @@ def generate_context_package(query_str: str, user_role: str = "Analyst", securit
     Computes a context quality score based on relevance parameters.
     """
     res = advanced_retrieval_orchestration(query_str, user_role, security_clearance)
-    
+
     raw_context = res['context']
     lines = [line.strip() for line in raw_context.split('\n') if line.strip()]
-    
+
     unique_lines = []
     for l in lines:
         if l not in unique_lines:
             unique_lines.append(l)
     dedup_text = "\n".join(unique_lines)
-    
+
     base_score = 0.95
     if res['contradictions']:
         base_score -= 0.15
     if res['missing_context']:
         base_score -= 0.10
-        
+
     return {
         'optimizedContext': dedup_text,
         'originalTokensCount': len(raw_context.split()),
@@ -935,9 +1027,9 @@ def generate_context_package(query_str: str, user_role: str = "Analyst", securit
 # 📥 UPGRADED 12-STAGE INGESTION WORKFLOW
 # ==========================================================
 async def ingest_custom_file_to_kms(
-    filename: str, 
-    content: str, 
-    owner: str = "System Ingestion", 
+    filename: str,
+    content: str,
+    owner: str = "System Ingestion",
     security_class: str = "Internal",
     sme: str = "Marcus Vance",
     business_domain: str = "Corporate Analytics",
@@ -950,7 +1042,7 @@ async def ingest_custom_file_to_kms(
     """
     conn = get_kms_db()
     cursor = conn.cursor()
-    
+
     agent_traces = []
     def log_agent_action(agent_name: str, step: int, details: str):
         msg = f"Step {step}: [{agent_name}] -> {details}"
@@ -964,7 +1056,7 @@ async def ingest_custom_file_to_kms(
 
     # Step 1: Select source
     log_agent_action("Knowledge Intake Agent", 1, f"Validated ingestion trigger for file: {filename}. Selecting placeholder manual connector.")
-    
+
     # Step 2: Pull or upload content
     log_agent_action("Knowledge Intake Agent", 2, f"Successfully uploaded and captured file content (size: {len(content)} characters).")
 
@@ -977,11 +1069,11 @@ async def ingest_custom_file_to_kms(
     # Step 5: Extract candidate knowledge
     # Dynamic LLM parsing or fallback
     c_lower = content.lower()
-    
+
     system_prompt = "You are a banking classification agent. Summarize the provided document into a single, high-fidelity sentence under 120 characters."
     if prompt:
         system_prompt += f" Adhere strictly to these user guidelines: {prompt}"
-        
+
     ai_summary = await call_llm(
         system_prompt=system_prompt,
         user_prompt=content
@@ -1008,17 +1100,18 @@ async def ingest_custom_file_to_kms(
     log_agent_action("Duplicate Detection Agent", 8, f"Calculated catalog semantic duplication score: {duplicate_score * 100}%")
 
     # Step 9: Create candidate records
-    candidate_id = "cand_" + uuid_suffix()
+    active_team = get_active_kms_team() or "Treasury"
+    candidate_id = _team_node_id(active_team, "cand_" + uuid_suffix())
     cursor.execute("""
     INSERT INTO candidate_knowledge (
-        candidate_id, title, summary, extracted_text, knowledge_type, source_document, 
-        source_application, source_url_path, source_timestamp, domain, tags, 
-        entities, relationships, suggested_owner, suggested_sme, confidence_score, 
-        duplicate_score, conflict_warning, freshness_score, review_status, 
+        candidate_id, team, title, summary, extracted_text, knowledge_type, source_document,
+        source_application, source_url_path, source_timestamp, domain, tags,
+        entities, relationships, suggested_owner, suggested_sme, confidence_score,
+        duplicate_score, conflict_warning, freshness_score, review_status,
         reviewer_comments, created_timestamp
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """, (
-        candidate_id, f"Extracted candidate: {filename}", summary, content, k_type, filename,
+        candidate_id, active_team, f"Extracted candidate: {filename}", summary, content, k_type, filename,
         "Direct Uploader", f"/ingestion_staging/{filename}", time.strftime('%Y-%m-%d %H:%M:%S'),
         business_domain, "custom,uploaded", "GENERAL_ASSET", suggested_relations, owner, sme,
         0.95, duplicate_score, "None", 0.90, "Pending Review", "", time.strftime('%Y-%m-%d %H:%M:%S')
@@ -1035,7 +1128,7 @@ async def ingest_custom_file_to_kms(
         f.write(content)
 
     conn.commit()
-    
+
     return {
         'success': True,
         'candidateId': candidate_id,
@@ -1074,17 +1167,18 @@ def get_kms_filter_options() -> Dict[str, List[str]]:
     conn = get_postgres_db()
     cursor = conn.cursor()
 
-    def values(sql: str) -> List[str]:
-        cursor.execute(sql)
+    def values(sql: str, params: tuple = ()) -> List[str]:
+        cursor.execute(sql, params)
         return [row[0] for row in cursor.fetchall() if row[0]]
 
+    active_team = get_active_kms_team() or "Treasury"
     return {
         'domains': values("SELECT name FROM business_domains ORDER BY name;"),
-        'sources': values("SELECT DISTINCT source_application FROM candidate_knowledge WHERE source_application IS NOT NULL UNION SELECT DISTINCT type FROM source_connectors WHERE type IS NOT NULL ORDER BY 1;"),
-        'knowledgeTypes': values("SELECT DISTINCT type FROM graph_nodes UNION SELECT DISTINCT knowledge_type FROM candidate_knowledge ORDER BY 1;"),
-        'smes': values("SELECT DISTINCT sme FROM canonical_knowledge UNION SELECT DISTINCT suggested_sme FROM candidate_knowledge WHERE suggested_sme IS NOT NULL ORDER BY 1;"),
+        'sources': values("SELECT DISTINCT source_application FROM candidate_knowledge WHERE team = ? AND source_application IS NOT NULL UNION SELECT DISTINCT type FROM source_connectors WHERE type IS NOT NULL ORDER BY 1;", (active_team,)),
+        'knowledgeTypes': values("SELECT DISTINCT type FROM graph_nodes WHERE team = ? UNION SELECT DISTINCT knowledge_type FROM candidate_knowledge WHERE team = ? ORDER BY 1;", (active_team, active_team)),
+        'smes': values("SELECT DISTINCT sme FROM canonical_knowledge WHERE team = ? UNION SELECT DISTINCT suggested_sme FROM candidate_knowledge WHERE team = ? AND suggested_sme IS NOT NULL ORDER BY 1;", (active_team, active_team)),
         'connectorTypes': values("SELECT DISTINCT type FROM source_connectors ORDER BY type;"),
-        'securityClassifications': values("SELECT DISTINCT security_classification FROM canonical_knowledge ORDER BY security_classification;"),
+        'securityClassifications': values("SELECT DISTINCT security_classification FROM canonical_knowledge WHERE team = ? ORDER BY security_classification;", (active_team,)),
         'searchModes': ['Hybrid', 'Keyword', 'Semantic', 'Graph'],
         'freshness': ['recent', 'older']
     }
@@ -1100,12 +1194,14 @@ def list_canonical_knowledge() -> List[Dict[str, Any]]:
     """Returns a list of all canonical knowledge elements currently active in the KMS registry."""
     conn = get_kms_db()
     cursor = conn.cursor()
+    active_team = get_active_kms_team() or "Treasury"
     cursor.execute("""
-    SELECT ck.*, gn.type as node_type 
+    SELECT ck.*, gn.type as node_type
     FROM canonical_knowledge ck
     JOIN graph_nodes gn ON ck.node_id = gn.node_id
+    WHERE ck.team = ? AND gn.team = ?
     ORDER BY ck.freshness_date DESC;
-    """)
+    """, (active_team, active_team))
     return [dict(row) for row in cursor.fetchall()]
 
 def list_source_connectors() -> List[Dict[str, Any]]:
@@ -1119,18 +1215,20 @@ def list_candidate_knowledge() -> List[Dict[str, Any]]:
     """Returns a list of candidate knowledge awaiting SME review and edits."""
     conn = get_kms_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM candidate_knowledge ORDER BY created_timestamp DESC;")
+    active_team = get_active_kms_team() or "Treasury"
+    cursor.execute("SELECT * FROM candidate_knowledge WHERE team = ? ORDER BY created_timestamp DESC;", (active_team,))
     return [dict(row) for row in cursor.fetchall()]
 
 def update_candidate_details(candidate_id: str, title: str, summary: str, domain: str, tags: str, relationships: str) -> Dict[str, Any]:
     """Allows SMEs to edit candidate definitions prior to approval/publishing."""
     conn = get_kms_db()
     cursor = conn.cursor()
+    active_team = get_active_kms_team() or "Treasury"
     cursor.execute("""
-    UPDATE candidate_knowledge 
+    UPDATE candidate_knowledge
     SET title = ?, summary = ?, domain = ?, tags = ?, relationships = ?
-    WHERE candidate_id = ?;
-    """, (title, summary, domain, tags, relationships, candidate_id))
+    WHERE candidate_id = ? AND team = ?;
+    """, (title, summary, domain, tags, relationships, candidate_id, active_team))
     conn.commit()
     return {'success': True, 'candidateId': candidate_id}
 
@@ -1142,58 +1240,62 @@ def act_on_candidate_knowledge(candidate_id: str, status: str, comments: str = "
     """
     conn = get_kms_db()
     cursor = conn.cursor()
-    
+    active_team = get_active_kms_team() or "Treasury"
+
     # 1. Update candidate record status
     cursor.execute("""
-    UPDATE candidate_knowledge 
+    UPDATE candidate_knowledge
     SET review_status = ?, reviewer_comments = ?
-    WHERE candidate_id = ?;
-    """, (status, comments, candidate_id))
-    
+    WHERE candidate_id = ? AND team = ?;
+    """, (status, comments, candidate_id, active_team))
+
     # 2. If status is Approved/Published, write candidates to production databases! (Step 12)
     if status in ['Approved', 'Published']:
         # Fetch candidate details
-        cursor.execute("SELECT * FROM candidate_knowledge WHERE candidate_id = ?;", (candidate_id,))
+        cursor.execute("SELECT * FROM candidate_knowledge WHERE candidate_id = ? AND team = ?;", (candidate_id, active_team))
         cand = cursor.fetchone()
         if cand:
             node_id = "node_" + cand['candidate_id']
             knowledge_id = "k_" + node_id
-            
+
             # 1. Write to graph_nodes
-            cursor.execute("INSERT OR REPLACE INTO graph_nodes VALUES (?, ?, ?, ?, ?);", 
-                           (node_id, cand['knowledge_type'], cand['title'], cand['extracted_text'], "{}"))
-            
+            cursor.execute("INSERT OR REPLACE INTO graph_nodes (node_id, team, type, title, content, metadata) VALUES (?, ?, ?, ?, ?, ?);",
+                           (node_id, active_team, cand['knowledge_type'], cand['title'], cand['extracted_text'], "{}"))
+
             # 2. Tokenize and store in vector_chunks
             tokenize_and_store_vector_chunk(node_id, cand['extracted_text'])
-            
+
             # 3. Create Canonical Knowledge Object
             cursor.execute("""
             INSERT OR REPLACE INTO canonical_knowledge (
-                knowledge_id, node_id, title, content, owner, sme, business_domain, 
-                tags, confidence, approval_status, version, freshness_date, 
+                knowledge_id, team, node_id, title, content, owner, sme, business_domain,
+                tags, confidence, approval_status, version, freshness_date,
                 security_classification, source_traceability, lineage, superseded_by, deprecation_date
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """, (
-                knowledge_id, node_id, cand['title'], cand['extracted_text'], 
+                knowledge_id, active_team, node_id, cand['title'], cand['extracted_text'],
                 cand['suggested_owner'] or "SME Ingested", cand['suggested_sme'] or "Marcus Vance",
-                cand['domain'], cand['tags'], cand['confidence_score'], "Approved", 1, 
-                time.strftime('%Y-%m-%d'), "Internal", cand['source_document'], 
+                cand['domain'], cand['tags'], cand['confidence_score'], "Approved", 1,
+                time.strftime('%Y-%m-%d'), "Internal", cand['source_document'],
                 "Ingested Candidate Ingestion", "", ""
             ))
-            
+
             # 4. Parse suggested relationships in edges
             rel_str = cand['relationships'] or ""
             if ":" in rel_str:
                 target_node, rel_type = rel_str.split(":", 1)
-                cursor.execute("INSERT INTO graph_edges VALUES (?, ?, ?, ?, ?);", 
-                               ('edge_custom_' + uuid_suffix(), node_id, target_node.strip(), rel_type.strip(), "{}"))
-                               
+                target_node_id = target_node.strip()
+                if "::" not in target_node_id:
+                    target_node_id = _team_node_id(active_team, target_node_id)
+                cursor.execute("INSERT INTO graph_edges (edge_id, team, source_id, target_id, relationship, metadata) VALUES (?, ?, ?, ?, ?, ?);",
+                               ('edge_custom_' + uuid_suffix(), active_team, node_id, target_node_id, rel_type.strip(), "{}"))
+
             log_ingestion_activity(f"Step 12: Published approved Candidate '{candidate_id}' into production Vector & Graph DBs.")
-            
+
     # Log Security Action
-    cursor.execute("INSERT INTO security_audit_logs VALUES (?, ?, ?, ?, ?, ?);", 
+    cursor.execute("INSERT INTO security_audit_logs VALUES (?, ?, ?, ?, ?, ?);",
                    ("log_" + uuid_suffix(), time.strftime('%Y-%m-%dT%H:%M:%SZ'), f"REVIEW_CANDIDATE_{status.upper()}", "SME Reviewer", candidate_id, "Success"))
-                   
+
     conn.commit()
     return {'success': True, 'candidateId': candidate_id, 'reviewStatus': status}
 
@@ -1201,12 +1303,13 @@ def rollback_knowledge_version(knowledge_id: str) -> Dict[str, Any]:
     """Simulates rolling back knowledge asset to standard version 1."""
     conn = get_kms_db()
     cursor = conn.cursor()
-    
-    cursor.execute("UPDATE canonical_knowledge SET version = 1, approval_status = 'Approved' WHERE knowledge_id = ?;", (knowledge_id,))
-    
-    cursor.execute("INSERT INTO security_audit_logs VALUES (?, ?, ?, ?, ?, ?);", 
+    active_team = get_active_kms_team() or "Treasury"
+
+    cursor.execute("UPDATE canonical_knowledge SET version = 1, approval_status = 'Approved' WHERE knowledge_id = ? AND team = ?;", (knowledge_id, active_team))
+
+    cursor.execute("INSERT INTO security_audit_logs VALUES (?, ?, ?, ?, ?, ?);",
                    ("log_" + uuid_suffix(), time.strftime('%Y-%m-%dT%H:%M:%SZ'), "ROLLBACK_KNOWLEDGE", "SME Approval Agent", knowledge_id, "Success"))
-                   
+
     conn.commit()
     return {'success': True, 'knowledgeId': knowledge_id, 'rolledBackTo': 1}
 
@@ -1214,28 +1317,29 @@ def get_kms_observability_data() -> Dict[str, Any]:
     """Gathers and compiles operational audit traces, freshness counts, and performance metrics."""
     conn = get_kms_db()
     cursor = conn.cursor()
-    
+
     # Freshness/SLA statistics
-    cursor.execute("SELECT COUNT(*) FROM canonical_knowledge WHERE approval_status = 'Approved';")
+    active_team = get_active_kms_team() or "Treasury"
+    cursor.execute("SELECT COUNT(*) FROM canonical_knowledge WHERE approval_status = 'Approved' AND team = ?;", (active_team,))
     approved_count = cursor.fetchone()[0]
-    
-    cursor.execute("SELECT COUNT(*) FROM candidate_knowledge WHERE review_status = 'Pending Review';")
+
+    cursor.execute("SELECT COUNT(*) FROM candidate_knowledge WHERE review_status = 'Pending Review' AND team = ?;", (active_team,))
     pending_count = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM graph_nodes;")
+    cursor.execute("SELECT COUNT(*) FROM graph_nodes WHERE team = ?;", (active_team,))
     node_count = cursor.fetchone()[0]
 
-    cursor.execute("SELECT COUNT(*) FROM vector_chunks;")
+    cursor.execute("SELECT COUNT(*) FROM vector_chunks WHERE team = ?;", (active_team,))
     chunk_count = cursor.fetchone()[0]
-    
+
     # Fetch audit logs
     cursor.execute("SELECT * FROM security_audit_logs ORDER BY timestamp DESC LIMIT 20;")
     logs = [dict(r) for r in cursor.fetchall()]
-    
+
     # Average latency
     cursor.execute("SELECT AVG(value) FROM observability_metrics WHERE metric_name = 'KMS_RETRIEVAL_LATENCY_MS';")
     avg_latency = cursor.fetchone()[0] or 12.0
-    
+
     return {
         'totalKnowledgeEntities': node_count,
         'totalVectorChunks': chunk_count,
@@ -1249,8 +1353,8 @@ def get_kms_observability_data() -> Dict[str, Any]:
 def check_kms_integrity() -> Dict[str, Any]:
     paths = get_kms_data_paths()
     return {
-        'integrityPassed': True, 
-        'errors': [], 
+        'integrityPassed': True,
+        'errors': [],
         'details': {
             'metadata_store': 'AIP-Infra/PostgreSQL',
             'paths': paths,
@@ -1266,13 +1370,14 @@ def approve_canonical_knowledge(knowledge_id: str, approved: bool) -> Dict[str, 
     """SME approves or rejects an existing canonical knowledge catalog item."""
     conn = get_kms_db()
     cursor = conn.cursor()
+    active_team = get_active_kms_team() or "Treasury"
     status = "Approved" if approved else "Rejected"
-    cursor.execute("UPDATE canonical_knowledge SET approval_status = ? WHERE knowledge_id = ?;", (status, knowledge_id))
-    
+    cursor.execute("UPDATE canonical_knowledge SET approval_status = ? WHERE knowledge_id = ? AND team = ?;", (status, knowledge_id, active_team))
+
     # Also log security action
-    cursor.execute("INSERT INTO security_audit_logs VALUES (?, ?, ?, ?, ?, ?);", 
+    cursor.execute("INSERT INTO security_audit_logs VALUES (?, ?, ?, ?, ?, ?);",
                    ("log_" + uuid_suffix(), time.strftime('%Y-%m-%dT%H:%M:%SZ'), f"APPROVE_CANONICAL_{status.upper()}", "SME Reviewer", knowledge_id, "Success"))
-    
+
     conn.commit()
     return {'success': True, 'knowledgeId': knowledge_id, 'status': status}
 
@@ -1284,16 +1389,16 @@ async def sync_source_connector(connector_id: str) -> Dict[str, Any]:
     row = cursor.fetchone()
     if not row:
         return {'success': False, 'message': 'Connector not found'}
-    
+
     connector = dict(row)
     timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-    
+
     # Simulate pulling content based on connector type
     mock_filename = f"{connector['type'].lower()}_sync_{uuid_suffix()}.md"
     mock_content = f"Grounded operational policies retrieved from {connector['name']} ({connector['type']}) for domain {connector['domain']}.\n" \
                    f"Under Basel III LCR and NSFR rules, corporate cash sweep aggregations are subject to maximum outflow volatility. " \
                    f"The bank Asset-Liability Committee (ALCO) requires Level 1 HQLA buffer coverage of at least 110% target to absorb potential digital run stress."
-    
+
     # Run the 12-stage ingestion pipeline
     res = await ingest_custom_file_to_kms(
         filename=mock_filename,
@@ -1303,17 +1408,17 @@ async def sync_source_connector(connector_id: str) -> Dict[str, Any]:
         sme="Marcus Vance",
         business_domain=connector['domain'] or "Regulatory Compliance"
     )
-    
+
     # Update connector status and history
     history = connector.get('ingestion_history') or ""
     new_history = f"Synced at {timestamp}: Generated candidate {res['candidateId']}. {history}"[:500]
-    
+
     cursor.execute("""
-    UPDATE source_connectors 
+    UPDATE source_connectors
     SET last_sync_timestamp = ?, status = 'Active', error_logs = '', ingestion_history = ?
     WHERE connector_id = ?;
     """, (timestamp, new_history, connector_id))
-    
+
     conn.commit()
     return {
         'success': True,
@@ -1327,12 +1432,12 @@ def generate_context_zip(query: str, res: Dict[str, Any], pkg: Dict[str, Any]) -
     """Generates an in-memory zip file containing the compiled retriever context pack files."""
     import zipfile
     import io
-    
+
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         # 1. context.txt (The compiled deduplicated context)
         zip_file.writestr("context.txt", pkg.get('optimizedContext', ''))
-        
+
         # 2. meta.json
         meta_data = {
             'query': query,
@@ -1344,7 +1449,7 @@ def generate_context_zip(query: str, res: Dict[str, Any], pkg: Dict[str, Any]) -
             'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
         }
         zip_file.writestr("meta.json", json.dumps(meta_data, indent=4))
-        
+
         # 3. nodes.json (Traversed graph nodes)
         nodes_clean = []
         for n in res.get('matched_nodes', []):
@@ -1359,7 +1464,7 @@ def generate_context_zip(query: str, res: Dict[str, Any], pkg: Dict[str, Any]) -
                 'freshness_date': n.get('freshness_date')
             })
         zip_file.writestr("nodes.json", json.dumps(nodes_clean, indent=4))
-        
+
         # 4. chunks.json (Matched vector chunks)
         chunks_clean = []
         for c in res.get('matched_chunks', []):
@@ -1369,6 +1474,6 @@ def generate_context_zip(query: str, res: Dict[str, Any], pkg: Dict[str, Any]) -
                 'score': c.get('score')
             })
         zip_file.writestr("chunks.json", json.dumps(chunks_clean, indent=4))
-        
+
     zip_buffer.seek(0)
     return zip_buffer.getvalue()
