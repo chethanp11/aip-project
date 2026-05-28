@@ -96,7 +96,7 @@ async def get_model_experiments(model_type: str = "All") -> Dict[str, Any]:
     Each object must have:
     - "agent": The exact name of one of the 3 agents above.
     - "message": A 1-2 sentence precise contribution to the debate referencing specific run IDs (like run_xgb_model_003).
-    - "action": A 3-5 word executive summary of their active operational role.
+    - "action": A 3-5 word stakeholder summary of their active operational role.
     Do not output any markdown formatting like ```json or anything else. Just the raw JSON object."""
 
     user_prompt = f"""We are evaluating the hyperparameter tuning trial grid: {experiments}.

@@ -1,11 +1,11 @@
 
-            const loan = document.getElementById('sim-loan');
+            const earning = document.getElementById('sim-earning');
             const dep = document.getElementById('sim-dep');
             const assets = document.getElementById('sim-assets');
             const npl = document.getElementById('sim-npl');
 
             async function runSim() {
-                document.getElementById('lbl-loan').innerText = loan.value;
+                document.getElementById('lbl-earning').innerText = earning.value;
                 document.getElementById('lbl-dep').innerText = dep.value;
                 document.getElementById('lbl-assets').innerText = assets.value;
                 document.getElementById('lbl-npl').innerText = npl.value;
@@ -15,8 +15,8 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            loanRate: loan.value,
-                            depositRate: dep.value,
+                            earningRate: earning.value,
+                            resourceCostRate: dep.value,
                             assets: assets.value,
                             nplRate: npl.value
                         })
@@ -28,6 +28,6 @@
                     console.error(err);
                 }
             }
-            [loan, dep, assets, npl].forEach(el => el.addEventListener('input', runSim));
+            [earning, dep, assets, npl].forEach(el => el.addEventListener('input', runSim));
             runSim();
         

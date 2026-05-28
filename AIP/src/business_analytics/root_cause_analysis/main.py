@@ -39,8 +39,8 @@ async def run_rca_workflow(dataset_name: str, metrics_data: List[Dict[str, Any]]
 
     primary_driver = f"{sorted_segments[0]['segment']} (Total: {sorted_segments[0]['value']})" if sorted_segments else 'Unknown Driver'
 
-    # Attempt to query live LLM for executive analysis narrative
-    system_prompt = "You are a professional analytical risk auditor specializing in Root Cause Analysis (RCA). Compile a concise, executive-grade diagnostic narrative summarizing portfolio operational performance drivers variance."
+    # Attempt to query live LLM for stakeholder analysis narrative
+    system_prompt = "You are a professional analytical risk auditor specializing in Root Cause Analysis (RCA). Compile a concise, stakeholder-grade diagnostic narrative summarizing portfolio operational performance drivers variance."
     
     user_prompt = f"""RCA Scan Report for dataset: {dataset_name}
 - Total Audited Entries: {row_count}

@@ -201,9 +201,15 @@ The `.env` file controls the active endpoints and storage roots:
 ```env
 POSTGRES_HOST=localhost
 POSTGRES_PORT=5433
-POSTGRES_DB=analyticsdb
+POSTGRES_DB=treasurydb
 POSTGRES_USER=analytics
 POSTGRES_PASSWORD=analytics123
+
+# Business analytics databases:
+# Treasury -> treasurydb
+# Compliance -> compliancedb
+# Wealth -> wealthdb
+# Credit -> creditdb
 
 REDIS_HOST=localhost
 REDIS_PORT=6379

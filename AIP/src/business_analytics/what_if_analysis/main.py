@@ -9,7 +9,7 @@ from src.shared.infra.analytics_client import AnalyticsClient
 _analytics_client = AnalyticsClient()
 get_lms_table = _analytics_client.get_table_rows
 
-def run_whatif_workflow(loan_rate: str, deposit_rate: str, assets: str, npl_rate: str) -> Dict[str, Any]:
+def run_whatif_workflow(earning_rate: str, resource_cost_rate: str, assets: str, npl_rate: str) -> Dict[str, Any]:
     print("[Workflow: Analytics - What-if] Simulating operational margins and portfolio profits.")
 
     # 1. Query Enterprise Ledger Tables to establish baseline balances if assets is omitted
@@ -19,8 +19,8 @@ def run_whatif_workflow(loan_rate: str, deposit_rate: str, assets: str, npl_rate
     lms_deposits_total = sum(d.get('amount', d.get('balance', 0)) for d in deposits_data) / 1000000000.0 if deposits_data else 0.0
     
     try:
-        l_rate = float(loan_rate) if loan_rate else 6.5
-        d_rate = float(deposit_rate) if deposit_rate else 2.5
+        l_rate = float(earning_rate) if earning_rate else 6.5
+        d_rate = float(resource_cost_rate) if resource_cost_rate else 2.5
         total_assets = float(assets) if assets else (lms_deposits_total / 0.90 if lms_deposits_total > 0 else 10.0)
         def_rate = float(npl_rate) if npl_rate else 1.5
     except ValueError:
@@ -32,20 +32,20 @@ def run_whatif_workflow(loan_rate: str, deposit_rate: str, assets: str, npl_rate
     # Convert assets from billions to dollars
     assets_in_dollars = total_assets * 1000000000.0
 
-    # Active earning assets (e.g. loans) is assumed to be 85% of assets
-    loan_portfolio = assets_in_dollars * 0.85
-    # Core deposit liabilities is assumed to be 90% of assets
-    deposit_liabilities = assets_in_dollars * 0.90
+    # Active earning base is assumed to be 85% of assets
+    earning_base = assets_in_dollars * 0.85
+    # Baseline resource cost base is assumed to be 90% of assets
+    resource_cost_base = assets_in_dollars * 0.90
 
     # Calculations:
-    # 1. Projected Interest Revenue = loanPortfolio * (lRate / 100)
-    projected_revenue = round(loan_portfolio * (l_rate / 100.0), 2)
+    # 1. Projected Interest Revenue = earningBase * (lRate / 100)
+    projected_revenue = round(earning_base * (l_rate / 100.0), 2)
 
-    # 2. Projected Interest Expense = depositLiabilities * (dRate / 100)
-    projected_expense = round(deposit_liabilities * (d_rate / 100.0), 2)
+    # 2. Projected Interest Expense = resourceCostBase * (dRate / 100)
+    projected_expense = round(resource_cost_base * (d_rate / 100.0), 2)
 
-    # 3. Projected Default Costs = loanPortfolio * (defRate / 100) * 0.60 (60% Loss Given Default)
-    projected_default = round(loan_portfolio * (def_rate / 100.0) * 0.60, 2)
+    # 3. Projected Default Costs = earningBase * (defRate / 100) * 0.60 (60% Loss Given Default)
+    projected_default = round(earning_base * (def_rate / 100.0) * 0.60, 2)
 
     # 4. Net Spread Profit = Revenue - Expense - Default Costs
     net_spread = round(projected_revenue - projected_expense - projected_default, 2)

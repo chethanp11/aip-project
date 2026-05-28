@@ -31,7 +31,7 @@ async def run_data_preparation_workflow(columns: List[str] = None, dataset: List
             columns = ['risk_score', 'balance', 'interest_rate', 'credit_rating', 'industry']
             dataset = [
                 {'client_id': 'C-101', 'risk_score': 0.12, 'balance': 75000000.0, 'interest_rate': 1.25, 'credit_rating': 'AAA', 'industry': 'Technology'},
-                {'client_id': 'C-102', 'risk_score': None, 'balance': 120000000.0, 'interest_rate': 2.75, 'credit_rating': 'AA', 'industry': 'Finance'},
+                {'client_id': 'C-102', 'risk_score': None, 'balance': 120000000.0, 'interest_rate': 2.75, 'credit_rating': 'AA', 'industry': 'Services'},
                 {'client_id': 'C-103', 'risk_score': 0.45, 'balance': None, 'interest_rate': 3.5, 'credit_rating': 'BB', 'industry': 'Retail'},
                 {'client_id': 'C-104', 'risk_score': 0.88, 'balance': 15000000.0, 'interest_rate': 9.99, 'credit_rating': 'CCC', 'industry': 'Energy'},
                 {'client_id': 'C-105', 'risk_score': None, 'balance': 45000000.0, 'interest_rate': 1.5, 'credit_rating': 'A', 'industry': 'Technology'},
@@ -142,7 +142,7 @@ async def run_data_preparation_workflow(columns: List[str] = None, dataset: List
     Each object must have:
     - "agent": The exact name of one of the 3 agents above.
     - "message": A 1-2 sentence precise contribution to the debate mentioning specific column names.
-    - "action": A 3-5 word executive summary of their active operational role.
+    - "action": A 3-5 word stakeholder summary of their active operational role.
     Do not output any markdown formatting like ```json or anything else. Just the raw JSON object."""
 
     user_prompt = f"""We are profiling features table columns: {columns}.

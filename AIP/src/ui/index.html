@@ -42,10 +42,10 @@
         <div class="form-group" id="group-analyst-ids">
           <label for="login-analyst-id" style="color: #475569;">Select Analyst ID:</label>
           <select id="login-analyst-id" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
-            <option value="Insights_Analyst" style="color: black;">Insights_Analyst (Insights Workspace)</option>
-            <option value="Governance_Analyst" style="color: black;">Governance_Analyst (Governance Workspace)</option>
-            <option value="ModelOps_Analyst" style="color: black;">ModelOps_Analyst (Model Operations Workspace)</option>
-            <option value="Operations_Analyst" style="color: black;">Operations_Analyst (Operations Workspace)</option>
+            <option value="Treasury_Analyst" style="color: black;">Treasury_Analyst (Corporate Treasury)</option>
+            <option value="Compliance_Analyst" style="color: black;">Compliance_Analyst (Regulatory Compliance)</option>
+            <option value="Wealth_Analyst" style="color: black;">Wealth_Analyst (Wealth Management)</option>
+            <option value="Credit_Analyst" style="color: black;">Credit_Analyst (Credit Portfolio)</option>
           </select>
         </div>
 
@@ -53,15 +53,15 @@
         <div class="form-group hide" id="group-sme-ids">
           <label for="login-sme-id" style="color: #475569;">Select SME ID:</label>
           <select id="login-sme-id" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
-            <option value="Insights_SME" style="color: black;">Insights_SME (Insights Workspace SME)</option>
-            <option value="Governance_SME" style="color: black;">Governance_SME (Governance Workspace SME)</option>
-            <option value="ModelOps_SME" style="color: black;">ModelOps_SME (Model Operations Workspace SME)</option>
-            <option value="Operations_SME" style="color: black;">Operations_SME (Operations Workspace SME)</option>
+            <option value="Treasury_SME" style="color: black;">Treasury_SME (Corporate Treasury SME)</option>
+            <option value="Compliance_SME" style="color: black;">Compliance_SME (Regulatory Compliance SME)</option>
+            <option value="Wealth_SME" style="color: black;">Wealth_SME (Wealth Management SME)</option>
+            <option value="Credit_SME" style="color: black;">Credit_SME (Credit Portfolio SME)</option>
           </select>
         </div>
 
         <!-- Hidden input to track target username dynamically populated by JS -->
-        <input type="hidden" id="login-username" value="Insights_Analyst" />
+        <input type="hidden" id="login-username" value="Treasury_Analyst" />
 
         <!-- Premium Password Field -->
         <div class="form-group">

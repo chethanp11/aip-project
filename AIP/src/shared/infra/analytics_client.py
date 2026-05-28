@@ -1,6 +1,6 @@
 """
 Analytics Source Database Client
-Connects to the external analytics-source-db (analyticsdb on port 5433).
+Connects to business-owned PostgreSQL databases on analytics-source-db (port 5433).
 Provides secure schema exploration, parameterized queries, and read-only SQL execution.
 """
 
@@ -33,7 +33,7 @@ class AnalyticsClient:
             allowed_domains = active_sessions[api_key].get('allowed_domains')
 
         team = config.resolve_kms_team(username, allowed_domains)
-        db_name = f"{team.lower()}_analyticsdb" if team != "General" else "analyticsdb"
+        db_name = self.database_for_team(team)
 
         # Ensure team database exists and is synchronized from the source database
         self.ensure_database_exists(db_name, team)
@@ -46,16 +46,25 @@ class AnalyticsClient:
             password=self.password
         )
 
+    def database_for_team(self, team: str) -> str:
+        mapping = {
+            'Treasury': 'treasurydb',
+            'Compliance': 'compliancedb',
+            'Wealth': 'wealthdb',
+            'Credit': 'creditdb',
+        }
+        return mapping.get(team, self.database)
+
     def ensure_database_exists(self, db_name: str, team: str):
-        """Ensures that the team-specific database exists, creating it if necessary."""
-        if db_name == "analyticsdb":
+        """Ensures that the workspace-specific database exists, creating it if necessary."""
+        if db_name == self.database:
             return
 
-        # Connect to default analyticsdb first to check and create new database
+        # Connect to the base Treasury database first to check and create business databases
         conn = psycopg2.connect(
             host=self.host,
             port=self.port,
-            database="analyticsdb",
+            database=self.database,
             user=self.user,
             password=self.password
         )
@@ -75,19 +84,19 @@ class AnalyticsClient:
             conn.close()
 
     def initialize_team_database(self, db_name: str, team: str):
-        """Initializes only team-authorized tables in the new team database by copying from the source database."""
+        """Initializes only workspace-authorized tables in the new team database by copying from the source database."""
         team_tables_map = {
-            'Treasury': ['deposits', 'loans', 'accounts', 'transactions'],
-            'Compliance': ['liquidity_buffers', 'liquidity_sweeps', 'sweep_executions', 'corporate_clients'],
-            'Model': ['accounts'],
-            'Credit': ['corporate_clients', 'accounts']
+            'Treasury': ['accounts', 'transactions', 'liquidity_buffers', 'liquidity_sweeps', 'sweep_executions'],
+            'Compliance': ['corporate_clients', 'transactions'],
+            'Wealth': ['accounts', 'corporate_clients', 'transactions'],
+            'Credit': ['corporate_clients', 'accounts', 'transactions'],
         }
         tables_to_create = team_tables_map.get(team, [])
 
         src_conn = psycopg2.connect(
             host=self.host,
             port=self.port,
-            database="analyticsdb",
+            database=self.database,
             user=self.user,
             password=self.password
         )

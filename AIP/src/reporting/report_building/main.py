@@ -26,7 +26,7 @@ def get_reports_dir() -> str:
     os.makedirs(reports_dir, exist_ok=True)
     return reports_dir
 
-# A gorgeous corporate SQLite Entity-Relationship (ER) ASCII Diagram
+# A generic source Entity-Relationship (ER) ASCII Diagram
 ASCII_ER_DIAGRAM = """
 +---------------------------+       +-------------------------+       +----------------------------+
 |     corporate_clients     |       |        accounts         |       |        transactions        |
@@ -218,7 +218,7 @@ Please generate the relevant agent decisions list."""
             },
             {
                 'agent': "Chief Analytics Officer Agent",
-                'decision': "Authorized physical disk publication of executive briefing document.",
+                'decision': "Authorized physical disk publication of stakeholder briefing document.",
                 'rationale': f"Verified audit traceability of report ID {report_id}. Reconciled ledger sums.",
                 'status': "Published & Sealed"
             }
@@ -251,7 +251,7 @@ async def initiate_report_build(mode: str, report_id: str, requirements: str, co
     if 'sweep' in req_lower or 'pool' in req_lower or 'transfer' in req_lower:
         kpis.extend(["Automated Sweeps Efficiency", "Target-Balance Concentrator Ratios"])
     if 'credit' in req_lower or 'loan' in req_lower or 'default' in req_lower or 'npl' in req_lower:
-        kpis.extend(["Non-Performing Loans (NPL) Ratio", "Corporate Borrower Default Probabilities"])
+        kpis.extend(["Outcome Variance Risk Ratio", "Entity Variance Probability"])
         
     # Default fallback metrics if none matched
     if not kpis:
@@ -275,7 +275,7 @@ async def initiate_report_build(mode: str, report_id: str, requirements: str, co
         'kpis': kpis,
         'mode': mode,
         'reportId': report_id or f"rep_{uuid.uuid4().hex[:6]}",
-        'reportName': old_data.get('reportName') or (f"Liquidity Executive Brief - {time.strftime('%Y%m%d')}" if mode == 'create' else f"Updated Executive Brief - {time.strftime('%Y%m%d')}")
+        'reportName': old_data.get('reportName') or (f"Operational Brief - {time.strftime('%Y%m%d')}" if mode == 'create' else f"Updated Operational Brief - {time.strftime('%Y%m%d')}")
     }
     initial_decisions = await generate_step_agent_decisions(2, True, temp_session)
 
@@ -292,7 +292,7 @@ async def initiate_report_build(mode: str, report_id: str, requirements: str, co
         'dimensionTables': dimension_tables,
         'agentDecisions': initial_decisions,
         'currentStep': 1,
-        'reportName': old_data.get('reportName') or (f"Liquidity Executive Brief - {time.strftime('%Y%m%d')}" if mode == 'create' else f"Updated Executive Brief - {time.strftime('%Y%m%d')}")
+        'reportName': old_data.get('reportName') or (f"Operational Brief - {time.strftime('%Y%m%d')}" if mode == 'create' else f"Updated Operational Brief - {time.strftime('%Y%m%d')}")
     }
     
     ACTIVE_BUILD_SESSIONS[session_id] = session_state
@@ -336,7 +336,7 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
                         term_map = {
                             'lcr': "Liquidity Coverage Ratio (LCR)",
                             'nim': "Net Interest Margin (NIM)",
-                            'npl': "Non-Performing Loans (NPL) Ratio",
+                            'npl': "Outcome Variance Risk Ratio",
                             'ldr': "Loan-to-Deposit Ratio (LDR)",
                             'sweeps': "Automated Sweeps Efficiency"
                         }
@@ -368,7 +368,7 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
                     branch_filter = b.title()
                     
             if branch_filter:
-                print(f"[HITL Transformation] Filtering corporate SQLite ledgers by branch: {branch_filter}")
+                print(f"[HITL Transformation] Filtering enterprise source ledgers by region: {branch_filter}")
                 clients = run_sqlite_query("SELECT COUNT(DISTINCT client_id) as count FROM accounts WHERE branch = ?;", (branch_filter,))[0]['count']
                 accs = run_sqlite_query("SELECT SUM(balance) as total, currency FROM accounts WHERE branch = ? GROUP BY currency;", (branch_filter,))
                 sweeps = run_sqlite_query("""
@@ -392,7 +392,7 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
             balances_summary = {row['currency']: round(row['total'], 2) for row in accs}
             transformed_data = {
                 'governedClientCount': clients,
-                'aggregatedTreasuryBalances': balances_summary,
+                'aggregatedResourceBalances': balances_summary,
                 'configuredSweepsRules': sweeps,
                 'recentTransactionLogsSample': [
                     {'id': t['transaction_id'], 'direction': t['direction'], 'amount': t['amount'], 'type': t['transaction_type']}
@@ -470,7 +470,7 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
         
         transformed_data = {
             'governedClientCount': clients,
-            'aggregatedTreasuryBalances': balances_summary,
+            'aggregatedResourceBalances': balances_summary,
             'configuredSweepsRules': sweeps,
             'recentTransactionLogsSample': [
                 {'id': t['transaction_id'], 'direction': t['direction'], 'amount': t['amount'], 'type': t['transaction_type']}
@@ -493,8 +493,8 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
         session['currentStep'] = 3
         schema = {
             'reportId': {'type': 'string', 'description': 'Unique audit identifier for this briefings revision'},
-            'governedClientCount': {'type': 'integer', 'description': 'Total active corporate clients covered'},
-            'aggregatedTreasuryBalances': {'type': 'object', 'description': 'Multi-currency balance aggregates'},
+            'governedClientCount': {'type': 'integer', 'description': 'Total active entities covered'},
+            'aggregatedResourceBalances': {'type': 'object', 'description': 'Multi-currency balance aggregates'},
             'configuredSweepsRules': {'type': 'integer', 'description': 'Sweeps rules configured'}
         }
         
@@ -560,7 +560,7 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
     </div>
  
     <div style="margin-top:20px; text-align:right; font-size:10px; color:#64748b;">
-        Audit Lineage Trace: <code>SQLite Grounded</code> | Verified KMS Policy: <code>Compliance Signed</code>
+        Audit Lineage Trace: <code>SQLite Grounded</code> | Verified KMS Policy: <code>Governance Signed</code>
     </div>
 </div>
 """
@@ -581,7 +581,7 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
         skel = session['skeletonHtml']
         
         # Format balance values
-        bal_str = " / ".join([f"${amt:,.0f} {curr}" for curr, amt in data['aggregatedTreasuryBalances'].items()])
+        bal_str = " / ".join([f"${amt:,.0f} {curr}" for curr, amt in data['aggregatedResourceBalances'].items()])
         rows_str = ""
         for tx in data['recentTransactionLogsSample']:
             fg = '#2e7d32' if tx['direction'] == 'Inflow' else '#c62828'

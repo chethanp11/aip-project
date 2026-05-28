@@ -293,7 +293,7 @@ def validate_pipeline_config(config: Dict[str, Any]) -> Dict[str, Any]:
             "trends": defaults['trends'],
             "analysisType": "anomaly"
         } if task == 'profile' else {
-            "text": f"Enterprise automation trigger has initiated successfully. Initial balance checks verified with zero regulatory flags for domain {defaults['business_domain']}."
+            "text": f"Enterprise automation trigger has initiated successfully. Initial balance checks verified with zero control flags for domain {defaults['business_domain']}."
         }
         builder.add_node(task_id, task_cap, task_input)
         

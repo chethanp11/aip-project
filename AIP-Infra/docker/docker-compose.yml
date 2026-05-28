@@ -61,7 +61,7 @@ services:
     environment:
       POSTGRES_USER: analytics
       POSTGRES_PASSWORD: analytics123
-      POSTGRES_DB: analyticsdb
+      POSTGRES_DB: treasurydb
 
     ports:
       - "5433:5432"

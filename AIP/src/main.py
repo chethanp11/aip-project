@@ -52,7 +52,7 @@ import shared.capabilities.visualization as visualization_cap
 import shared.capabilities.orchestration as orchestration_cap
 import shared.capabilities.mcp_integration as mcp_integration_cap
 
-# Import stateful banking suites agent workflows
+# Import stateful enterprise suite agent workflows
 from src.reporting.prism.main import run_prism_workflow
 from src.reporting.report_building.main import (
     run_report_builder_workflow,
@@ -376,7 +376,7 @@ async def kms_upload_document(payload: Dict[str, Any]):
     owner = payload.get('owner', 'System Ingestion')
     security_class = payload.get('securityClassification', 'Internal')
     sme = payload.get('sme', 'Marcus Vance')
-    domain = payload.get('businessDomain', 'Corporate Analytics')
+    domain = payload.get('businessDomain', 'Enterprise Analytics')
     prompt = payload.get('prompt', '')
     if not content:
         raise HTTPException(status_code=400, detail="Document content cannot be empty.")
@@ -710,11 +710,11 @@ async def rca(payload: Dict[str, Any]):
 
 @app.post("/api/v1/workflows/analytics/what-if")
 async def what_if(payload: Dict[str, Any]):
-    loan_rate = payload.get('loanRate')
-    deposit_rate = payload.get('depositRate')
+    earning_rate = payload.get('earningRate', payload.get('loanRate'))
+    resource_cost_rate = payload.get('resourceCostRate', payload.get('depositRate'))
     assets = payload.get('assets')
     npl_rate = payload.get('nplRate')
-    return run_whatif_workflow(loan_rate, deposit_rate, assets, npl_rate)
+    return run_whatif_workflow(earning_rate, resource_cost_rate, assets, npl_rate)
 
 @app.post("/api/v1/workflows/analytics/business-narratives")
 async def narratives(payload: Dict[str, Any]):

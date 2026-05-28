@@ -51,7 +51,7 @@ def get_profile_context_defaults() -> Dict[str, Any]:
         for row in acc_sums:
             act = row['account_type']
             val = float(row['total'])
-            if act in ("Corporate Current", "Treasury Sweeper"):
+            if act in ("Corporate Current", "Treasury Sweeper", "Operating Current", "Resource Sweeper"):
                 deposits += val
             elif act == "Yield Earning Deposit":
                 loans += val
@@ -84,7 +84,7 @@ def get_profile_context_defaults() -> Dict[str, Any]:
         ldr_val, npl_val, lcr_val, psi_val = 85.8, 1.85, 114.5, 0.24
         db_trends = [1.0, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7]
 
-    # Standard default (Credit/General fallback)
+    # Standard default (Operations/General fallback)
     defaults = {
         'metricId': 'npl_ratio',
         'metricName': 'Outcome Variance Risk Ratio',
@@ -101,7 +101,7 @@ def get_profile_context_defaults() -> Dict[str, Any]:
         session = active_sessions[api_key]
         username = (session.get('username') or '').lower()
 
-        if 'compliance' in username:
+        if 'governance' in username:
             defaults.update({
                 'metricId': 'lcr_ratio',
                 'metricName': 'Operational Reserve Coverage (ORC)',
@@ -109,11 +109,11 @@ def get_profile_context_defaults() -> Dict[str, Any]:
                 'compareValue': f"{round(lcr_val * 0.95, 2)}%",
                 'metricFormula': 'operational_reserve_coverage',
                 'trends': db_trends,
-                'business_domain': 'Regulatory & Compliance',
+                'business_domain': 'Governance & Controls',
                 'sme': 'Dr. Sarah Lin',
-                'channel': '#compliance-alerts'
+                'channel': '#governance-alerts'
             })
-        elif 'treasury' in username or 'alco' in username:
+        elif 'insights' in username:
             defaults.update({
                 'metricId': 'ldr_ratio',
                 'metricName': 'Utilization-to-Baseline Ratio (UBR)',
@@ -125,7 +125,7 @@ def get_profile_context_defaults() -> Dict[str, Any]:
                 'sme': 'Dr. Sarah Lin',
                 'channel': '#operational-resource-alerts'
             })
-        elif 'credit' in username:
+        elif 'operations' in username:
             defaults.update({
                 'metricId': 'default_rate',
                 'metricName': 'Portfolio Variance Risk Rate',
@@ -133,11 +133,11 @@ def get_profile_context_defaults() -> Dict[str, Any]:
                 'compareValue': f"{round(npl_val, 2)}%",
                 'metricFormula': 'portfolio_variance_risk_rate',
                 'trends': db_trends,
-                'business_domain': 'Portfolio Variance Risk',
+                'business_domain': 'Operations Performance',
                 'sme': 'Marcus Vance',
                 'channel': '#risk-alerts'
             })
-        elif 'model' in username:
+        elif 'modelops' in username or 'model' in username:
             defaults.update({
                 'metricId': 'psi_metric',
                 'metricName': 'Population Stability Index (PSI)',
@@ -145,7 +145,7 @@ def get_profile_context_defaults() -> Dict[str, Any]:
                 'compareValue': "0.10",
                 'metricFormula': 'population_stability_index',
                 'trends': db_trends,
-                'business_domain': 'Model Risk Management (MRM)',
+                'business_domain': 'Model Operations',
                 'sme': 'Marcus Vance',
                 'channel': '#model-pulse-alerts'
             })

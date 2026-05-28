@@ -525,30 +525,30 @@ def get_postgres_db():
         # Always refresh default users to ensure profile updates are active
         cursor.execute("DELETE FROM kms_users;")
         cursor.executemany("INSERT INTO kms_users VALUES (?, ?, ?, ?, ?, ?, ?);", [
-            ("Insights_Analyst", "password", "Analyst", "Internal", "Insights Analyst",
-             "Insights & Performance,Planning Analytics",
-             "accounts,transactions"),
-            ("Governance_Analyst", "password", "Analyst", "Internal", "Governance Analyst",
-             "Governance & Controls",
-             "controls,policies,operational_records"),
-            ("ModelOps_Analyst", "password", "Analyst", "Internal", "Model Operations Analyst",
-             "Model Operations",
-             ""),
-            ("Operations_Analyst", "password", "Analyst", "Internal", "Operations Analyst",
-             "Operations Performance",
-             "operational_records,accounts"),
-            ("Insights_SME", "password", "SME", "Confidential", "Insights SME",
-             "Insights & Performance,Planning Analytics",
-             "accounts,transactions"),
-            ("Governance_SME", "password", "SME", "Confidential", "Governance SME",
-             "Governance & Controls",
-             "controls,policies,operational_records"),
-            ("ModelOps_SME", "password", "SME", "Confidential", "Model Operations SME",
-             "Model Operations",
-             ""),
-            ("Operations_SME", "password", "SME", "Confidential", "Operations SME",
-             "Operations Performance",
-             "operational_records,accounts")
+            ("Treasury_Analyst", "password", "Analyst", "Internal", "Treasury Analyst",
+             "Treasury & Capital Management,Cash Management",
+             "accounts,transactions,liquidity_buffers,liquidity_sweeps,sweep_executions,treasury_positions,cash_forecasts,funding_plans,collateral_positions,fx_exposures,interest_rate_swaps,investment_securities,intraday_liquidity_events,nostro_balances,repo_transactions,stress_test_scenarios"),
+            ("Compliance_Analyst", "password", "Analyst", "Internal", "Compliance Analyst",
+             "Regulatory Compliance",
+             "corporate_clients,transactions,regulatory_obligations,compliance_controls,compliance_reviews,compliance_issues"),
+            ("Wealth_Analyst", "password", "Analyst", "Internal", "Wealth Analyst",
+             "Wealth Management",
+             "accounts,corporate_clients,transactions,wealth_clients,investment_accounts,portfolio_holdings,advisory_mandates,financial_plans,client_risk_profiles,investment_transactions,fee_schedules,relationship_managers,client_goals"),
+            ("Credit_Analyst", "password", "Analyst", "Internal", "Credit Analyst",
+             "Credit Portfolio Risk",
+             "corporate_clients,accounts,transactions,credit_facilities,credit_risk_ratings,delinquency_events"),
+            ("Treasury_SME", "password", "SME", "Confidential", "Treasury SME",
+             "Treasury & Capital Management,Cash Management",
+             "accounts,transactions,liquidity_buffers,liquidity_sweeps,sweep_executions,treasury_positions,cash_forecasts,funding_plans,collateral_positions,fx_exposures,interest_rate_swaps,investment_securities,intraday_liquidity_events,nostro_balances,repo_transactions,stress_test_scenarios"),
+            ("Compliance_SME", "password", "SME", "Confidential", "Compliance SME",
+             "Regulatory Compliance",
+             "corporate_clients,transactions,regulatory_obligations,compliance_controls,compliance_reviews,compliance_issues"),
+            ("Wealth_SME", "password", "SME", "Confidential", "Wealth SME",
+             "Wealth Management",
+             "accounts,corporate_clients,transactions,wealth_clients,investment_accounts,portfolio_holdings,advisory_mandates,financial_plans,client_risk_profiles,investment_transactions,fee_schedules,relationship_managers,client_goals"),
+            ("Credit_SME", "password", "SME", "Confidential", "Credit SME",
+             "Credit Portfolio Risk",
+             "corporate_clients,accounts,transactions,credit_facilities,credit_risk_ratings,delinquency_events")
         ])
         _postgres_conn.commit()
 
@@ -672,7 +672,7 @@ def advanced_retrieval_orchestration(
     top_chunks = scored_chunks[:limit]
 
     if not top_chunks:
-        log_agent_action("Retrieval Planner Agent", "ZERO_MATCHES", "No vector overlapping chunks matched in corporate repository.")
+        log_agent_action("Retrieval Planner Agent", "ZERO_MATCHES", "No vector-overlapping chunks matched in the governed knowledge repository.")
         return {
             'context': "No direct evidence segments recovered from the active AIP-Infra KMS indices.",
             'matched_nodes': [],
@@ -913,7 +913,7 @@ async def ingest_custom_file_to_kms(
     owner: str = "System Ingestion",
     security_class: str = "Internal",
     sme: str = "Marcus Vance",
-    business_domain: str = "Corporate Analytics",
+    business_domain: str = "Enterprise Analytics",
     prompt: str = ""
 ) -> Dict[str, Any]:
     """
@@ -942,7 +942,7 @@ async def ingest_custom_file_to_kms(
     log_agent_action("Knowledge Intake Agent", 2, f"Successfully uploaded and captured file content (size: {len(content)} characters).")
 
     # Step 3: Parse content
-    log_agent_action("Knowledge Intake Agent", 3, "Parsed content buffer into clean sentence blocks. Cleaned regulatory tokens.")
+    log_agent_action("Knowledge Intake Agent", 3, "Parsed content buffer into clean sentence blocks. Cleaned policy and control tokens.")
 
     # Step 4: Decompose content
     log_agent_action("Classification Agent", 4, "Decomposed document body text into staging passages index.")
@@ -968,12 +968,12 @@ async def ingest_custom_file_to_kms(
 
     # Step 6: Generate metadata
     k_type = "Policy"
-    if "basel" in c_lower or "reg" in c_lower or "ratio" in c_lower:
-        k_type = "Regulation"
+    if "policy" in c_lower or "control" in c_lower or "ratio" in c_lower:
+        k_type = "Policy"
     log_agent_action("Metadata Enrichment Agent", 6, f"Mapped metadata tags: Type={k_type} | Domain={business_domain} | Freshness=2026-05-23")
 
     # Step 7: Identify entities and relationships
-    suggested_relations = "node_basel_3: complements" if "basel" in c_lower else "node_alco_sweeps: references"
+    suggested_relations = "node_policy_control: complements" if "policy" in c_lower else "node_operating_context: references"
     log_agent_action("Relationship Discovery Agent", 7, f"Identified graph relationships coordinates: {suggested_relations}")
 
     # Step 8: Detect duplicates/conflicts
@@ -1282,8 +1282,8 @@ async def sync_source_connector(connector_id: str) -> Dict[str, Any]:
     # Simulate pulling content based on connector type
     mock_filename = f"{connector['type'].lower()}_sync_{uuid_suffix()}.md"
     mock_content = f"Grounded operational policies retrieved from {connector['name']} ({connector['type']}) for domain {connector['domain']}.\n" \
-                   f"Under Basel III LCR and NSFR rules, corporate cash sweep aggregations are subject to maximum outflow volatility. " \
-                   f"The bank Asset-Liability Committee (ALCO) requires Level 1 HQLA buffer coverage of at least 110% target to absorb potential digital run stress."
+                   f"Under enterprise control policy, operational resource aggregations are subject to maximum volatility thresholds. " \
+                   f"The governance committee requires reserve coverage of at least 110% target to absorb potential demand stress."
 
     # Run the 12-stage ingestion pipeline
     res = await ingest_custom_file_to_kms(

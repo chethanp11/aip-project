@@ -24,8 +24,8 @@ def parse_excel_report(file_bytes: bytes, filename: str) -> List[Dict[str, Any]]
         # Fallback if pandas is not available
         reports.append({
             'name': filename.split('.')[0],
-            'query': 'SELECT * FROM branch_ledger',
-            'columns': ['interest_income', 'interest_expense', 'earning_assets'],
+            'query': 'SELECT * FROM report_ledger',
+            'columns': ['revenue', 'cost', 'active_base'],
             'usage': 12,
             'owner': 'Planning Operations',
             'type': 'Excel'
@@ -102,7 +102,7 @@ def parse_html_report(file_content: str, filename: str) -> Dict[str, Any]:
         'query': query,
         'columns': headers,
         'usage': 18,
-        'owner': 'Finance Analytics',
+        'owner': 'Planning Analytics',
         'type': 'HTML',
         'reportId': report_id
     }

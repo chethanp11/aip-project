@@ -255,7 +255,7 @@ async function handleCheckpoint(stepApproved) {
                 renderAgentDecisions(5, latestStepData.agentDecisions);
                 currentStep = 5;
             } else if (stepApproved === 5) {
-                // Step 5 Approved, Report Published, Render Step 6 compliance panel
+                // Step 5 Approved, Report Published, Render Step 6 governance panel
                 const metaBox = document.getElementById('published-report-meta');
                 metaBox.innerHTML = `
                     <p style="font-size:12px;"><strong>Report Name:</strong> ${latestStepData.name}</p>

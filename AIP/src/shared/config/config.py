@@ -22,7 +22,7 @@ else:
 # PostgreSQL Credentials
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", 5433))
-POSTGRES_DB = os.getenv("POSTGRES_DB", "analyticsdb")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "treasurydb")
 POSTGRES_USER = os.getenv("POSTGRES_USER")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 
@@ -52,26 +52,26 @@ ARCHIVE_PATH = os.path.join(STORAGE_ROOT, "archives")
 LOG_PATH = os.path.join(INFRA_ROOT, "logs")
 
 def resolve_kms_team(username: str, allowed_domains: list[str] | None = None) -> str:
-    """Resolve Analyst/SME usernames and domain grants to a shared workspace folder."""
+    """Resolve Analyst/SME usernames and domain grants to a shared business team folder."""
     normalized = (username or "").lower()
-    if "insights" in normalized:
-        return "Insights"
-    if "governance" in normalized:
-        return "Governance"
-    if "modelops" in normalized or "model" in normalized:
-        return "ModelOps"
-    if "operations" in normalized:
-        return "Operations"
+    if "treasury" in normalized:
+        return "Treasury"
+    if "compliance" in normalized:
+        return "Compliance"
+    if "wealth" in normalized:
+        return "Wealth"
+    if "credit" in normalized:
+        return "Credit"
 
     domains = ",".join(allowed_domains or []).lower()
-    if "insights" in domains or "planning analytics" in domains:
-        return "Insights"
-    if "governance" in domains or "controls" in domains:
-        return "Governance"
-    if "model operations" in domains or "model" in domains:
-        return "ModelOps"
-    if "operations" in domains:
-        return "Operations"
+    if "treasury" in domains or "cash management" in domains:
+        return "Treasury"
+    if "compliance" in domains or "controls" in domains:
+        return "Compliance"
+    if "wealth" in domains or "advisory" in domains or "investment" in domains:
+        return "Wealth"
+    if "credit" in domains:
+        return "Credit"
     return "General"
 
 def get_kms_team_path(team: str) -> str:
@@ -88,7 +88,7 @@ for path in [REPORT_PATH, ARTIFACT_PATH, ARCHIVE_PATH, LOG_PATH, KMS_ROOT]:
     if path:
         os.makedirs(path, exist_ok=True)
 
-for team in ["Insights", "Governance", "ModelOps", "Operations"]:
+for team in ["Treasury", "Compliance", "Wealth", "Credit"]:
     for path in [
         get_kms_team_path(team),
         os.path.join(get_kms_team_path(team), "context"),

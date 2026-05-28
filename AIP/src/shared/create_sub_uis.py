@@ -71,9 +71,9 @@ APPS = [
         """,
         'js': """
             const sampleReports = [
-                { name: 'Margin Breakdown Q1', query: 'SELECT (interest_income - interest_expense) / earning_assets FROM branch_ledger', usage: 120, owner: 'Finance' },
-                { name: 'Yield Spread Review', query: 'SELECT (interest_income-interest_expense)/earning_assets FROM branch_ledger', usage: 8, owner: 'Executive Committee' },
-                { name: 'Regional Balance Ledger', query: 'SELECT total_loans / total_deposits FROM customer_deposits', usage: 84, owner: 'Operations' }
+                { name: 'Margin Breakdown Q1', query: 'SELECT (revenue - cost) / active_base FROM regional_ledger', usage: 120, owner: 'Planning' },
+                { name: 'Yield Spread Review', query: 'SELECT (revenue-cost)/active_base FROM regional_ledger', usage: 8, owner: 'Leadership Review' },
+                { name: 'Regional Balance Ledger', query: 'SELECT allocated_value / baseline_value FROM operating_balances', usage: 84, owner: 'Operations' }
             ];
 
             document.getElementById('prism-btn').addEventListener('click', async () => {
@@ -318,8 +318,8 @@ APPS = [
                 <h2>📊 Dynamic Margins Simulator</h2>
                 <p class="desc">Compute target yields, baseline overheads, and net margins dynamically.</p>
                 <div class="slider-row">
-                    <label>Target Earning Rate (<span id="lbl-loan">6.5</span>%)</label>
-                    <input type="range" id="sim-loan" min="1.0" max="15.0" step="0.1" value="6.5" />
+                    <label>Target Earning Rate (<span id="lbl-earning">6.5</span>%)</label>
+                    <input type="range" id="sim-earning" min="1.0" max="15.0" step="0.1" value="6.5" />
                 </div>
                 <div class="slider-row">
                     <label>Baseline Resource Cost Rate (<span id="lbl-dep">2.2</span>%)</label>
@@ -346,13 +346,13 @@ APPS = [
             </div>
         """,
         'js': """
-            const loan = document.getElementById('sim-loan');
+            const earning = document.getElementById('sim-earning');
             const dep = document.getElementById('sim-dep');
             const assets = document.getElementById('sim-assets');
             const npl = document.getElementById('sim-npl');
 
             async function runSim() {
-                document.getElementById('lbl-loan').innerText = loan.value;
+                document.getElementById('lbl-earning').innerText = earning.value;
                 document.getElementById('lbl-dep').innerText = dep.value;
                 document.getElementById('lbl-assets').innerText = assets.value;
                 document.getElementById('lbl-npl').innerText = npl.value;
@@ -362,8 +362,8 @@ APPS = [
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            loanRate: loan.value,
-                            depositRate: dep.value,
+                            earningRate: earning.value,
+                            resourceCostRate: dep.value,
                             assets: assets.value,
                             nplRate: npl.value
                         })
@@ -375,7 +375,7 @@ APPS = [
                     console.error(err);
                 }
             }
-            [loan, dep, assets, npl].forEach(el => el.addEventListener('input', runSim));
+            [earning, dep, assets, npl].forEach(el => el.addEventListener('input', runSim));
             runSim();
         """
     },
@@ -386,7 +386,7 @@ APPS = [
         'icon': '📝',
         'html': """
             <div class="card">
-                <h2>📝 Executive Briefing Narratives</h2>
+                <h2>📝 Stakeholder Briefing Narratives</h2>
                 <p class="desc">Compile operational performance and board briefing scripts.</p>
                 <div class="form-group">
                     <input type="text" id="nar-metric" value="Net Allocation Ratio" placeholder="Metric Name" />
@@ -395,7 +395,7 @@ APPS = [
                 </div>
                 <button class="btn" id="nar-btn">Format Narrative Story</button>
                 <div class="results-box hide mt-20" id="nar-results">
-                    <h4>Outbound Executive Script</h4>
+                    <h4>Outbound Stakeholder Script</h4>
                     <p id="nar-text"></p>
                 </div>
             </div>
@@ -688,9 +688,9 @@ APPS = [
         'icon': '📘',
         'html': """
             <div class="card">
-                <h2>📘 Standard Model Risk Governance Compliance</h2>
-                <p class="desc">Auto-generate compliance documentation detailing model training metrics for internal auditors.</p>
-                <button class="btn" id="doc-btn">Compile Compliance PDF Booklet</button>
+                <h2>📘 Standard Model Governance Documentation</h2>
+                <p class="desc">Auto-generate governance documentation detailing model training metrics for reviewers.</p>
+                <button class="btn" id="doc-btn">Compile Governance PDF Booklet</button>
                 <div class="results-box hide mt-20" id="doc-results"></div>
             </div>
         """,

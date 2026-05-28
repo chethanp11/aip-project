@@ -6,11 +6,11 @@ Assigned Enterprise Agent: Conversational BI Agent
 import html
 import json
 from typing import Dict, Any, List
-from shared.intelligence import invoke_capability, call_llm
+from shared.intelligence import invoke_capability
 from src.shared.infra.analytics_client import AnalyticsClient
 
 _analytics_client = AnalyticsClient()
-get_lms_table = _analytics_client.get_table_rows
+run_data_query = _analytics_client.run_compatible_read_query
 
 
 async def _safe_invoke_capability(name: str, input_params: Dict[str, Any]) -> Dict[str, Any]:
@@ -23,17 +23,123 @@ async def _safe_invoke_capability(name: str, input_params: Dict[str, Any]) -> Di
         return {}
 
 
-def _safe_lms_table(table_name: str):
-    """Read data when infra is available; return an empty set otherwise."""
+def _safe_data_query(sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
+    """Run a read-only analytics query; facts must come from this path only."""
     try:
-        return get_lms_table(table_name)
+        return run_data_query(sql, params)
     except Exception as exc:
-        print(f"[Workflow: Reporting - Conversational BI] Enterprise table '{table_name}' unavailable: {str(exc)}")
+        print(f"[Workflow: Reporting - Conversational BI] Data query unavailable: {str(exc)} | SQL={sql}")
         return []
 
 
+def _build_live_fact_pack(question: str) -> Dict[str, Any]:
+    """Build all Conv BI factual inputs from live analytics SQL only."""
+    branch_balances = _safe_data_query("""
+        SELECT branch, currency, SUM(balance) AS balance
+        FROM accounts
+        GROUP BY branch, currency
+        ORDER BY branch, currency;
+    """)
+    deposit_balances = _safe_data_query("""
+        SELECT branch, currency, SUM(balance) AS balance
+        FROM accounts
+        WHERE account_type ILIKE '%current%'
+           OR account_type ILIKE '%sweeper%'
+           OR account_type ILIKE '%deposit%'
+        GROUP BY branch, currency
+        ORDER BY branch, currency;
+    """)
+    loan_balances = _safe_data_query("""
+        SELECT branch, currency, SUM(balance) AS balance
+        FROM accounts
+        WHERE account_type ILIKE '%loan%'
+        GROUP BY branch, currency
+        ORDER BY branch, currency;
+    """)
+    buffer_rows = _safe_data_query("""
+        SELECT asset_type,
+               SUM(amount) AS amount,
+               AVG(haircut_percentage) AS haircut_percentage,
+               AVG(yield_rate) AS yield_rate
+        FROM liquidity_buffers
+        GROUP BY asset_type
+        ORDER BY amount DESC;
+    """)
+    account_type_totals = _safe_data_query("""
+        SELECT account_type, currency, SUM(balance) AS balance
+        FROM accounts
+        GROUP BY account_type, currency
+        ORDER BY account_type, currency;
+    """)
+
+    return {
+        "fact_source_rule": "All numeric facts in the answer must come only from these live SQL query results.",
+        "question": question,
+        "branch_balances_by_currency": branch_balances,
+        "deposit_balances_by_currency": deposit_balances,
+        "loan_balances_by_currency": loan_balances,
+        "liquidity_buffers": buffer_rows,
+        "account_type_totals_by_currency": account_type_totals,
+        "unavailable_facts": [
+            label for label, rows in [
+                ("loan_balances_by_currency", loan_balances),
+                ("liquidity_buffers", buffer_rows),
+                ("deposit_balances_by_currency", deposit_balances),
+            ] if not rows
+        ],
+    }
+
+
+def _markdown_balance_table(rows: List[Dict[str, Any]]) -> str:
+    if not rows:
+        return "_Not available in the authorized data source._"
+    lines = ["| Branch | Currency | Balance |", "| --- | --- | ---: |"]
+    for row in rows:
+        lines.append(
+            f"| {row.get('branch', 'Unassigned')} | {row.get('currency', '')} | {_format_currency(_numeric(row, 'balance'))} |"
+        )
+    return "\n".join(lines)
+
+
+def _markdown_buffer_table(rows: List[Dict[str, Any]]) -> str:
+    if not rows:
+        return "_Not available in the authorized data source._"
+    lines = ["| Buffer | Amount | Haircut % | Yield % |", "| --- | ---: | ---: | ---: |"]
+    for row in rows:
+        lines.append(
+            f"| {row.get('asset_type', 'Unassigned')} | "
+            f"{_format_currency(_numeric(row, 'amount'))} | "
+            f"{_numeric(row, 'haircut_percentage'):.2f} | "
+            f"{_numeric(row, 'yield_rate'):.2f} |"
+        )
+    return "\n".join(lines)
+
+
+def _build_factual_narrative(question: str, fact_pack: Dict[str, Any]) -> str:
+    """Render Conv BI answer from SQL facts only; KMS context is intentionally excluded."""
+    unavailable = fact_pack.get("unavailable_facts") or []
+    sections = [
+        "## Data-grounded BI Response",
+        "All factual values below are calculated from live Enterprise Ledger queries. KMS context is used only to guide topic selection and is not used as a source of facts.",
+        "### Branch Balances by Currency",
+        _markdown_balance_table(fact_pack.get("branch_balances_by_currency", [])),
+        "### Deposit Balances by Currency",
+        _markdown_balance_table(fact_pack.get("deposit_balances_by_currency", [])),
+        "### Loan Balances by Currency",
+        _markdown_balance_table(fact_pack.get("loan_balances_by_currency", [])),
+        "### Liquidity Buffers",
+        _markdown_buffer_table(fact_pack.get("liquidity_buffers", [])),
+    ]
+    if unavailable:
+        sections.extend([
+            "### Data Availability Notes",
+            "\n".join(f"- `{item}` was not available from the authorized data source." for item in unavailable),
+        ])
+    return "\n\n".join(sections)
+
+
 def _format_currency(value: float) -> str:
-    """Format large enterprise amounts for executive visual summaries."""
+    """Format large enterprise amounts for stakeholder visual summaries."""
     abs_value = abs(value)
     if abs_value >= 1_000_000_000:
         return f"${value / 1_000_000_000:.2f}B"
@@ -98,15 +204,15 @@ def _build_conversation_visual_html(
 
     if any(term in q_lower for term in ('liquidity', 'buffer', 'hql', 'reserve')):
         visual_title = 'Liquidity Position View'
-        visual_focus = 'HQLA coverage and branch funding distribution'
+        visual_focus = 'reserve coverage and regional resource distribution'
     elif any(term in q_lower for term in ('branch', 'performance', 'deposit', 'balance')):
         visual_title = 'Branch Performance View'
-        visual_focus = 'Balance concentration across available Enterprise Ledger branch records'
+        visual_focus = 'Balance concentration across available enterprise ledger region records'
     elif any(term in q_lower for term in ('loan', 'risk', 'default', 'npl')):
-        visual_title = 'Credit Exposure View'
-        visual_focus = 'Available balance and liquidity context for credit discussion'
+        visual_title = 'Risk Exposure View'
+        visual_focus = 'Available balance and reserve context for risk discussion'
     else:
-        visual_title = 'Executive BI Snapshot'
+        visual_title = 'Stakeholder BI Snapshot'
         visual_focus = 'Data-backed context for this conversation'
 
     context_count = 0
@@ -129,14 +235,14 @@ def _build_conversation_visual_html(
 
     branch_html = ''.join(bar_row(row, max_branch) for row in branch_rows)
     if not branch_html:
-        branch_html = '<div class="convbi-empty">No branch records available for this access profile.</div>'
+        branch_html = '<div class="convbi-empty">No region records available for this access profile.</div>'
 
     buffer_html = ''.join(
         bar_row({**row, 'label': f"{row['label']} • {row['yield']:.2f}% yield"}, max_buffer, 'buffer')
         for row in buffer_rows
     )
     if not buffer_html:
-        buffer_html = '<div class="convbi-empty">No liquidity buffer records available for this access profile.</div>'
+        buffer_html = '<div class="convbi-empty">No reserve buffer records available for this access profile.</div>'
 
     return f'''
 <div class="convbi-visual-card">
@@ -173,73 +279,58 @@ async def run_conversational_bi_workflow(question: str) -> Dict[str, Any]:
     # 1. Gather KMS context mapping
     retrieve_result = await _safe_invoke_capability('knowledge_retrieval', {'question': question})
 
-    # 2. Fetch live data from Enterprise Ledger tables
-    deposits = _safe_lms_table('deposits')
-    loans = _safe_lms_table('loans')
-    buffers = _safe_lms_table('liquidity_buffers')
-    performance = _safe_lms_table('branch_performance')
+    # 2. Build live facts only from Enterprise Ledger queries.
+    fact_pack = _build_live_fact_pack(question)
+    visual_branch_rows = [
+        {'branch': row.get('branch'), 'balance': _numeric(row, 'balance')}
+        for row in fact_pack['branch_balances_by_currency']
+    ]
+    visual_buffers = [
+        {
+            'asset_type': row.get('asset_type'),
+            'amount': _numeric(row, 'amount'),
+            'yield_rate': _numeric(row, 'yield_rate'),
+        }
+        for row in fact_pack['liquidity_buffers']
+    ]
+    visual_html = _build_conversation_visual_html(
+        question,
+        deposits=[],
+        loans=[],
+        buffers=visual_buffers,
+        performance=visual_branch_rows,
+        retrieve_result=retrieve_result,
+    )
 
-    lms_data_summary = json.dumps({
-        'deposits': deposits,
-        'loans': loans,
-        'buffers': buffers,
-        'performance': performance
-    })
-    visual_html = _build_conversation_visual_html(question, deposits, loans, buffers, performance, retrieve_result)
-
-    # 3. Draft AI prompts linking Report context, Enterprise Ledger, and KMS
-    system_prompt = """You are a professional Executive BI Assistant. Your sole objective is to answer conversational analytical queries.
-    You must ground your calculations and answers strictly in the central KMS metrics configurations and the live Enterprise Ledger records.
-    Answer the question concisely in clean Markdown. Include inline tables, bullet points, and calculations if necessary.
-    Avoid guessing. Cite specific branches or performance categories based on actual Enterprise Ledger details."""
-
-    user_prompt = f"""Analyst Query: "{question}"
-    KMS Semantics Definitions matched: {retrieve_result.get('context', '')}
-    Live Enterprise Ledger Records: {lms_data_summary}
-
-    Provide a comprehensive, executive-grade analysis response."""
-
-    response_narrative = ''
-    ai_answer = await call_llm(system_prompt, user_prompt)
-
-    if ai_answer:
-        response_narrative = ai_answer
-        print('[Workflow: Reporting - Conversational BI] Live OpenAI BI response generated successfully.')
-    else:
-        print('[Workflow: Reporting - Conversational BI] OpenAI API call failed or key offline. Returning connection error.')
-        response_narrative = (
-            "## ⚠️ Unable to Connect to AI\n\n"
-            "We are currently unable to connect to the AI service to process your request. "
-            "Please check that your live `OPENAI_API_KEY` is correctly configured and authorized in `AIP-Infra/secrets/.env`."
-        )
+    # 3. Render factual narrative deterministically so numeric values cannot leak from KMS context.
+    response_narrative = _build_factual_narrative(question, fact_pack)
+    ai_answer = response_narrative
 
     # Generate the line spec to visualize the trend dynamically from live Enterprise Ledger database records (no hardcoded fallback data)
     viz_spec = None
     if ai_answer:
-        run_sqlite_query = _analytics_client.run_compatible_read_query
         q_lower = question.lower()
         if 'npl' in q_lower or 'default' in q_lower:
-            rows = run_sqlite_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions WHERE direction = 'Outflow' GROUP BY month ORDER BY month DESC LIMIT 7;")
+            rows = _safe_data_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions WHERE direction = 'Outflow' GROUP BY month ORDER BY month DESC LIMIT 7;")
             selected_trends = [round(float(r['total']) / 100_000_000, 2) for r in reversed(rows)]
         elif 'ldr' in q_lower or 'deposit' in q_lower:
-            rows = run_sqlite_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions GROUP BY month ORDER BY month DESC LIMIT 7;")
+            rows = _safe_data_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions GROUP BY month ORDER BY month DESC LIMIT 7;")
             selected_trends = [round(float(r['total']) / 10_000_000, 1) for r in reversed(rows)]
         elif 'cac' in q_lower or 'card' in q_lower:
-            rows = run_sqlite_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions WHERE transaction_type = 'Sweep Transfer' GROUP BY month ORDER BY month DESC LIMIT 7;")
+            rows = _safe_data_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions WHERE transaction_type = 'Sweep Transfer' GROUP BY month ORDER BY month DESC LIMIT 7;")
             selected_trends = [round(float(r['total']) / 2_000_000, 0) for r in reversed(rows)]
         else:
-            rows = run_sqlite_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions GROUP BY month ORDER BY month DESC LIMIT 7;")
+            rows = _safe_data_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions GROUP BY month ORDER BY month DESC LIMIT 7;")
             selected_trends = [round(float(r['total']) / 200_000_000, 2) for r in reversed(rows)]
 
-        while len(selected_trends) < 7:
-            selected_trends.append(round(1.5 + len(selected_trends) * 0.2, 2))
         selected_trends = selected_trends[:7]
 
-        viz_result = await _safe_invoke_capability('visualization', {
-            'chartType': 'line',
-            'trends': selected_trends
-        })
-        viz_spec = viz_result.get('vegaSpec')
+        if selected_trends:
+            viz_result = await _safe_invoke_capability('visualization', {
+                'chartType': 'line',
+                'trends': selected_trends
+            })
+            viz_spec = viz_result.get('vegaSpec')
 
     return {
         'narrative': response_narrative,

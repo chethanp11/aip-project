@@ -67,7 +67,7 @@ async def run_model_pulse_workflow(accuracy_metrics: List[Any], prompt: str = ""
     Each object must have:
     - "agent": The exact name of one of the 3 agents above.
     - "message": A 1-2 sentence precise contribution to the debate.
-    - "action": A 3-5 word executive summary of their active operational role.
+    - "action": A 3-5 word stakeholder summary of their active operational role.
     Do not output any markdown formatting like ```json or anything else. Just the raw JSON object."""
 
     user_prompt = f"""Concept Drift Auditing:

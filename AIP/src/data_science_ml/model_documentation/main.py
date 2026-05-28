@@ -1,5 +1,5 @@
 """
-Product 15: Model Documentation & Compliance (Stateful Agentic AI)
+Product 15: Model Documentation & Governance (Stateful Agentic AI)
 Assigned AI Agent: Model Documenter Agent
 Assembles SR 11-7 model governance compliance booklets and traces data lineages.
 """
@@ -15,7 +15,7 @@ _analytics_client = AnalyticsClient()
 run_sqlite_query = _analytics_client.run_compatible_read_query
 
 async def run_model_documentation_workflow(model_id: str, framework: str, champion_run: str, prompt: str = "") -> Dict[str, Any]:
-    print(f"[Workflow: Data Science - Document] Compiling regulatory compliance package for model: {model_id}")
+    print(f"[Workflow: Data Science - Document] Compiling model governance package for model: {model_id}")
 
     current_date = time.strftime('%Y-%m-%d', time.localtime())
     
@@ -35,7 +35,7 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
     domain = user_defaults['business_domain']
     sme = user_defaults['sme']
 
-    # 2. Multi-Agent Compliance Board Review
+    # 2. Multi-Agent Governance Review
     system_prompt = """You are the Lead Multi-Agent AI coordinator for the AIM Intelligence Platform (AIP).
     Synthesize an intelligent cross-functional discussion between three specialized agents compiling a Fed SR 11-7 Model Governance booklet:
     1. Governance Writer Agent: Author of the formal booklet, outlines training runs, variables, and baselines.
@@ -46,7 +46,7 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
     Dialogue objects must have:
     - "agent": The exact name of one of the 3 agents above.
     - "message": A 1-2 sentence precise contribution to the compliance board.
-    - "action": A 3-5 word executive summary of their active operational role.
+    - "action": A 3-5 word stakeholder summary of their active operational role.
     
     Checks objects must have:
     - "checkName": A short descriptive name of the check.
@@ -61,7 +61,7 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
     Audit Date: {current_date}.
     Target Metric Name: {metric_name}.
     Business Domain: {domain}.
-    Custom auditor guidelines: "{prompt or 'Standard SR 11-7 Model Risk compliance audit'}"
+    Custom auditor guidelines: "{prompt or 'Standard model governance review'}"
     Please generate the multi-agent debate and compliance checklist."""
 
     dialogue = []
@@ -84,7 +84,7 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
             {
                 'agent': "Governance Writer Agent",
                 'message': f"Model ID {model_id} ({framework}) has been registered with a baseline Accuracy of 0.93 and F1 of 0.91. Let us assemble the SR 11-7 documentation booklet.",
-                'action': "Regulatory blueprint writing."
+                'action': "Governance blueprint writing."
             },
             {
                 'agent': "Lineage Audit Agent",
@@ -109,7 +109,7 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
                 'checkName': "Disparate Impact Ratio Check",
                 'agent': "Chief Risk Officer Agent",
                 'status': "Compliant",
-                'details': "Calculated operational impact ratio is 0.84, which comfortably exceeds the 0.80 regulatory compliance boundary."
+                'details': "Calculated operational impact ratio is 0.84, which comfortably exceeds the 0.80 governance control boundary."
             },
             {
                 'checkName': "KMS Grounding Schema Alignment",
@@ -120,7 +120,7 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
         ]
 
     # 3. Compile high-density compliance booklet markdown
-    documentation_markdown = f"""# Model Governance & Compliance Booklet (SR 11-7)
+    documentation_markdown = f"""# Model Governance Booklet
   
 ## 🏷️ Model Registration Details
 * **Model Identifier**: {model_id}
@@ -142,7 +142,7 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
 * **Operational Disparate Impact Ratio**: 0.84 (Passed compliance boundary of >0.80)
 
 ## ✍️ Governance Approvals Sign-off Certificate
-The Model Governance board confirms that Model ID {model_id} has completed a thorough compliance audit. Under federal SR 11-7 guidelines, this model is certified as fit-for-purpose and is authorized for active deployment.
+The Model Governance board confirms that Model ID {model_id} has completed a thorough governance review. Under federal SR 11-7 guidelines, this model is certified as fit-for-purpose and is authorized for active deployment.
 
 * **Auditing Agent**: Governance Writer Agent
 * **Lineage Inspector**: Lineage Audit Agent

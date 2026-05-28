@@ -340,7 +340,7 @@ async def run_custom_workflow(config: Dict[str, Any]) -> Dict[str, Any]:
         "trends": [1.42, 1.45, 1.38, 1.49, 1.55, 1.62, 1.85],
         "analysisType": "anomaly"
     } if task == 'profile' else {
-        "text": "Enterprise automation trigger has initiated successfully. Initial balance checks verified with zero regulatory flags."
+        "text": "Enterprise automation trigger has initiated successfully. Initial balance checks verified with zero control flags."
     }
     builder.add_node(task_id, task_cap, task_input)
     
@@ -351,7 +351,7 @@ async def run_custom_workflow(config: Dict[str, Any]) -> Dict[str, Any]:
             "metricName": "LDR Liquidity Pipeline",
             "metricValue": "85.8%",
             "compareValue": "82.5%",
-            "metricFormula": "loan_to_deposit_ratio",
+            "metricFormula": "utilization_to_baseline_ratio",
             "explanation": f"Custom workflow triggered via event: {trigger}",
             "summaryText": "Automatic alert created via user-configured DAG notification rules."
         }
