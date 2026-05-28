@@ -6,7 +6,7 @@ Assigned Enterprise Agent: Conversational BI Agent
 import html
 import json
 from typing import Dict, Any, List
-from shared.intelligence import invoke_capability
+from shared.intelligence import invoke_capability, call_llm
 from src.shared.infra.analytics_client import AnalyticsClient
 
 _analytics_client = AnalyticsClient()
@@ -115,12 +115,53 @@ def _markdown_buffer_table(rows: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def _build_factual_narrative(question: str, fact_pack: Dict[str, Any]) -> str:
-    """Render Conv BI answer from SQL facts only; KMS context is intentionally excluded."""
+
+
+async def _build_llm_narrative(question: str, fact_pack: Dict[str, Any], retrieve_result: Dict[str, Any]) -> str:
+    """Use the LLM to explain live SQL facts without allowing context-derived facts."""
+    context = retrieve_result.get('context') if isinstance(retrieve_result, dict) else None
+    if isinstance(context, list):
+        context_text = "\n".join(str(item) for item in context[:5])
+    elif context:
+        context_text = str(context)
+    else:
+        context_text = "No KMS context matched."
+
+    system_prompt = """
+You are a Conversational BI analyst. Write a concise, executive-friendly Markdown answer.
+
+Hard rules:
+- Use the user's question to choose emphasis and structure; do not return a fixed template.
+- Numeric facts, balances, rates, counts, dates, and table rows may only come from LIVE_DATA_FACTS.
+- KMS_CONTEXT is directional business metadata only. Never use it as a source of facts.
+- If LIVE_DATA_FACTS does not contain a fact, say it is not available from the authorized data source.
+- Do not invent branch names, balances, rates, IDs, trends, causes, or conclusions.
+- Mention that values are data-grounded, but do not over-explain internal implementation.
+- Include a compact table only when it helps answer the question.
+""".strip()
+    user_prompt = json.dumps({
+        "question": question,
+        "LIVE_DATA_FACTS": fact_pack,
+        "KMS_CONTEXT": context_text[:4000],
+        "output_format": "Markdown narrative with any useful compact tables."
+    }, default=str, indent=2)
+
+    ai_answer = await call_llm(system_prompt, user_prompt)
+    if not ai_answer or not ai_answer.strip():
+        return _build_factual_narrative(question, fact_pack, llm_unavailable=True)
+    return ai_answer.strip()
+
+
+def _build_factual_narrative(question: str, fact_pack: Dict[str, Any], llm_unavailable: bool = False) -> str:
+    """Fallback renderer from SQL facts only; KMS context is intentionally excluded."""
     unavailable = fact_pack.get("unavailable_facts") or []
+    heading = "## Data-grounded BI Response"
+    intro = "All factual values below are calculated from live Enterprise Ledger queries. KMS context is used only to guide topic selection and is not used as a source of facts."
+    if llm_unavailable:
+        intro = "Live AI narrative generation is unavailable, so this fallback view is rendered directly from live Enterprise Ledger query results. KMS context is not used as a source of facts."
     sections = [
-        "## Data-grounded BI Response",
-        "All factual values below are calculated from live Enterprise Ledger queries. KMS context is used only to guide topic selection and is not used as a source of facts.",
+        heading,
+        intro,
         "### Branch Balances by Currency",
         _markdown_balance_table(fact_pack.get("branch_balances_by_currency", [])),
         "### Deposit Balances by Currency",
@@ -302,8 +343,8 @@ async def run_conversational_bi_workflow(question: str) -> Dict[str, Any]:
         retrieve_result=retrieve_result,
     )
 
-    # 3. Render factual narrative deterministically so numeric values cannot leak from KMS context.
-    response_narrative = _build_factual_narrative(question, fact_pack)
+    # 3. Ask the LLM to write the BI narrative using only live SQL facts; fallback remains deterministic.
+    response_narrative = await _build_llm_narrative(question, fact_pack, retrieve_result)
     ai_answer = response_narrative
 
     # Generate the line spec to visualize the trend dynamically from live Enterprise Ledger database records (no hardcoded fallback data)
