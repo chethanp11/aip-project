@@ -5,6 +5,7 @@ Assigned Enterprise Agent: Conversational BI Agent
 
 import html
 import json
+import re
 from typing import Dict, Any, List, Tuple
 from shared.intelligence import invoke_capability, call_llm
 from src.shared.infra.analytics_client import AnalyticsClient
@@ -44,13 +45,39 @@ def _safe_custom_query(sql: str) -> List[Dict[str, Any]]:
         return []
 
 
+def _execute_custom_query_with_error(sql: str) -> Tuple[List[Dict[str, Any]], str]:
+    """Run read-only query and return results plus any caught exception string."""
+    try:
+        cleaned = sql.strip().rstrip(';')
+        bounded_sql = f"SELECT * FROM ({cleaned}) AS convbi_result LIMIT 50;"
+        return run_custom_query(bounded_sql), ""
+    except Exception as exc:
+        return [], str(exc)
+
+
 def _schema_catalog() -> Dict[str, Any]:
-    """Discover only tables and columns authorized for the active profile."""
+    """Discover only tables and columns authorized for the active profile, dynamically enriched with distinct values for string/categorical fields."""
     tables = _analytics_client.list_tables()
     catalog: Dict[str, Any] = {}
     for table in tables:
         try:
-            catalog[table] = _analytics_client.get_table_schema(table)
+            schema = _analytics_client.get_table_schema(table)
+            enriched_schema = []
+            for col in schema:
+                col_name = col.get('column_name')
+                dtype = col.get('data_type', '').lower()
+                col_meta = dict(col)
+                
+                # Systemic value matching: if it is a string-based categorical column, fetch up to 8 distinct values
+                if 'char' in dtype or 'text' in dtype or any(term in col_name.lower() for term in ('type', 'status', 'currency', 'category', 'segment', 'class', 'direction')):
+                    try:
+                        distinct_rows = run_custom_query(f"SELECT DISTINCT {col_name} FROM {table} WHERE {col_name} IS NOT NULL LIMIT 8")
+                        distinct_vals = [list(r.values())[0] for r in distinct_rows if r]
+                        col_meta['distinct_values'] = distinct_vals
+                    except Exception:
+                        pass
+                enriched_schema.append(col_meta)
+            catalog[table] = enriched_schema
         except Exception as exc:
             print(f"[Workflow: Reporting - Conversational BI] Schema unavailable for {table}: {str(exc)}")
             catalog[table] = []
@@ -80,7 +107,7 @@ def _validate_query_plan(raw_plan: Any, schema_catalog: Dict[str, Any]) -> List[
             continue
         if ';' in sql:
             continue
-        referenced = set(__import__('re').findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', sql.lower())) & {t.lower() for t in allowed_tables}
+        referenced = set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', sql.lower())) & {t.lower() for t in allowed_tables}
         if not referenced:
             continue
         validated.append({'label': label, 'sql': sql})
@@ -122,7 +149,7 @@ JSON shape: {"queries":[{"label":"short business label","sql":"SELECT ..."}]}
 
 def _fallback_query_plan(question: str, schema_catalog: Dict[str, Any]) -> List[Dict[str, str]]:
     """Deterministic fallback: inspect authorized schema and query relevant tables."""
-    q_words = {w for w in __import__('re').findall(r'[a-zA-Z_]+', question.lower()) if len(w) > 2}
+    q_words = {w for w in re.findall(r'[a-zA-Z_]+', question.lower()) if len(w) > 2}
     plan: List[Dict[str, str]] = []
 
     if any(word in q_words for word in {'access', 'accessible', 'tables', 'table', 'available'}):
@@ -163,18 +190,75 @@ def _build_accessible_table_facts(schema_catalog: Dict[str, Any]) -> List[Dict[s
     ]
 
 
+async def _repair_sql_query(question: str, failed_sql: str, error_msg: str, schema_catalog: Dict[str, Any]) -> str:
+    """Uses LLM reasoning to repair a failing SQL statement based on the DB error and schema context."""
+    system_prompt = """
+You are an expert PostgreSQL DBA and SQL Debugger Agent. Return JSON only.
+Analyze the user's business question, the failing SQL query, and the exact database error.
+Generate a corrected, valid read-only PostgreSQL query that resolves the error and accurately answers the question.
+Use only AUTHORIZED_SCHEMA tables and columns. Do not invent columns.
+Do not use write operations (INSERT, UPDATE, DELETE, etc.). Enforce a read-only SELECT.
+JSON shape: {"repaired_sql": "SELECT ..."}
+""".strip()
+    user_prompt = json.dumps({
+        'question': question,
+        'failing_sql': failed_sql,
+        'database_error': error_msg,
+        'AUTHORIZED_SCHEMA': schema_catalog
+    }, default=str, indent=2)
+    
+    try:
+        llm_response = await call_llm(system_prompt, user_prompt, json_mode=True)
+        if llm_response:
+            parsed = json.loads(llm_response)
+            repaired = str(parsed.get('repaired_sql') or '').strip()
+            if repaired.lower().startswith(('select', 'with')):
+                return repaired
+    except Exception as exc:
+        print(f"[SQL Debugger Agent] SQL repair failed: {str(exc)}")
+    return ""
+
+
 async def _build_live_fact_pack(question: str, retrieve_result: Dict[str, Any]) -> Dict[str, Any]:
-    """Build Conv BI facts dynamically from authorized schema and question-specific SQL."""
+    """Build Conv BI facts dynamically from authorized schema and question-specific SQL using a self-healing retry loop."""
     schema_catalog = _schema_catalog()
     query_plan = await _generate_query_plan(question, schema_catalog, retrieve_result)
     query_results: List[Dict[str, Any]] = []
+    
     for planned in query_plan:
-        rows = _safe_custom_query(planned['sql'])
+        sql = planned['sql']
+        label = planned['label']
+        
+        # Initial execution
+        rows, err_msg = _execute_custom_query_with_error(sql)
+        
+        # Self-healing retry loop
+        attempts = 0
+        original_sql = sql
+        while err_msg and attempts < 2:
+            attempts += 1
+            print(f"[Workflow: Reporting - Conversational BI] Query failed (attempt {attempts}): '{label}' | Error: {err_msg}")
+            
+            repaired_sql = await _repair_sql_query(question, sql, err_msg, schema_catalog)
+            if not repaired_sql or repaired_sql == sql:
+                print(f"[Workflow: Reporting - Conversational BI] Could not generate dynamic repair for '{label}'")
+                break
+                
+            sql = repaired_sql
+            print(f"[Workflow: Reporting - Conversational BI] Attempting re-execution of repaired SQL: '{sql}'")
+            rows, err_msg = _execute_custom_query_with_error(sql)
+            
+        if err_msg:
+            print(f"[Workflow: Reporting - Conversational BI] Query failed permanently: '{label}'")
+            rows = []
+            
         query_results.append({
-            'label': planned['label'],
-            'sql': planned['sql'],
+            'label': label,
+            'sql': sql,
+            'original_sql': original_sql,
             'rows': rows,
             'row_count': len(rows),
+            'repaired': sql != original_sql and not err_msg
         })
 
     return {
@@ -186,32 +270,6 @@ async def _build_live_fact_pack(question: str, retrieve_result: Dict[str, Any]) 
         'executed_queries': query_results,
         'unavailable_facts': [item['label'] for item in query_results if not item['rows']],
     }
-
-def _markdown_balance_table(rows: List[Dict[str, Any]]) -> str:
-    if not rows:
-        return "_Not available in the authorized data source._"
-    lines = ["| Branch | Currency | Balance |", "| --- | --- | ---: |"]
-    for row in rows:
-        lines.append(
-            f"| {row.get('branch', 'Unassigned')} | {row.get('currency', '')} | {_format_currency(_numeric(row, 'balance'))} |"
-        )
-    return "\n".join(lines)
-
-
-def _markdown_buffer_table(rows: List[Dict[str, Any]]) -> str:
-    if not rows:
-        return "_Not available in the authorized data source._"
-    lines = ["| Buffer | Amount | Haircut % | Yield % |", "| --- | ---: | ---: | ---: |"]
-    for row in rows:
-        lines.append(
-            f"| {row.get('asset_type', 'Unassigned')} | "
-            f"{_format_currency(_numeric(row, 'amount'))} | "
-            f"{_numeric(row, 'haircut_percentage'):.2f} | "
-            f"{_numeric(row, 'yield_rate'):.2f} |"
-        )
-    return "\n".join(lines)
-
-
 
 
 async def _build_llm_narrative(question: str, fact_pack: Dict[str, Any], retrieve_result: Dict[str, Any]) -> str:
@@ -250,6 +308,424 @@ Hard rules:
     return ai_answer.strip()
 
 
+async def _revise_llm_narrative(
+    question: str,
+    fact_pack: Dict[str, Any],
+    retrieve_result: Dict[str, Any],
+    previous_draft: str,
+    violations: List[str],
+    revision_instruction: str
+) -> str:
+    """Uses LLM to revise a narrative draft to fix specific grounding violations flagged by the QC agent."""
+    context = retrieve_result.get('context') if isinstance(retrieve_result, dict) else None
+    if isinstance(context, list):
+        context_text = "\n".join(str(item) for item in context[:5])
+    elif context:
+        context_text = str(context)
+    else:
+        context_text = "No KMS context matched."
+
+    system_prompt = """
+You are a Conversational BI analyst. You are tasked with revising your previously written draft narrative.
+A Quality Control agent audited your draft and flagged several compliance and fact-grounding violations.
+You must correct these violations and rewrite the draft.
+
+Hard rules:
+- Strictly address every issue listed in VIOLATIONS and follow the REVISION_INSTRUCTIONS.
+- Align every numeric fact, rate, date, percentage, or currency figure EXACTLY with LIVE_DATA_FACTS.
+- Re-write sections that extrapolate or state ungrounded claims.
+- Do not cite KMS_CONTEXT as a source of database counts or numbers.
+- Maintain an executive-friendly Markdown format.
+""".strip()
+
+    user_prompt = json.dumps({
+        "question": question,
+        "LIVE_DATA_FACTS": fact_pack,
+        "KMS_CONTEXT": context_text[:3000],
+        "PREVIOUS_DRAFT": previous_draft,
+        "VIOLATIONS": violations,
+        "REVISION_INSTRUCTIONS": revision_instruction
+    }, default=str, indent=2)
+
+    ai_answer = await call_llm(system_prompt, user_prompt)
+    if not ai_answer or not ai_answer.strip():
+        return previous_draft
+    return ai_answer.strip()
+
+
+async def _run_quality_control(question: str, fact_pack: Dict[str, Any], narrative_draft: str, retrieve_result: Dict[str, Any]) -> Dict[str, Any]:
+    """Agent that performs strict, line-by-line RAG grounding audit of the narrative draft against live query data."""
+    context = retrieve_result.get('context') if isinstance(retrieve_result, dict) else None
+    if isinstance(context, list):
+        context_text = "\n".join(str(item) for item in context[:5])
+    elif context:
+        context_text = str(context)
+    else:
+        context_text = "No KMS context matched."
+
+    system_prompt = """
+You are a Senior BI Quality Control and Grounding Verification Agent. Return JSON only.
+Analyze the user's question, the actual executed database query facts in LIVE_DATA_FACTS, and the draft business narrative.
+
+Your primary mission is to verify that the narrative is 100% accurate, factual, and strictly grounded.
+Perform the following checks:
+1. "Numeric Audit": Inspect every single number, date, percentage, or currency figure cited in the narrative draft. Do they EXACTLY match values computed in the LIVE_DATA_FACTS query results? If a number is fabricated, hallucinated, or incorrectly rounded/summed, it is a critical violation.
+2. "Concept Leakage": Verify that the narrative does NOT use definitions or numbers from the KMS_CONTEXT to state absolute database counts or facts. KMS_CONTEXT is for semantic vocabulary guidance only.
+3. "Extrapolation Check": Check if the writer made guesses, claims about trends, or structural causes that are not explicitly present in the query result sets.
+4. "Restriction Compliance": Confirm that no unauthorized tables or columns are referenced or listed.
+
+Return a JSON containing:
+- "passed": boolean flag (true if 0 violations, false otherwise).
+- "violations": a list of string descriptions detailing exactly which sentences/facts failed audit and why.
+- "revision_instruction": clear, directive instructions to tell the Writer Agent exactly how to fix the violations. (Should be null if passed is true).
+
+JSON shape:
+{
+  "passed": true | false,
+  "violations": ["Found value $4.2B in paragraph 2 which is not grounded in the SQL result total balance of $3.5B."],
+  "revision_instruction": "Please rewrite the second paragraph. The total balance is $3.5B, not $4.2B. Stick exactly to the SQL facts."
+}
+""".strip()
+
+    # Create a simplified lightweight representation of LIVE_DATA_FACTS to avoid LLM context bloating
+    simplified_facts = {
+        'question': question,
+        'authorized_tables': fact_pack.get('authorized_tables'),
+        'executed_queries': [
+            {
+                'label': eq.get('label'),
+                'sql': eq.get('sql'),
+                'row_count': eq.get('row_count'),
+                'rows': eq.get('rows')[:15] # first 15 rows is plenty for verification
+            }
+            for eq in fact_pack.get('executed_queries', [])
+        ]
+    }
+
+    user_prompt = json.dumps({
+        'LIVE_DATA_FACTS': simplified_facts,
+        'KMS_CONTEXT': context_text[:3000],
+        'DRAFT_NARRATIVE': narrative_draft
+    }, default=str, indent=2)
+
+    try:
+        qc_response = await call_llm(system_prompt, user_prompt, json_mode=True)
+        if qc_response:
+            parsed = json.loads(qc_response)
+            if isinstance(parsed, dict) and 'passed' in parsed:
+                return parsed
+    except Exception as exc:
+        print(f"[Quality Control Agent] Verification call failed: {str(exc)}")
+        
+    return {'passed': True, 'violations': [], 'revision_instruction': None}
+
+
+async def _plan_visualizations(question: str, executed_queries: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Agent that plans standard-based, beautiful comparative or metric visualizations from executed SQL results."""
+    visualizable = []
+    for q in executed_queries:
+        if q.get('rows') and len(q['rows']) > 0:
+            visualizable.append({
+                'label': q['label'],
+                'row_count': q['row_count'],
+                'columns': list(q['rows'][0].keys()),
+                'sample': q['rows'][:3]
+            })
+            
+    if not visualizable:
+        return {'has_visual': False, 'visuals': []}
+        
+    system_prompt = """
+You are a Senior BI Dashboard and Visualization Architect. Return JSON only.
+Analyze the user's business question and the available query result datasets.
+Determine the single best visual representation (or multiple if appropriate, max 2) that would provide maximum analytical value.
+Available visualization types:
+1. "bar" - Horizontal progress-bar comparative rankings. Best for categories, branches, and distributions.
+2. "donut" - SVG circular segment-based gauge charts. Best for percentages or part-to-whole proportions.
+3. "metrics_grid" - Numeric KPI cards. Best for absolute sums, counts, and core single KPIs.
+4. "table" - Standard beautiful tabular grids. Best for multi-column details.
+
+Formulate a visualization plan containing a list of visuals with the exact configurations (such as labels, value fields, trend colors, size, max values, title, description) to be rendered.
+Ensure the 'data_key' matches the exact 'label' of the visualizable dataset.
+Choose a 'color_scheme' from: 'emerald' (success/wealth), 'indigo' (corporate/neutral), 'amber' (warnings/interest), 'rose' (liabilities/outflows).
+
+JSON structure:
+{
+  "has_visual": true,
+  "visuals": [
+    {
+      "type": "bar" | "donut" | "metrics_grid" | "table",
+      "title": "Short Descriptive Title",
+      "description": "Short explanation of the analytical insight in the visual",
+      "data_key": "Exact Executed Query Label",
+      "config": {
+        "label_column": "column_name_for_labels",
+        "value_column": "column_name_for_numeric_value",
+        "color_scheme": "emerald" | "indigo" | "amber" | "rose",
+        "is_percentage": false,
+        "show_totals": true
+      }
+    }
+  ]
+}
+""".strip()
+    
+    user_prompt = json.dumps({
+        'question': question,
+        'datasets': visualizable
+    }, default=str, indent=2)
+    
+    try:
+        decision = await call_llm(system_prompt, user_prompt, json_mode=True)
+        if decision:
+            parsed = json.loads(decision)
+            if isinstance(parsed, dict) and 'visuals' in parsed:
+                return parsed
+    except Exception as exc:
+        print(f"[Visualization Planner Agent] Planning failed: {str(exc)}")
+        
+    # Heuristic fallback
+    first_ds = visualizable[0]
+    first_label = first_ds['label']
+    first_cols = first_ds['columns']
+    first_sample = first_ds['sample'][0]
+    
+    numeric_cols = [k for k, v in first_sample.items() if isinstance(v, (int, float))]
+    label_cols = [k for k in first_cols if k not in numeric_cols]
+    
+    val_col = numeric_cols[-1] if numeric_cols else 'balance'
+    lbl_col = label_cols[0] if label_cols else 'branch'
+    
+    return {
+        'has_visual': True,
+        'visuals': [{
+            'type': 'bar',
+            'title': f'{first_label} Overview',
+            'description': 'Comparative view generated automatically from operational records.',
+            'data_key': first_label,
+            'config': {
+                'label_column': lbl_col,
+                'value_column': val_col,
+                'color_scheme': 'indigo',
+                'is_percentage': False,
+                'show_totals': True
+            }
+        }]
+    }
+
+
+def _render_premium_visuals(viz_plan: Dict[str, Any], executed_queries: List[Dict[str, Any]]) -> str:
+    """Renders sleek glassmorphic visualizations matching the visual plan."""
+    if not viz_plan.get('has_visual') or not viz_plan.get('visuals'):
+        return ""
+        
+    query_map = {q['label']: q['rows'] for q in executed_queries if q.get('rows')}
+    html_blocks = []
+    
+    for viz in viz_plan['visuals']:
+        vtype = viz.get('type')
+        title = viz.get('title', 'BI Snapshot')
+        desc = viz.get('description', '')
+        dkey = viz.get('data_key')
+        config = viz.get('config', {})
+        
+        rows = query_map.get(dkey)
+        if not rows:
+            continue
+            
+        color_scheme = config.get('color_scheme', 'indigo')
+        colors = {
+            'emerald': {'bg': 'rgba(16, 185, 129, 0.1)', 'border': '#10b981', 'accent': '#059669'},
+            'indigo': {'bg': 'rgba(99, 102, 241, 0.1)', 'border': '#6366f1', 'accent': '#4f46e5'},
+            'amber': {'bg': 'rgba(245, 158, 11, 0.1)', 'border': '#f59e0b', 'accent': '#d97706'},
+            'rose': {'bg': 'rgba(244, 63, 94, 0.1)', 'border': '#f43f5e', 'accent': '#e11d48'},
+        }.get(color_scheme, {'bg': 'rgba(99, 102, 241, 0.1)', 'border': '#6366f1', 'accent': '#4f46e5'})
+        
+        card = [
+            f"<div class='convbi-visual-card' style='border-left: 4px solid {colors['border']}; margin-top: 1.5rem; padding: 1.25rem; border-radius: 12px; background: var(--bg-card, rgba(255,255,255,0.7)); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.06);'>"
+            f"  <div class='convbi-visual-header' style='margin-bottom: 1.25rem;'>"
+            f"    <span class='convbi-kicker' style='font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: {colors['border']}; font-weight: 700;'>Visual BI Insight</span>"
+            f"    <h3 style='margin: 0.25rem 0 0.1rem 0; font-size: 1.15rem; font-weight: 800; color: var(--text-primary, #1e293b);'>{html.escape(title)}</h3>"
+            f"    <p style='margin: 0; font-size: 0.85rem; color: var(--text-secondary, #64748b);'>{html.escape(desc)}</p>"
+            f"  </div>"
+        ]
+        
+        lbl_col = config.get('label_column')
+        val_col = config.get('value_column')
+        
+        if not lbl_col or not val_col:
+            first = rows[0]
+            numeric_cols = [k for k, v in first.items() if isinstance(v, (int, float))]
+            label_cols = [k for k in first.keys() if k not in numeric_cols]
+            lbl_col = lbl_col or (label_cols[0] if label_cols else list(first.keys())[0])
+            val_col = val_col or (numeric_cols[-1] if numeric_cols else list(first.keys())[-1])
+            
+        if vtype == 'bar':
+            ranked = []
+            for r in rows:
+                val = _numeric(r, val_col)
+                ranked.append((r, val))
+            ranked = sorted(ranked, key=lambda x: x[1], reverse=True)[:8]
+            max_value = max((abs(v) for _, v in ranked), default=1.0) or 1.0
+            
+            bars_html = []
+            for r, val in ranked:
+                lbl = str(r.get(lbl_col) or 'Unknown')
+                width = max(5, min(100, abs(val) / max_value * 100))
+                formatted_val = _format_currency(val) if 'balance' in val_col.lower() or 'amount' in val_col.lower() or 'limit' in val_col.lower() else f"{val:,.2f}" if isinstance(val, float) else f"{val:,}"
+                
+                bars_html.append(
+                    f"<div class='convbi-bar-row' style='margin-bottom: 0.75rem;'>"
+                    f"  <div class='convbi-bar-label' style='display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.25rem;'>"
+                    f"    <span style='color: var(--text-primary, #334155); font-weight: 500;'>{html.escape(lbl)}</span>"
+                    f"    <strong style='color: {colors['accent']};'>{html.escape(formatted_val)}</strong>"
+                    f"  </div>"
+                    f"  <div class='convbi-bar-track' style='background: var(--bg-track, #e2e8f0); height: 8px; border-radius: 4px; overflow: hidden;'>"
+                    f"    <div class='convbi-bar-fill' style='width: {width:.1f}%; height: 100%; border-radius: 4px; background: {colors['border']}; transition: width 0.5s ease-in-out;'></div>"
+                    f"  </div>"
+                    f"</div>"
+                )
+            card.append("".join(bars_html))
+            
+        elif vtype == 'donut':
+            total_sum = sum(_numeric(r, val_col) for r in rows) or 1.0
+            sorted_rows = sorted(rows, key=lambda r: _numeric(r, val_col), reverse=True)
+            top_segments = sorted_rows[:4]
+            rest_sum = sum(_numeric(r, val_col) for r in sorted_rows[4:])
+            
+            segments = []
+            for r in top_segments:
+                segments.append({'lbl': str(r.get(lbl_col) or 'Unknown'), 'val': _numeric(r, val_col)})
+            if rest_sum > 0:
+                segments.append({'lbl': 'Others', 'val': rest_sum})
+                
+            svg_size = 120
+            radius = 40
+            circumference = 2 * 3.14159 * radius
+            
+            svg_html = [
+                f"<div style='display: flex; align-items: center; justify-content: space-around; flex-wrap: wrap; gap: 1.25rem;'>"
+                f"  <div style='position: relative; width: {svg_size}px; height: {svg_size}px;'>"
+                f"    <svg viewBox='0 0 100 100' style='width: 100%; height: 100%; transform: rotate(-90deg);'>"
+                f"      <circle cx='50' cy='50' r='{radius}' fill='transparent' stroke='var(--bg-track, #e2e8f0)' stroke-width='10' />"
+            ]
+            
+            current_pct = 0.0
+            segment_colors = [colors['border'], '#3b82f6', '#f59e0b', '#ec4899', '#10b981', '#64748b']
+            
+            legend_html = ["<div style='flex: 1; min-width: 150px; font-size: 0.85rem;'>"]
+            
+            for idx, seg in enumerate(segments):
+                val_pct = seg['val'] / total_sum
+                dash_array = f"{val_pct * circumference:.2f} {circumference:.2f}"
+                dash_offset = f"{-current_pct * circumference:.2f}"
+                stroke_color = segment_colors[idx % len(segment_colors)]
+                
+                svg_html.append(
+                    f"      <circle cx='50' cy='50' r='{radius}' fill='transparent' "
+                    f"              stroke='{stroke_color}' stroke-width='10' "
+                    f"              stroke-dasharray='{dash_array}' stroke-dashoffset='{dash_offset}' "
+                    f"              stroke-linecap='round' />"
+                )
+                
+                formatted_val = _format_currency(seg['val']) if 'balance' in val_col.lower() or 'amount' in val_col.lower() else f"{seg['val']:,.1f}"
+                legend_html.append(
+                    f"<div style='display: flex; align-items: center; margin-bottom: 0.5rem;'>"
+                    f"  <div style='width: 12px; height: 12px; border-radius: 3px; background: {stroke_color}; margin-right: 0.5rem;'></div>"
+                    f"  <span style='color: var(--text-secondary, #475569); flex: 1;'>{html.escape(seg['lbl'])}</span>"
+                    f"  <strong style='color: var(--text-primary, #0f172a);'>{formatted_val} ({val_pct*100:.1f}%)</strong>"
+                    f"</div>"
+                )
+                current_pct += val_pct
+                
+            svg_html.append(
+                f"    </svg>"
+                f"    <div style='position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: var(--text-primary, #1e293b);'>"
+                f"      <span>Total</span>"
+                f"      <span style='font-size: 0.85rem; font-weight: 800; color: {colors['accent']};'>{_format_currency(total_sum) if 'balance' in val_col.lower() or 'amount' in val_col.lower() else f'{total_sum:,.0f}'}</span>"
+                f"    </div>"
+                f"  </div>"
+            )
+            legend_html.append("</div>")
+            
+            svg_html.append("".join(legend_html))
+            svg_html.append("</div>")
+            card.append("".join(svg_html))
+            
+        elif vtype == 'metrics_grid':
+            grid_html = ["<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem; margin-top: 0.5rem;'>"]
+            for r in rows[:6]:
+                lbl = str(r.get(lbl_col) or 'Unknown')
+                val = _numeric(r, val_col)
+                formatted_val = _format_currency(val) if 'balance' in val_col.lower() or 'amount' in val_col.lower() else f"{val:,.2f}" if isinstance(val, float) else f"{val:,}"
+                
+                grid_html.append(
+                    f"<div class='convbi-metric-card' style='background: var(--bg-metric-card, rgba(0,0,0,0.02)); border: 1px solid rgba(0,0,0,0.03); padding: 0.85rem; border-radius: 8px; text-align: center;'>"
+                    f"  <span style='display: block; font-size: 0.75rem; color: var(--text-secondary, #64748b); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;'>{html.escape(lbl)}</span>"
+                    f"  <strong style='display: block; font-size: 1.15rem; font-weight: 800; color: {colors['accent']}; margin-top: 0.25rem;'>{html.escape(formatted_val)}</strong>"
+                    f"</div>"
+                )
+            grid_html.append("</div>")
+            card.append("".join(grid_html))
+            
+        elif vtype == 'table':
+            cols = list(rows[0].keys())[:6]
+            table_lines = [
+                f"<div class='convbi-table-wrap' style='overflow-x: auto; border-radius: 8px; border: 1px solid rgba(0,0,0,0.06);'>"
+                f"  <table style='width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;'>"
+                f"    <thead>"
+                f"      <tr style='background: var(--bg-table-head, #f8fafc); border-bottom: 1px solid rgba(0,0,0,0.06);'>"
+            ]
+            for c in cols:
+                table_lines.append(f"        <th style='padding: 0.75rem; font-weight: 700; color: var(--text-secondary, #475569);'>{html.escape(c.replace('_', ' ').title())}</th>")
+            table_lines.append("      </tr>\n    </thead>\n    <tbody>")
+            
+            for ridx, r in enumerate(rows[:10]):
+                bg_style = "background: var(--bg-table-zebra, rgba(0,0,0,0.015));" if ridx % 2 == 1 else ""
+                table_lines.append(f"      <tr style='border-bottom: 1px solid rgba(0,0,0,0.04); {bg_style}'>")
+                for c in cols:
+                    val = r.get(c)
+                    if isinstance(val, (int, float)):
+                        formatted_val = _format_currency(val) if 'balance' in c.lower() or 'amount' in c.lower() else f"{val:,.2f}" if isinstance(val, float) else f"{val:,}"
+                    else:
+                        formatted_val = str(val if val is not None else '')
+                    table_lines.append(f"        <td style='padding: 0.75rem; color: var(--text-primary, #334155);'>{html.escape(formatted_val)}</td>")
+                table_lines.append("      </tr>")
+                
+            table_lines.append("    </tbody>\n  </table>\n</div>")
+            card.append("".join(table_lines))
+            
+        card.append("</div>")
+        html_blocks.append("\n".join(card))
+        
+    return "\n\n".join(html_blocks)
+
+
+def _markdown_balance_table(rows: List[Dict[str, Any]]) -> str:
+    if not rows:
+        return "_Not available in the authorized data source._"
+    lines = ["| Branch | Currency | Balance |", "| --- | --- | ---: |"]
+    for row in rows:
+        lines.append(
+            f"| {row.get('branch', 'Unassigned')} | {row.get('currency', '')} | {_format_currency(_numeric(row, 'balance'))} |"
+        )
+    return "\n".join(lines)
+
+
+def _markdown_buffer_table(rows: List[Dict[str, Any]]) -> str:
+    if not rows:
+        return "_Not available in the authorized data source._"
+    lines = ["| Buffer | Amount | Haircut % | Yield % |", "| --- | ---: | ---: | ---: |"]
+    for row in rows:
+        lines.append(
+            f"| {row.get('asset_type', 'Unassigned')} | "
+            f"{_format_currency(_numeric(row, 'amount'))} | "
+            f"{_numeric(row, 'haircut_percentage'):.2f} | "
+            f"{_numeric(row, 'yield_rate'):.2f} |"
+        )
+    return "\n".join(lines)
+
+
 def _markdown_generic_table(rows: List[Dict[str, Any]], max_rows: int = 12) -> str:
     if not rows:
         return "_No rows returned from the authorized data source._"
@@ -269,9 +745,9 @@ def _markdown_generic_table(rows: List[Dict[str, Any]], max_rows: int = 12) -> s
 
 def _build_factual_narrative(question: str, fact_pack: Dict[str, Any], llm_unavailable: bool = False) -> str:
     """Fallback renderer from dynamic SQL facts only; KMS context is intentionally excluded."""
-    intro = "Live AI narrative generation is unavailable, so this fallback view is rendered from authorized live SQL query results. KMS context is not used as a source of facts."
+    intro = "Live AI narrative generation is unavailable or failed validation, so this fallback view is rendered directly from authorized live SQL query results. KMS context is not used as a source of facts."
     if not llm_unavailable:
-        intro = "All factual values below are calculated from authorized live SQL query results."
+        intro = "All factual values below are calculated directly from authorized live SQL query results."
     sections = ["## Data-grounded BI Response", intro]
 
     if any(term in question.lower() for term in ('access', 'accessible', 'tables', 'table', 'available')):
@@ -412,6 +888,7 @@ def _build_dynamic_visual_html(question: str, fact_pack: Dict[str, Any], decisio
         f"<div class='convbi-dynamic-bars'>{''.join(bars)}</div>"
         "</section>"
     )
+
 
 def _format_currency(value: float) -> str:
     """Format large enterprise amounts for stakeholder visual summaries."""
@@ -554,47 +1031,77 @@ async def run_conversational_bi_workflow(question: str) -> Dict[str, Any]:
     # 1. Gather KMS context mapping
     retrieve_result = await _safe_invoke_capability('knowledge_retrieval', {'question': question})
 
-    # 2. Dynamically inspect authorized schema and build question-specific live facts.
+    # 2. Dynamically inspect authorized schema and build question-specific live facts using a self-healing SQL retry loop
     fact_pack = await _build_live_fact_pack(question, retrieve_result)
-    # 3. Ask the LLM to write the BI narrative using only live SQL facts; fallback remains deterministic.
+    
+    # 3. Ask the LLM to write the BI narrative using only live SQL facts
     response_narrative = await _build_llm_narrative(question, fact_pack, retrieve_result)
-    ai_answer = response_narrative
+    
+    # Grounding Validation Loop (Quality Control, max 2 revision cycles)
+    qc_passed = False
+    qc_attempts = 0
+    qc_violations = []
+    
+    while not qc_passed and qc_attempts < 2:
+        qc_attempts += 1
+        print(f"[Workflow: Reporting - Conversational BI] Running Quality Control Grounding Audit (attempt {qc_attempts})...")
+        qc_result = await _run_quality_control(question, fact_pack, response_narrative, retrieve_result)
+        
+        if qc_result.get('passed'):
+            print("[Workflow: Reporting - Conversational BI] Quality Control Grounding Audit PASSED successfully.")
+            qc_passed = True
+            break
+            
+        qc_violations = qc_result.get('violations') or []
+        instruction = qc_result.get('revision_instruction') or "Please rewrite the narrative ensuring complete factual grounding."
+        print(f"[Workflow: Reporting - Conversational BI] Quality Control Grounding Audit FAILED with {len(qc_violations)} violations. Triggering revision...")
+        
+        response_narrative = await _revise_llm_narrative(question, fact_pack, retrieve_result, response_narrative, qc_violations, instruction)
+        
+    if not qc_passed:
+        print("[Workflow: Reporting - Conversational BI] Narrative failed Quality Control permanently after 2 revision cycles. Falling back to deterministic factual narrative.")
+        response_narrative = _build_factual_narrative(question, fact_pack, llm_unavailable=False)
 
-    # Generate the line spec to visualize the trend dynamically from live Enterprise Ledger database records (no hardcoded fallback data)
+    # Generate the line spec to visualize the trend dynamically from live Enterprise Ledger database records
     viz_spec = None
-    if ai_answer:
+    if response_narrative:
         q_lower = question.lower()
-        if 'npl' in q_lower or 'default' in q_lower:
-            rows = _safe_custom_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions WHERE direction = 'Outflow' GROUP BY month ORDER BY month DESC LIMIT 7")
-            selected_trends = [round(float(r['total']) / 100_000_000, 2) for r in reversed(rows)]
-        elif 'ldr' in q_lower or 'deposit' in q_lower:
-            rows = _safe_custom_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions GROUP BY month ORDER BY month DESC LIMIT 7")
-            selected_trends = [round(float(r['total']) / 10_000_000, 1) for r in reversed(rows)]
-        elif 'cac' in q_lower or 'card' in q_lower:
-            rows = _safe_custom_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions WHERE transaction_type = 'Sweep Transfer' GROUP BY month ORDER BY month DESC LIMIT 7")
-            selected_trends = [round(float(r['total']) / 2_000_000, 0) for r in reversed(rows)]
-        else:
-            rows = _safe_custom_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions GROUP BY month ORDER BY month DESC LIMIT 7")
-            selected_trends = [round(float(r['total']) / 200_000_000, 2) for r in reversed(rows)]
+        try:
+            if 'npl' in q_lower or 'default' in q_lower:
+                rows = _safe_custom_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions WHERE direction = 'Outflow' GROUP BY month ORDER BY month DESC LIMIT 7")
+                selected_trends = [round(float(r.get('total', 0)) / 100_000_000, 2) for r in reversed(rows) if r.get('total') is not None]
+            elif 'ldr' in q_lower or 'deposit' in q_lower:
+                rows = _safe_custom_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions GROUP BY month ORDER BY month DESC LIMIT 7")
+                selected_trends = [round(float(r.get('total', 0)) / 10_000_000, 1) for r in reversed(rows) if r.get('total') is not None]
+            elif 'cac' in q_lower or 'card' in q_lower:
+                rows = _safe_custom_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions WHERE transaction_type = 'Sweep Transfer' GROUP BY month ORDER BY month DESC LIMIT 7")
+                selected_trends = [round(float(r.get('total', 0)) / 2_000_000, 0) for r in reversed(rows) if r.get('total') is not None]
+            else:
+                rows = _safe_custom_query("SELECT LEFT(timestamp, 7) as month, SUM(amount) as total FROM transactions GROUP BY month ORDER BY month DESC LIMIT 7")
+                selected_trends = [round(float(r.get('total', 0)) / 200_000_000, 2) for r in reversed(rows) if r.get('total') is not None]
 
-        selected_trends = selected_trends[:7]
+            selected_trends = selected_trends[:7]
 
-        if selected_trends:
-            viz_result = await _safe_invoke_capability('visualization', {
-                'chartType': 'line',
-                'trends': selected_trends
-            })
-            viz_spec = viz_result.get('vegaSpec')
+            if selected_trends:
+                viz_result = await _safe_invoke_capability('visualization', {
+                    'chartType': 'line',
+                    'trends': selected_trends
+                })
+                viz_spec = viz_result.get('vegaSpec')
+        except Exception as exc:
+            print(f"[Workflow: Reporting - Conversational BI] Safe trend generation skipped: {str(exc)}")
 
-    visual_decision = await _decide_visual_representation(question, fact_pack)
-    dynamic_visual_html = _build_dynamic_visual_html(question, fact_pack, visual_decision)
+    # 4. Multi-format Visualization Planning & Rendering
+    viz_plan = await _plan_visualizations(question, fact_pack.get('executed_queries', []))
+    premium_visuals_html = _render_premium_visuals(viz_plan, fact_pack.get('executed_queries', []))
+    
     narrative_html = _markdown_to_html(response_narrative)
-    rendered_html = narrative_html + dynamic_visual_html
+    rendered_html = narrative_html + premium_visuals_html
 
     return {
         'narrative': response_narrative,
         'renderedHtml': rendered_html,
-        'visualDecision': visual_decision,
-        'visualHtml': dynamic_visual_html,
+        'visualDecision': viz_plan,
+        'visualHtml': premium_visuals_html,
         'vegaSpec': viz_spec
     }
