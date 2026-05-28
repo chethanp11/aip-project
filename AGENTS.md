@@ -67,6 +67,7 @@ Rules:
 - Preserve consistency between implementation and design.
 - Avoid undocumented architectural drift.
 
+Always update design/ when src/ is updated
 ---
 
 ## src/
