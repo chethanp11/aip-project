@@ -17,7 +17,6 @@ AIP/src/shared/
   ├─ infra/             Postgres, Analytics, Neo4j, Redis, Storage, Retrieval clients
   ├─ capabilities/      stateless reusable intelligence functions
   ├─ intelligence.py    capability registry, LLM wrapper, contextvars audit logging
-  ├─ lms.py             LMS table bootstrap and compatibility query wrapper
   └─ session.py         in-memory active token/session state
 
 AIP/src/kms/
@@ -35,16 +34,14 @@ AIP uses AIP-Infra through configuration and client abstractions only.
 
 | Infra surface | Path/service | Accessing code |
 | --- | --- | --- |
-| Analytics PostgreSQL | `analytics-source-db`, port `5433` | `PostgresClient`, `AnalyticsClient`, `lms.py` |
+| Analytics PostgreSQL | `analytics-source-db`, port `5433` | `PostgresClient`, `AnalyticsClient` |
 | pgvector/platform PostgreSQL | `aip-postgres`, port `5432` when configured | `PostgresClient`, KMS metadata/vector tables |
 | Neo4j | `aip-neo4j`, port `7687` | `Neo4jClient`, KMS graph sync, monitoring lineage |
 | Redis | `aip-redis`, port `6379` | `RedisClient`, workflow state persistence |
 | Reports | `AIP-Infra/storage/reports` | Report Builder, FastAPI `/reports` static mount |
 | Artifacts/archives | `AIP-Infra/storage/{artifacts,archives}` | `StorageClient`, workflow/report outputs |
-| Team KMS seeds | `AIP-Infra/kms/<Team>/seeds` | Team-specific KMS bootstrap and active-session seed loading |
 | Team KMS runtime | `AIP-Infra/kms/<Team>/runtime` | Team-specific KMS ingestion staging/runtime directories |
 | Team KMS contexts | `AIP-Infra/kms/<Team>/context` | Login session context, retrieval context attachment |
-| LMS seeds | `AIP-Infra/lms/seeds` | `shared.lms._load_lms_seed` |
 | Logs | `AIP-Infra/logs` | KMS ingestion logging and infra checks |
 
 Configuration is centralized in `AIP/src/shared/config/config.py`. It loads `.env`, sets database credentials, sets storage paths, and creates expected directories.
@@ -177,10 +174,9 @@ On first KMS database access:
 
 1. Open PostgreSQL connection through `PostgresClient`.
 2. Create graph, vector, canonical, candidate, governance, audit, connector, glossary, domain, user, and observability tables.
-3. Seed KMS glossary/template/article/domain records from the active team seed folder.
-4. Seed graph/canonical/candidate/source connector baseline from `knowledge_seed.json` when baseline nodes are absent.
-5. Sync graph nodes/edges to Neo4j when available.
-6. Verify Neo4j connectivity without blocking KMS if Neo4j is unavailable.
+3. Attach authenticated team context from `AIP-Infra/kms/<Team>/context`.
+4. Sync graph nodes/edges to Neo4j when available.
+5. Verify Neo4j connectivity without blocking KMS if Neo4j is unavailable.
 
 ### Retrieval sequence
 
@@ -207,14 +203,9 @@ On first KMS database access:
 
 ## 7. LMS and Analytics Data Design
 
-### LMS compatibility layer
+### Analytics client
 
-`AIP/src/shared/lms.py` exposes:
-
-- `get_lms_table(table_name)`
-- `run_sqlite_query(sql, params)`
-
-The implementation is PostgreSQL-backed. It lazily initializes tables when called, loads deterministic seed inputs from AIP-Infra if tables are empty, and translates legacy `?` parameters to PostgreSQL `%s` placeholders.
+`AIP/src/shared/infra/analytics_client.py` exposes read-only analytical access helpers used by reporting, analytics, and DS/ML workflows. The implementation is PostgreSQL-backed and does not load application seed files.
 
 ### Database Explorer
 

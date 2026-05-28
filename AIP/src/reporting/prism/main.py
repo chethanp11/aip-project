@@ -1,6 +1,6 @@
 """
 Product 1: PRISM Report Rationalizer (Stateful Agentic AI)
-Assigned Banking Agent: PRISM Agent
+Assigned Enterprise Agent: PRISM Agent
 """
 
 import time
@@ -27,7 +27,7 @@ def parse_excel_report(file_bytes: bytes, filename: str) -> List[Dict[str, Any]]
             'query': 'SELECT * FROM branch_ledger',
             'columns': ['interest_income', 'interest_expense', 'earning_assets'],
             'usage': 12,
-            'owner': 'Corporate Treasury',
+            'owner': 'Planning Operations',
             'type': 'Excel'
         })
         return reports
@@ -49,7 +49,7 @@ def parse_excel_report(file_bytes: bytes, filename: str) -> List[Dict[str, Any]]
                 'query': query,
                 'columns': cols,
                 'usage': usage,
-                'owner': 'Corporate Treasury',
+                'owner': 'Planning Operations',
                 'type': 'Excel'
             })
     except Exception as e:
@@ -108,7 +108,7 @@ def parse_html_report(file_content: str, filename: str) -> Dict[str, Any]:
     }
 
 async def run_prism_workflow(reports: List[Dict[str, Any]], prompt: str = "") -> Dict[str, Any]:
-    print(f"[Workflow: Reporting - PRISM] Screening {len(reports)} banking report templates.")
+    print(f"[Workflow: Reporting - PRISM] Screening {len(reports)} report templates.")
     
     duplicates = []
     overlaps = []
@@ -121,7 +121,7 @@ async def run_prism_workflow(reports: List[Dict[str, Any]], prompt: str = "") ->
         query_str = (r.get('query', '') or '').strip()
         cleaned_query = ' '.join(query_str.split()).lower()
         usage = int(r.get('usage', 15) if r.get('usage') is not None else 15)
-        owner = r.get('owner', 'Corporate Banking')
+        owner = r.get('owner', 'Enterprise Operations')
         columns = r.get('columns', [])
         report_type = r.get('type', 'SQL Ledger')
         
@@ -252,7 +252,7 @@ async def run_prism_workflow(reports: List[Dict[str, Any]], prompt: str = "") ->
         f"Duplicates: {len(duplicates)}. Overlaps: {len(overlaps)}. Low usage targets: {len(usage_insights)}."
     )
     
-    system_prompt = "You are a professional banking database auditor. Distill report duplication telemetry into a single-sentence recommendation."
+    system_prompt = "You are a professional database auditor. Distill report duplication telemetry into a single-sentence recommendation."
     if prompt:
         system_prompt += f" Adhere strictly to these guidelines: {prompt}"
         

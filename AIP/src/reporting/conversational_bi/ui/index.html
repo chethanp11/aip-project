@@ -11,13 +11,13 @@
         
             <div class="card">
                 <h2>💬 Conversational BI Assistant</h2>
-                <p class="desc">Ask natural questions about liquidity buffers, sweeping performance, or margin trends.</p>
+                <p class="desc">Ask natural questions about operational metrics, performance buffers, or yield trends.</p>
                 <div class="chat-container">
                     <div class="chat-box" id="chat-box">
-                        <div class="message bot">Hello! I am your Conversational BI Agent. Ask me anything grounded in our Liquidity database.</div>
+                        <div class="message bot">Hello! I am your Conversational BI Agent. Ask me anything grounded in our primary operational database.</div>
                     </div>
                     <div class="chat-input-row">
-                        <input type="text" id="chat-in" placeholder="Ask a question (e.g., Explain our current liquidity reserves)..." />
+                        <input type="text" id="chat-in" placeholder="Ask a question (e.g., Explain our current performance metrics)..." />
                         <button class="btn" id="chat-send">Send Query</button>
                     </div>
                 </div>
@@ -26,7 +26,7 @@
     </div>
     
     <script>
-        const API_BASE = '/api/v1';
+        const API_BASE = 'http://localhost:8000/api/v1';
         
         // Authed Fetch Interceptor matching parent origin session storage
         const originalFetch = window.fetch;

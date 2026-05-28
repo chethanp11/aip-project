@@ -10,8 +10,8 @@
     <div class="sub-portal">
         
             <div class="card">
-                <h2>🔔 Proactive Treasury Insights</h2>
-                <p class="desc">Continuous background analysis flagging credit exceptions and liquidity coverage drops.</p>
+                <h2>🔔 Proactive Performance Insights</h2>
+                <p class="desc">Continuous background analysis flagging operational exceptions and performance metrics drops.</p>
                 <button class="btn" id="refresh-alerts">Scans Active Ledgers</button>
                 <div class="alerts-feed mt-20" id="alerts-feed"></div>
             </div>
@@ -19,7 +19,7 @@
     </div>
     
     <script>
-        const API_BASE = '/api/v1';
+        const API_BASE = 'http://localhost:8000/api/v1';
         
         // Authed Fetch Interceptor matching parent origin session storage
         const originalFetch = window.fetch;

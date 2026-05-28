@@ -1,6 +1,6 @@
 """
 Product 12: Observability Monitoring Telemetry (Stateful Agentic AI)
-Assigned Banking Agent: System Monitor Agent
+Assigned Enterprise Agent: System Monitor Agent
 """
 
 import time

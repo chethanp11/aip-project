@@ -28,7 +28,7 @@
       <div class="login-brand">
         <span class="login-logo">▲</span>
         <h2>AIM Intelligence Platform</h2>
-        <p>Banking Analytics Operating System (AIP)</p>
+        <p>Enterprise Analytics Operating System (AIP)</p>
       </div>
       
       <!-- Role-based Authentication Tabs -->
@@ -42,10 +42,10 @@
         <div class="form-group" id="group-analyst-ids">
           <label for="login-analyst-id" style="color: #475569;">Select Analyst ID:</label>
           <select id="login-analyst-id" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
-            <option value="Treasury_Analyst" style="color: black;">Treasury_Analyst (Corporate Treasury)</option>
-            <option value="Compliance_Analyst" style="color: black;">Compliance_Analyst (Regulatory Compliance)</option>
-            <option value="Model_Analyst" style="color: black;">Model_Analyst (Model Risk)</option>
-            <option value="Credit_Analyst" style="color: black;">Credit_Analyst (Credit Portfolio)</option>
+            <option value="Insights_Analyst" style="color: black;">Insights_Analyst (Insights Workspace)</option>
+            <option value="Governance_Analyst" style="color: black;">Governance_Analyst (Governance Workspace)</option>
+            <option value="ModelOps_Analyst" style="color: black;">ModelOps_Analyst (Model Operations Workspace)</option>
+            <option value="Operations_Analyst" style="color: black;">Operations_Analyst (Operations Workspace)</option>
           </select>
         </div>
 
@@ -53,15 +53,15 @@
         <div class="form-group hide" id="group-sme-ids">
           <label for="login-sme-id" style="color: #475569;">Select SME ID:</label>
           <select id="login-sme-id" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
-            <option value="Treasury_SME" style="color: black;">Treasury_SME (Corporate Treasury SME)</option>
-            <option value="Compliance_SME" style="color: black;">Compliance_SME (Regulatory Compliance SME)</option>
-            <option value="Model_SME" style="color: black;">Model_SME (Model Risk SME)</option>
-            <option value="Credit_SME" style="color: black;">Credit_SME (Credit Portfolio SME)</option>
+            <option value="Insights_SME" style="color: black;">Insights_SME (Insights Workspace SME)</option>
+            <option value="Governance_SME" style="color: black;">Governance_SME (Governance Workspace SME)</option>
+            <option value="ModelOps_SME" style="color: black;">ModelOps_SME (Model Operations Workspace SME)</option>
+            <option value="Operations_SME" style="color: black;">Operations_SME (Operations Workspace SME)</option>
           </select>
         </div>
 
         <!-- Hidden input to track target username dynamically populated by JS -->
-        <input type="hidden" id="login-username" value="Treasury_Analyst" />
+        <input type="hidden" id="login-username" value="Insights_Analyst" />
 
         <!-- Premium Password Field -->
         <div class="form-group">
@@ -147,8 +147,8 @@
         <div id="auth-lock-overlay" class="auth-lock-overlay">
           <div class="lock-card">
             <span class="lock-icon">🔒</span>
-            <h3>Banking Agentic OS Locked</h3>
-            <p>Authorization Required: Please authenticate through the login gate to initialize specialized Banking AI Agents.</p>
+            <h3>Enterprise Agentic OS Locked</h3>
+            <p>Authorization Required: Please authenticate through the login gate to initialize specialized enterprise AI agents.</p>
           </div>
         </div>
 
@@ -159,9 +159,9 @@
           <div class="hero-card">
             <div class="hero-content">
               <div class="hero-copy">
-                <span class="hero-eyebrow">Enterprise Banking Intelligence</span>
+                <span class="hero-eyebrow">Enterprise Intelligence</span>
                 <h1>AIM Intelligence Platform</h1>
-                <p>Unify governed knowledge, trusted banking data, and AI-assisted workflows in one professional command center for reporting, analytics, automation, and model operations.</p>
+                <p>Unify governed knowledge, trusted enterprise data, and AI-assisted workflows in one professional command center for reporting, analytics, automation, and model operations.</p>
                 <div class="hero-actions">
                   <button class="hero-action primary" onclick="switchPage('reporting')">Explore Suites</button>
                   <button class="hero-action secondary" onclick="switchPage('db-explorer')">Open Data Explorer</button>
@@ -177,7 +177,7 @@
             <div class="hero-metrics">
               <div class="hero-metric"><strong>4</strong><span>Application Suites</span></div>
               <div class="hero-metric"><strong>Governed</strong><span>Knowledge Layer</span></div>
-              <div class="hero-metric"><strong>Live</strong><span>Banking Data Access</span></div>
+              <div class="hero-metric"><strong>Live</strong><span>Enterprise Data Access</span></div>
             </div>
           </div>
 
@@ -186,7 +186,7 @@
             <div class="product-card" onclick="switchPage('reporting')">
               <div class="product-icon">📰</div>
               <h3>Reporting Suite</h3>
-              <p>Audit catalog indexes in PRISM, co-write standard summaries, Conversational BI, and proactive metrics anomaly feeds.</p>
+              <p>Audit report catalogs, co-write standard summaries, conversational analysis, and proactive metric anomaly feeds.</p>
             </div>
             <div class="product-card" onclick="switchPage('analytics')">
               <div class="product-icon">📈</div>

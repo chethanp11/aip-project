@@ -16,9 +16,9 @@ APPS = [
         'html': """
             <div class="card">
                 <h2>📚 KMS Grounding Workspace</h2>
-                <p class="desc">Query banking metrics glosseries, net interest margins formulas, and risk parameters.</p>
+                <p class="desc">Query operational metrics glossaries, mathematical driver models, and performance parameters.</p>
                 <div class="search-bar">
-                    <input type="text" id="kms-q" placeholder="Enter term (e.g., NIM, LCR, Sweep)..." />
+                    <input type="text" id="kms-q" placeholder="Enter term (e.g., Performance, Ratio, Baseline)..." />
                     <button class="btn" id="kms-btn">Query KMS</button>
                 </div>
                 <div class="results-box hide" id="kms-results"></div>
@@ -70,10 +70,10 @@ APPS = [
             </div>
         """,
         'js': """
-            const seedReports = [
-                { name: 'NIM Breakdown Q1', query: 'SELECT (interest_income - interest_expense) / earning_assets FROM branch_ledger', usage: 120, owner: 'Finance' },
-                { name: 'Interest Spread Review', query: 'SELECT (interest_income-interest_expense)/earning_assets FROM branch_ledger', usage: 8, owner: 'ALCO Committee' },
-                { name: 'Regional LDR Ledger', query: 'SELECT total_loans / total_deposits FROM customer_deposits', usage: 84, owner: 'Treasury' }
+            const sampleReports = [
+                { name: 'Margin Breakdown Q1', query: 'SELECT (interest_income - interest_expense) / earning_assets FROM branch_ledger', usage: 120, owner: 'Finance' },
+                { name: 'Yield Spread Review', query: 'SELECT (interest_income-interest_expense)/earning_assets FROM branch_ledger', usage: 8, owner: 'Executive Committee' },
+                { name: 'Regional Balance Ledger', query: 'SELECT total_loans / total_deposits FROM customer_deposits', usage: 84, owner: 'Operations' }
             ];
 
             document.getElementById('prism-btn').addEventListener('click', async () => {
@@ -88,7 +88,7 @@ APPS = [
                     const res = await fetch(`${API_BASE}/workflows/reporting/prism-lite`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ reports: seedReports })
+                        body: JSON.stringify({ reports: sampleReports })
                     });
                     const data = await res.json();
                     
@@ -111,13 +111,13 @@ APPS = [
         'html': """
             <div class="card">
                 <h2>💬 Conversational BI Assistant</h2>
-                <p class="desc">Ask natural questions about liquidity buffers, sweeping performance, or margin trends.</p>
+                <p class="desc">Ask natural questions about operational metrics, performance buffers, or yield trends.</p>
                 <div class="chat-container">
                     <div class="chat-box" id="chat-box">
-                        <div class="message bot">Hello! I am your Conversational BI Agent. Ask me anything grounded in our Liquidity database.</div>
+                        <div class="message bot">Hello! I am your Conversational BI Agent. Ask me anything grounded in our primary operational database.</div>
                     </div>
                     <div class="chat-input-row">
-                        <input type="text" id="chat-in" placeholder="Ask a question (e.g., Explain our current liquidity reserves)..." />
+                        <input type="text" id="chat-in" placeholder="Ask a question (e.g., Explain our current performance metrics)..." />
                         <button class="btn" id="chat-send">Send Query</button>
                     </div>
                 </div>
@@ -140,7 +140,7 @@ APPS = [
                 // Add loader message
                 const lMsg = document.createElement('div');
                 lMsg.className = 'message bot loader';
-                lMsg.innerText = "Resolving query using SQLite & KMS seeds...";
+                lMsg.innerText = "Resolving query using Enterprise Ledger & KMS...";
                 box.appendChild(lMsg);
                 box.scrollTop = box.scrollHeight;
                 
@@ -172,8 +172,8 @@ APPS = [
         'icon': '🔔',
         'html': """
             <div class="card">
-                <h2>🔔 Proactive Treasury Insights</h2>
-                <p class="desc">Continuous background analysis flagging credit exceptions and liquidity coverage drops.</p>
+                <h2>🔔 Proactive Performance Insights</h2>
+                <p class="desc">Continuous background analysis flagging operational exceptions and performance metrics drops.</p>
                 <button class="btn" id="refresh-alerts">Scans Active Ledgers</button>
                 <div class="alerts-feed mt-20" id="alerts-feed"></div>
             </div>
@@ -181,7 +181,7 @@ APPS = [
         'js': """
             async function loadAlerts() {
                 const feed = document.getElementById('alerts-feed');
-                feed.innerHTML = '<div class="loader">🔍 Auditing HQLA and deposits ratios...</div>';
+                feed.innerHTML = '<div class="loader">🔍 Auditing metrics and performance ratios...</div>';
                 try {
                     const res = await fetch(`${API_BASE}/workflows/reporting/proactive-insights`);
                     const data = await res.json();
@@ -214,8 +214,8 @@ APPS = [
         'icon': '💡',
         'html': """
             <div class="card">
-                <h2>💡 Treasury Insight Discovery</h2>
-                <p class="desc">Mines corporate balances MoM trends to highlight significant cash shifts.</p>
+                <h2>💡 Dynamic Insight Discovery</h2>
+                <p class="desc">Mines segment metric MoM trends to highlight significant performance shifts.</p>
                 <button class="btn" id="disc-btn">Surface Segment Insights</button>
                 <div class="results-grid mt-20 hide" id="disc-results"></div>
             </div>
@@ -231,8 +231,8 @@ APPS = [
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ segmentsData: [
-                            { cohort: 'GlobalCorp EUR Sweeps', timeline: [1.2, 1.3, 1.4, 2.8] },
-                            { cohort: 'Nova Retail Liquidity', timeline: [85.0, 89.2, 94.5] }
+                            { cohort: 'Global Segment A', timeline: [1.2, 1.3, 1.4, 2.8] },
+                            { cohort: 'Retail Cohort B', timeline: [85.0, 89.2, 94.5] }
                         ]})
                     });
                     const data = await res.json();
@@ -260,11 +260,11 @@ APPS = [
         'icon': '🔍',
         'html': """
             <div class="card">
-                <h2>🔍 Liquidity Variance Root Cause Analysis</h2>
-                <p class="desc">Identify primary drivers for balance compressions or sweeping delays.</p>
+                <h2>🔍 Performance Variance Root Cause Analysis</h2>
+                <p class="desc">Identify primary drivers for performance variance or operational delays.</p>
                 <select class="input-select" id="rca-metric">
-                    <option value="Deposit Outflows">Deposit Outflows</option>
-                    <option value="NPL Surcharge">Non-Performing Loans Surge</option>
+                    <option value="Deposit Outflows">Operating Resource Outflows</option>
+                    <option value="NPL Surcharge">Operational Deficit Surcharge</option>
                 </select>
                 <button class="btn" id="rca-btn">Decompose Drivers</button>
                 <div class="results-box hide mt-20" id="rca-results">
@@ -287,8 +287,8 @@ APPS = [
                         body: JSON.stringify({
                             datasetName: m,
                             metricsData: [
-                                { segment: 'North Plaza Treasury', value: 45.2 },
-                                { segment: 'South Bay Escrows', value: 12.5 }
+                                { segment: 'North Plaza Operations', value: 45.2 },
+                                { segment: 'South Bay Segment', value: 12.5 }
                             ]
                         })
                     });
@@ -315,31 +315,31 @@ APPS = [
         'icon': '📊',
         'html': """
             <div class="card">
-                <h2>📊 Dynamic Banking Margins Simulator</h2>
-                <p class="desc">Compute interest yields, default overheads, and Net Interest Margin dynamically.</p>
+                <h2>📊 Dynamic Margins Simulator</h2>
+                <p class="desc">Compute target yields, baseline overheads, and net margins dynamically.</p>
                 <div class="slider-row">
-                    <label>Average Loan Rate (<span id="lbl-loan">6.5</span>%)</label>
+                    <label>Target Earning Rate (<span id="lbl-loan">6.5</span>%)</label>
                     <input type="range" id="sim-loan" min="1.0" max="15.0" step="0.1" value="6.5" />
                 </div>
                 <div class="slider-row">
-                    <label>Average Deposit Rate (<span id="lbl-dep">2.2</span>%)</label>
+                    <label>Baseline Resource Cost Rate (<span id="lbl-dep">2.2</span>%)</label>
                     <input type="range" id="sim-dep" min="0.1" max="8.0" step="0.1" value="2.2" />
                 </div>
                 <div class="slider-row">
-                    <label>Assets Under Management (AUM: <span id="lbl-assets">150</span>M)</label>
+                    <label>Total Managed Base (TMB: <span id="lbl-assets">150</span>M)</label>
                     <input type="range" id="sim-assets" min="10" max="500" step="5" value="150" />
                 </div>
                 <div class="slider-row">
-                    <label>Non-Performing Loan Rate (NPL: <span id="lbl-npl">2.5</span>%)</label>
+                    <label>Resource Deficit Variance Rate (RDV: <span id="lbl-npl">2.5</span>%)</label>
                     <input type="range" id="sim-npl" min="0.0" max="10.0" step="0.1" value="2.5" />
                 </div>
                 <div class="results-grid mt-20">
                     <div class="metric-card">
-                        <span>Projected NIM</span>
+                        <span>Projected Net Margin</span>
                         <h3 id="res-nim">0.0%</h3>
                     </div>
                     <div class="metric-card">
-                        <span>Spread Profit</span>
+                        <span>Net Yield Profit</span>
                         <h3 id="res-profit">$0</h3>
                     </div>
                 </div>
@@ -386,16 +386,16 @@ APPS = [
         'icon': '📝',
         'html': """
             <div class="card">
-                <h2>📝 Treasury Executive Narratives</h2>
-                <p class="desc">Compile compliance and treasury board briefing scripts.</p>
+                <h2>📝 Executive Briefing Narratives</h2>
+                <p class="desc">Compile operational performance and board briefing scripts.</p>
                 <div class="form-group">
-                    <input type="text" id="nar-metric" value="Net Sweep Ratio" placeholder="Metric Name" />
+                    <input type="text" id="nar-metric" value="Net Allocation Ratio" placeholder="Metric Name" />
                     <input type="text" id="nar-val" value="94.2" placeholder="Value" />
-                    <input type="text" id="nar-driver" value="GlobalCorp Sweeps" placeholder="Primary Driver" />
+                    <input type="text" id="nar-driver" value="Global Segment Allocations" placeholder="Primary Driver" />
                 </div>
                 <button class="btn" id="nar-btn">Format Narrative Story</button>
                 <div class="results-box hide mt-20" id="nar-results">
-                    <h4>Outbound Treasury Script</h4>
+                    <h4>Outbound Executive Script</h4>
                     <p id="nar-text"></p>
                 </div>
             </div>
@@ -434,12 +434,12 @@ APPS = [
         'html': """
             <div class="card">
                 <h2>⚙️ Workflow Pipeline Designer</h2>
-                <p class="desc">Design visual routing logic connecting ledger balance drops to notification hooks.</p>
+                <p class="desc">Design visual routing logic connecting database performance drops to alert hooks.</p>
                 <div class="form-group">
-                    <input type="text" id="wf-name" value="ALCO Buffers Squeeze Alert" />
+                    <input type="text" id="wf-name" value="Operational Buffer Squeeze Alert" />
                     <select id="wf-trigger" class="input-select">
-                        <option value="LCR Drop Below 110%">LCR Drop Below 110%</option>
-                        <option value="Sweep Transfer Fail">Sweep Transfer Failure</option>
+                        <option value="LCR Drop Below 110%">ORC Drop Below 110%</option>
+                        <option value="Sweep Transfer Fail">Allocation Transfer Failure</option>
                     </select>
                 </div>
                 <button class="btn" id="wf-btn">Validate Pipeline DAG</button>
@@ -482,7 +482,7 @@ APPS = [
         'html': """
             <div class="card">
                 <h2>🚀 Workflow Orchestrator</h2>
-                <p class="desc">Executes registered corporate liquidity DAGs and traces active capability tasks sequential runs.</p>
+                <p class="desc">Executes registered operational DAGs and traces active capability tasks sequential runs.</p>
                 <button class="btn" id="orch-btn">Execute Pending Orchestrations</button>
                 <div class="results-box hide mt-20" id="orch-results"></div>
             </div>
@@ -516,8 +516,8 @@ APPS = [
         'icon': '🛡️',
         'html': """
             <div class="card">
-                <h2>🛡️ Stateful Compliance Sign-off</h2>
-                <p class="desc">Human-In-The-Loop (HITL) gate for high-value sweep approvals and risk adjustments.</p>
+                <h2>🛡️ Stateful Governance Sign-off</h2>
+                <p class="desc">Human-In-The-Loop (HITL) gate for high-value resource allocations and risk adjustments.</p>
                 <button class="btn" id="load-approvals">Query Active Gates</button>
                 <div class="mt-20" id="approvals-feed"></div>
             </div>
@@ -652,8 +652,8 @@ APPS = [
         'icon': '🔬',
         'html': """
             <div class="card">
-                <h2>🔬 Model Credit Scoring Experiments</h2>
-                <p class="desc">Manages XGBoost and Random Forest grid trials predicting corporate defaults probability.</p>
+                <h2>🔬 Model Outcome Scoring Experiments</h2>
+                <p class="desc">Manages XGBoost and Random Forest grid trials predicting operational variance probability.</p>
                 <button class="btn" id="dev-btn">List Experimental Training Grid</button>
                 <div class="results-box hide mt-20" id="dev-results"></div>
             </div>
@@ -666,7 +666,7 @@ APPS = [
                     const data = await res.json();
                     
                     resBox.innerHTML = `
-                        <h4>Credit scoring Models Grid</h4>
+                        <h4>Outcome scoring Models Grid</h4>
                         ${data.map(e => `
                             <div style="border-bottom:1px solid #eee; padding:6px 0;">
                                 <strong>Model: ${e.modelName}</strong> (Run: ${e.championRun})<br/>
@@ -688,8 +688,8 @@ APPS = [
         'icon': '📘',
         'html': """
             <div class="card">
-                <h2>📘 SR 11-7 Model Governance compliance</h2>
-                <p class="desc">Auto-generate compliance booklets detailing training metrics for internal auditors.</p>
+                <h2>📘 Standard Model Risk Governance Compliance</h2>
+                <p class="desc">Auto-generate compliance documentation detailing model training metrics for internal auditors.</p>
                 <button class="btn" id="doc-btn">Compile Compliance PDF Booklet</button>
                 <div class="results-box hide mt-20" id="doc-results"></div>
             </div>
@@ -697,7 +697,7 @@ APPS = [
         'js': """
             document.getElementById('doc-btn').addEventListener('click', async () => {
                 const resBox = document.getElementById('doc-results');
-                resBox.innerHTML = '<div class="loader">📘 Rending SR 11-7 validation layouts...</div>';
+                resBox.innerHTML = '<div class="loader">📘 Rending validation layouts...</div>';
                 resBox.classList.remove('hide');
                 
                 try {
@@ -706,7 +706,7 @@ APPS = [
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             modelId: 'MD-902',
-                            framework: 'XGBoost Credit Classifier',
+                            framework: 'XGBoost Outcomes Classifier',
                             championRun: 'run_9x_auc'
                         })
                     });

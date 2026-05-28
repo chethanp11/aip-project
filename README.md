@@ -108,7 +108,7 @@ Provides secure analytical data access to enterprise datasets, files, operationa
 AIP is split into two repository-level responsibilities:
 
 - **`AIP/`** contains the application runtime: FastAPI gateway, static UI shells, workflow modules, shared intelligence capabilities, KMS orchestration code, and reusable infrastructure clients.
-- **`AIP-Infra/`** contains the infrastructure and data surfaces used by the application: Docker Compose services, PostgreSQL/pgvector storage, Neo4j storage, Redis storage, logs, reports, artifacts, archives, and KMS/LMS seed data.
+- **`AIP-Infra/`** contains the infrastructure and data surfaces used by the application: Docker Compose services, PostgreSQL/pgvector storage, Neo4j storage, Redis storage, logs, reports, artifacts, archives, and team KMS runtime/context data.
 
 The application must not keep institutional knowledge or demo/reference datasets inside application code. AIP code reads those assets from AIP-Infra through centralized configuration.
 
@@ -132,7 +132,7 @@ sequenceDiagram
     CAP->>KMS: Retrieval or context request
     KMS->>PG: Metadata, glossary, vector_chunks, governance tables
     KMS->>N4J: Graph node and relationship traversal
-    KMS->>FS: Read seeds, write logs/artifacts/context packages
+    KMS->>FS: Read team context, write logs/artifacts/context packages
     KMS-->>CAP: Grounded context and evidence
     CAP-->>INT: Capability output
     INT-->>API: Output plus execution audit trace
@@ -220,10 +220,7 @@ ARCHIVE_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/archives
 LOG_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/logs
 KMS_ROOT=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms
 KMS_TEAM_ROOT=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms/<Team>
-KMS_TEAM_SEED_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms/<Team>/seeds
 KMS_TEAM_RUNTIME_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms/<Team>/runtime
-LMS_ROOT=/Users/chethan/GitHub/AIP-Project/AIP-Infra/lms
-LMS_SEED_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/lms/seeds
 ```
 
 Application code should use `src.shared.config.config` instead of hardcoded filesystem paths.
@@ -240,8 +237,7 @@ AIP code never talks to Docker volumes or seed files directly from product workf
 | `AIP/src/shared/infra/redis_client.py` | `aip-redis` on `REDIS_HOST:REDIS_PORT` | Provides Redis connectivity for cache/session-style infrastructure. |
 | `AIP/src/shared/infra/storage_client.py` | `AIP-Infra/storage/{reports,artifacts,archives}` and `AIP-Infra/logs` | Writes generated files outside the application tree. |
 | `AIP/src/shared/infra/retrieval_client.py` | PostgreSQL + Neo4j through KMS | Keeps retrieval consumers decoupled from physical database details. |
-| `AIP/src/kms/index.py` | `AIP-Infra/kms/<Team>/seeds`, `AIP-Infra/kms/<Team>/runtime`, PostgreSQL, Neo4j, logs | Loads KMS seed files, creates/updates KMS tables, writes graph data, stages ingested documents, and records audit/ingestion logs. |
-| `AIP/src/shared/lms.py` | `LMS_SEED_PATH`, PostgreSQL | Loads deterministic LMS seed inputs only when PostgreSQL LMS tables are empty. |
+| `AIP/src/kms/index.py` | `AIP-Infra/kms/<Team>/runtime`, PostgreSQL, Neo4j, logs | Creates/updates KMS tables, writes graph data, stages ingested documents, and records audit/ingestion logs.` |
 | `AIP/src/main.py` | `REPORT_PATH` and static AIP UI folders | Mounts generated report output from AIP-Infra at `/reports` and serves app UIs/API routes. |
 
 The intended dependency direction is:
@@ -250,46 +246,43 @@ The intended dependency direction is:
 Suite workflow -> shared capability -> shared infra client -> AIP-Infra service/storage
 ```
 
-Code should cross the AIP/AIP-Infra boundary only through `src.shared.config` and `src.shared.infra` clients. Product workflows should depend on capabilities and workflow inputs, not on physical Docker volume paths, seed-file layouts, or database driver details.
+Code should cross the AIP/AIP-Infra boundary only through `src.shared.config` and `src.shared.infra` clients. Product workflows should depend on capabilities and workflow inputs, not on physical Docker volume paths, physical runtime layouts or database driver details.
 
 Examples:
 
-- A reporting workflow that needs corporate ledger data calls `shared.lms.get_lms_table(...)`; it does not read local JSON/SQLite files.
+- A reporting workflow that needs corporate ledger data calls `AnalyticsClient`; it does not read local JSON/SQLite files.
 - A knowledge retrieval workflow calls the `knowledge_retrieval` capability; that capability uses `RetrievalClient`, which delegates to KMS, PostgreSQL, and Neo4j.
 - A report publishing workflow writes output through configured report/storage paths; generated files are served from AIP-Infra rather than committed into app code.
 
 Do not bypass this route by adding direct file reads from `AIP/src/kms`, local SQLite databases, hardcoded absolute output folders, or embedded knowledge arrays in suite workflows.
 
-### AIP-Infra Seed and Runtime Data
+### AIP-Infra Runtime Data
 
-KMS and LMS reference data live under AIP-Infra:
+KMS runtime/context data lives under team folders in AIP-Infra:
 
 ```text
-AIP-Infra/storage/
-├── kms/
-│   ├── seeds/
-│   │   ├── analytical_templates.json
-│   │   ├── business_domains.json
-│   │   ├── business_terms.json
-│   │   ├── knowledge_articles.json
-│   │   ├── knowledge_seed.json
-│   │   └── metrics_glossary.json
+AIP-Infra/kms/
+├── Treasury/
+│   ├── context/
 │   └── runtime/
-│       ├── ingestion_logs/
-│       ├── ingestion_staging/
-│       └── metadata_db/
-└── lms/
-    └── seeds/
-        └── corporate_banking_seed.json
+├── Compliance/
+│   ├── context/
+│   └── runtime/
+├── Credit/
+│   ├── context/
+│   └── runtime/
+└── Model/
+    ├── context/
+    └── runtime/
 ```
 
 Important boundary rules:
 
-- KMS glossary, articles, templates, domains, and initial graph/candidate knowledge are loaded from the active team seed folder.
-- LMS/corporate banking demo data is loaded from `LMS_SEED_PATH`.
-- Runtime KMS ingestion staging and logs are written to the active team runtime folder and `LOG_PATH`.
+- Application code must not load seed files.
+- Team context is loaded from `AIP-Infra/kms/<Team>/context`.
+- Runtime KMS ingestion staging and logs are written to `AIP-Infra/kms/<Team>/runtime`.
 - Published reports are written to `REPORT_PATH` and served at `/reports`.
-- AIP code should not reintroduce local files such as `src/kms/*.json`, `src/kms/data/*`, or local SQLite databases.
+- AIP code should not reintroduce local files such as `src/kms/*.json`, `src/kms/data/*`, local SQLite databases, or seed-driven bootstrap data.
 
 ### KMS: Knowledge Grounding
 
@@ -303,10 +296,9 @@ On first access, KMS:
 
 1. Connects to PostgreSQL through `PostgresClient`.
 2. Creates KMS tables such as `vector_chunks`, `canonical_knowledge`, `candidate_knowledge`, `business_terms`, `metrics_glossary`, `analytical_templates`, `knowledge_articles`, audit logs, approvals, connectors, and domains.
-3. Loads seed/reference data only from the authenticated team folder `AIP-Infra/kms/<Team>/seeds`.
-4. Stores team-specific KMS context under `AIP-Infra/kms/<Team>/context` and attaches the authenticated team folder to the active Analyst or SME login session.
-5. Writes graph nodes and relationships through `Neo4jClient`.
-6. Tokenizes knowledge into `vector_chunks` for retrieval.
+3. Stores team-specific KMS context under `AIP-Infra/kms/<Team>/context` and attaches the authenticated team folder to the active Analyst or SME login session.
+4. Writes graph nodes and relationships through `Neo4jClient` and PostgreSQL tables.
+5. Tokenizes approved or ingested knowledge into `vector_chunks` for retrieval.
 
 Retrieval flow:
 
@@ -315,22 +307,15 @@ Retrieval flow:
 3. `RetrievalClient` calls `advanced_retrieval_orchestration`.
 4. KMS searches PostgreSQL vector chunks, enriches matches with Neo4j neighbors, applies RBAC/security filters, detects missing context or contradictions, and returns grounded evidence.
 
-### LMS: Analytical Data Source
+### Analytics Data Source
 
-LMS data access is implemented in:
+Analytical data access is implemented through:
 
 ```text
-AIP/src/shared/lms.py
+AIP/src/shared/infra/analytics_client.py
 ```
 
-On import, LMS:
-
-1. Connects to external PostgreSQL through `PostgresClient`.
-2. Ensures corporate banking tables exist.
-3. Loads deterministic seed inputs from `AIP-Infra/lms/seeds/corporate_banking_seed.json` when the tables are empty.
-4. Serves workflow reads through `get_lms_table` and `run_sqlite_query`.
-
-`run_sqlite_query` is a compatibility wrapper: it accepts legacy `?` placeholders but executes against PostgreSQL.
+The implementation is PostgreSQL-backed. Product workflows use `AnalyticsClient.get_table_rows(...)` and `AnalyticsClient.run_compatible_read_query(...)` for read-only access. Legacy `?` placeholders are translated to PostgreSQL `%s` placeholders, but no application seed files are loaded.
 
 ### Intelligence Layer and Capabilities
 
@@ -415,7 +400,7 @@ curl -H "Authorization: Bearer AIP-DEV-TOKEN" \
 ### Development Guardrails
 
 - Keep application logic in `AIP/src`.
-- Keep infrastructure state, seed data, report outputs, artifacts, archives, and logs in `AIP-Infra`.
+- Keep infrastructure state, report outputs, artifacts, archives, and logs in `AIP-Infra`.
 - Add new reusable platform integrations under `AIP/src/shared/infra`.
 - Add new stateless capabilities under `AIP/src/shared/capabilities`.
 - Add suite-specific workflows under the relevant suite folder.
@@ -468,7 +453,6 @@ The development of AIP is governed by this precise 10-step build sequence:
 │   │   │   ├── infra/                # PostgreSQL, Redis, Neo4j, retrieval, storage clients
 │   │   │   ├── capabilities/         # Stateless reusable intelligence capabilities
 │   │   │   ├── intelligence.py       # Capability registry, agent context, audit traces
-│   │   │   └── lms.py                # LMS PostgreSQL connector and deterministic seeding
 │   │   ├── kms/                      # KMS orchestration and KMS UI only
 │   │   ├── reporting/                # Reporting workflows and static UIs
 │   │   ├── business_analytics/       # Analytics workflows and static UIs
@@ -488,9 +472,6 @@ The development of AIP is governed by this precise 10-step build sequence:
     ├── neo4j/                        # Neo4j volume
     ├── redis/                        # Redis volume
     └── storage/
-        ├── kms/seeds/                # KMS reference/knowledge seed files
-        ├── kms/runtime/              # KMS runtime staging and metadata directories
-        ├── lms/seeds/                # LMS reference seed files
         ├── reports/                  # Published reports served at /reports
         ├── artifacts/                # Generated artifacts
         └── archives/                 # Archived outputs

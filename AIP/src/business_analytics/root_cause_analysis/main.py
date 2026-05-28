@@ -1,13 +1,14 @@
 """
 Product 6: Root Cause Analysis (Stateful Agentic AI)
-Assigned Banking Agent: RCA Diagnostic Agent
+Assigned Enterprise Agent: RCA Diagnostic Agent
 """
 
 from typing import List, Dict, Any
 from shared.intelligence import invoke_capability, call_llm
+from shared.session import get_profile_context_defaults
 
 async def run_rca_workflow(dataset_name: str, metrics_data: List[Dict[str, Any]], prompt: str = "") -> Dict[str, Any]:
-    print(f"[Workflow: Analytics - RCA] Running RCA drivers scan for banking portfolio: {dataset_name}")
+    print(f"[Workflow: Analytics - RCA] Running RCA drivers scan for segment: {dataset_name}")
 
     row_count = len(metrics_data)
     missing_values = 0
@@ -39,7 +40,7 @@ async def run_rca_workflow(dataset_name: str, metrics_data: List[Dict[str, Any]]
     primary_driver = f"{sorted_segments[0]['segment']} (Total: {sorted_segments[0]['value']})" if sorted_segments else 'Unknown Driver'
 
     # Attempt to query live LLM for executive analysis narrative
-    system_prompt = "You are a professional banking risk auditor specializing in Root Cause Analysis (RCA). Compile a concise, executive-grade diagnostic narrative summarizing portfolio asset/liability drivers variance."
+    system_prompt = "You are a professional analytical risk auditor specializing in Root Cause Analysis (RCA). Compile a concise, executive-grade diagnostic narrative summarizing portfolio operational performance drivers variance."
     
     user_prompt = f"""RCA Scan Report for dataset: {dataset_name}
 - Total Audited Entries: {row_count}
@@ -56,13 +57,17 @@ async def run_rca_workflow(dataset_name: str, metrics_data: List[Dict[str, Any]]
     if ai_narrative:
         tailored_narrative = ai_narrative.strip()
     else:
+        # Dynamically fetch profile default context parameters
+        user_defaults = get_profile_context_defaults()
+        metric_id = user_defaults.get('metricId', 'npl_ratio').upper()
+
         generate_result = await invoke_capability('narrative_generation', {
             'templateId': 'rca_template',
             'variables': {
                 'metricName': dataset_name,
                 'missingCount': str(missing_values),
-                'featureSuggestion': 'Recommend clustering branches by local interest rate sensitivity.' if row_count > 5 else 'Recommend standard LDR tracking.',
-                'driversList': f"Primary portfolio segment driver identified as: '{primary_driver}'. Growth rate of overall trend: {interpretation.get('growthRate', 0)}%.",
+                'featureSuggestion': f'Recommend clustering data segments by operational sensitivity.' if row_count > 5 else f'Recommend standard {metric_id} tracking.',
+                'driversList': f"Primary segment driver identified as: '{primary_driver}'. Growth rate of overall trend: {interpretation.get('growthRate', 0)}%.",
                 'summary': interpretation.get('explanation', '')
             }
         })

@@ -9,8 +9,8 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ segmentsData: [
-                            { cohort: 'GlobalCorp EUR Sweeps', timeline: [1.2, 1.3, 1.4, 2.8] },
-                            { cohort: 'Nova Retail Liquidity', timeline: [85.0, 89.2, 94.5] }
+                            { cohort: 'Global Segment A', timeline: [1.2, 1.3, 1.4, 2.8] },
+                            { cohort: 'Retail Cohort B', timeline: [85.0, 89.2, 94.5] }
                         ]})
                     });
                     const data = await res.json();

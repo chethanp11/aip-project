@@ -78,10 +78,10 @@ from src.data_science_ml.model_development.main import get_model_experiments
 from src.data_science_ml.model_documentation.main import run_model_documentation_workflow
 from src.data_science_ml.model_pulse.main import run_model_pulse_workflow
 
-from shared.lms import get_lms_table
-from shared.infra.analytics_client import AnalyticsClient
+from src.shared.infra.analytics_client import AnalyticsClient
 
 analytics_client = AnalyticsClient()
+get_lms_table = analytics_client.get_table_rows
 
 
 # Initialize and register all stateless capabilities
@@ -111,7 +111,7 @@ app.add_middleware(
 @app.middleware("http")
 async def context_and_auth_middleware(request: Request, call_next):
     path = request.url.path
-    
+
     # Bypass auth verification for static UI pages and login POSTs
     if (
         request.method == "OPTIONS"
@@ -190,14 +190,14 @@ async def context_and_auth_middleware(request: Request, call_next):
 async def login(payload: Dict[str, Any]):
     username = payload.get('username')
     password = payload.get('password')
-    
+
     # Authenticate any registered Analyst or SME profile
     user = authenticate_kms_user(username, password)
     if user:
         role = user['role']
         session_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=9))
         secure_token = f"AIP-{role.upper()}-SESSION-{session_suffix}"
-        
+
         # Store user profile in active session
         allowed_domains = [d.strip() for d in (user.get('allowed_domains') or '').split(',') if d.strip()] if user.get('allowed_domains') else None
         kms_team = config.resolve_kms_team(user['username'], allowed_domains)
@@ -213,7 +213,7 @@ async def login(payload: Dict[str, Any]):
         }
         from shared.session import set_session
         set_session(secure_token, session_payload)
-        
+
         print(f"[Auth Success] Authenticated {role} {username}. Issued secure session token: {secure_token}")
         return {'success': True, 'token': secure_token, 'role': user['role'], 'clearance': user['clearance'], 'displayName': user['display_name']}
 
@@ -239,7 +239,7 @@ async def logout(request: Request):
     return {'success': False, 'error': 'No active session token provided.'}
 
 # ==========================================================================
-# 📊 LMS DATABASE ROUTE
+# 📊 ENTERPRISE LEDGER DATABASE ROUTE
 # ==========================================================================
 @app.get("/api/v1/lms/query")
 async def query_lms(table: str = None):
@@ -257,7 +257,7 @@ async def query_lms(table: str = None):
                 raise HTTPException(status_code=403, detail=f"Access Denied: User profile does not have permission to access table '{table}'.")
             records = get_lms_table(table)
             if not records:
-                raise HTTPException(status_code=404, detail=f"Table '{table}' not found in LMS.")
+                raise HTTPException(status_code=404, detail=f"Table '{table}' not found in Enterprise Ledger.")
             return records
         else:
             res = {}
@@ -269,7 +269,7 @@ async def query_lms(table: str = None):
         if table:
             records = get_lms_table(table)
             if not records:
-                raise HTTPException(status_code=404, detail=f"Table '{table}' not found in LMS.")
+                raise HTTPException(status_code=404, detail=f"Table '{table}' not found in Enterprise Ledger.")
             return records
         else:
             return {
@@ -558,7 +558,7 @@ async def kms_retriever_download(payload: Dict[str, Any]):
         res = advanced_retrieval_orchestration(query, user_role, clearance)
         pkg = generate_context_package(query, user_role, clearance)
         zip_data = generate_context_zip(query, res, pkg)
-        
+
         from fastapi.responses import Response
         import urllib.parse
         safe_filename = urllib.parse.quote(f"context_pack_{query[:15].replace(' ', '_')}.zip")
@@ -614,14 +614,14 @@ async def upload_reports_for_screening(
     prompt: str = ""
 ):
     from src.reporting.prism.main import parse_excel_report, parse_html_report
-    
+
     reports = []
     for file in files:
         if not isinstance(file, UploadFile):
             continue
         filename = file.filename
         content_bytes = await file.read()
-        
+
         if filename.endswith('.xlsx') or filename.endswith('.xls'):
             excel_reports = parse_excel_report(content_bytes, filename)
             reports.extend(excel_reports)
@@ -640,10 +640,10 @@ async def upload_reports_for_screening(
                 'owner': 'Operations Analytics',
                 'type': 'CSV'
             })
-            
+
     if not reports:
         raise HTTPException(status_code=400, detail="No valid Excel, HTML, or CSV files were parsed.")
-        
+
     return await run_prism_workflow(reports, prompt)
 
 
@@ -732,12 +732,12 @@ async def narratives(payload: Dict[str, Any]):
 @app.post("/api/v1/workflows/automation/run")
 async def run_workflow(payload: Dict[str, Any]):
     config = payload.get('config', {})
-    
+
     # Visual validator checkpoint
     validation = validate_pipeline_config(config)
     if not validation.get('structuralValid'):
         raise HTTPException(status_code=400, detail=f"Structural Config Errors: {', '.join(validation['errors'])}")
-        
+
     return await run_custom_workflow(config)
 
 @app.get("/api/v1/workflows/automation/approvals")

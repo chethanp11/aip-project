@@ -10,11 +10,11 @@
     <div class="sub-portal">
         
             <div class="card">
-                <h2>🔍 Liquidity Variance Root Cause Analysis</h2>
-                <p class="desc">Identify primary drivers for balance compressions or sweeping delays.</p>
+                <h2>🔍 Performance Variance Root Cause Analysis</h2>
+                <p class="desc">Identify primary drivers for performance variance or operational delays.</p>
                 <select class="input-select" id="rca-metric">
-                    <option value="Deposit Outflows">Deposit Outflows</option>
-                    <option value="NPL Surcharge">Non-Performing Loans Surge</option>
+                    <option value="Deposit Outflows">Operating Resource Outflows</option>
+                    <option value="NPL Surcharge">Operational Deficit Surcharge</option>
                 </select>
                 <button class="btn" id="rca-btn">Decompose Drivers</button>
                 <div class="results-box hide mt-20" id="rca-results">
@@ -27,7 +27,7 @@
     </div>
     
     <script>
-        const API_BASE = '/api/v1';
+        const API_BASE = 'http://localhost:8000/api/v1';
         
         // Authed Fetch Interceptor matching parent origin session storage
         const originalFetch = window.fetch;

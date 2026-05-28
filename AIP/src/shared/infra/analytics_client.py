@@ -18,20 +18,138 @@ class AnalyticsClient:
         self.password = config.POSTGRES_PASSWORD
 
     def get_connection(self):
-        """Establishes and returns a raw connection to the external PostgreSQL database."""
+        """Establishes and returns a raw connection to the team's external PostgreSQL database."""
+        # Resolve team based on active user profile
+        from shared.intelligence import active_agent_context
+        from shared.session import active_sessions
+        from src.shared.config import config
+
+        active_ctx = active_agent_context.get()
+        api_key = active_ctx.get('api_key', '') if active_ctx else ''
+        username = None
+        allowed_domains = None
+        if api_key in active_sessions:
+            username = active_sessions[api_key].get('username')
+            allowed_domains = active_sessions[api_key].get('allowed_domains')
+
+        team = config.resolve_kms_team(username, allowed_domains)
+        db_name = f"{team.lower()}_analyticsdb" if team != "General" else "analyticsdb"
+
+        # Ensure team database exists and is synchronized from the source database
+        self.ensure_database_exists(db_name, team)
+
         return psycopg2.connect(
             host=self.host,
             port=self.port,
-            database=self.database,
+            database=db_name,
             user=self.user,
             password=self.password
         )
 
+    def ensure_database_exists(self, db_name: str, team: str):
+        """Ensures that the team-specific database exists, creating it if necessary."""
+        if db_name == "analyticsdb":
+            return
+
+        # Connect to default analyticsdb first to check and create new database
+        conn = psycopg2.connect(
+            host=self.host,
+            port=self.port,
+            database="analyticsdb",
+            user=self.user,
+            password=self.password
+        )
+        conn.autocommit = True
+        cursor = conn.cursor()
+        try:
+            cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{db_name}';")
+            exists = cursor.fetchone()
+            if not exists:
+                print(f"[Analytics DB] Creating team database '{db_name}'...")
+                cursor.execute(f"CREATE DATABASE {db_name};")
+                self.initialize_team_database(db_name, team)
+        except Exception as e:
+            print(f"[Analytics DB] Error ensuring database '{db_name}': {e}")
+        finally:
+            cursor.close()
+            conn.close()
+
+    def initialize_team_database(self, db_name: str, team: str):
+        """Initializes only team-authorized tables in the new team database by copying from the source database."""
+        team_tables_map = {
+            'Treasury': ['deposits', 'loans', 'accounts', 'transactions'],
+            'Compliance': ['liquidity_buffers', 'liquidity_sweeps', 'sweep_executions', 'corporate_clients'],
+            'Model': ['accounts'],
+            'Credit': ['corporate_clients', 'accounts']
+        }
+        tables_to_create = team_tables_map.get(team, [])
+
+        src_conn = psycopg2.connect(
+            host=self.host,
+            port=self.port,
+            database="analyticsdb",
+            user=self.user,
+            password=self.password
+        )
+        src_cursor = src_conn.cursor()
+
+        tgt_conn = psycopg2.connect(
+            host=self.host,
+            port=self.port,
+            database=db_name,
+            user=self.user,
+            password=self.password
+        )
+        tgt_conn.autocommit = True
+        tgt_cursor = tgt_conn.cursor()
+
+        try:
+            for t in tables_to_create:
+                src_table = 'accounts' if t in ('deposits', 'loans', 'branch_performance') else t
+                src_cursor.execute(f"""
+                    SELECT column_name, data_type, character_maximum_length, is_nullable
+                    FROM information_schema.columns
+                    WHERE table_name = '{src_table}' AND table_schema = 'public'
+                    ORDER BY ordinal_position;
+                """)
+                cols = src_cursor.fetchall()
+                if not cols:
+                    continue
+
+                col_defs = []
+                for col in cols:
+                    cname, dtype, clen, null_status = col
+                    null_str = "NULL" if null_status == "YES" else "NOT NULL"
+                    if dtype in ("character varying", "varchar"):
+                        dtype_str = f"VARCHAR({clen or 255})"
+                    else:
+                        dtype_str = dtype
+                    col_defs.append(f"{cname} {dtype_str} {null_str}")
+
+                create_sql = f"CREATE TABLE IF NOT EXISTS {t} ({', '.join(col_defs)});"
+                tgt_cursor.execute(create_sql)
+
+                src_cursor.execute(f"SELECT * FROM {src_table};")
+                rows = src_cursor.fetchall()
+                if rows:
+                    placeholders = ", ".join(["%s"] * len(rows[0]))
+                    insert_sql = f"INSERT INTO {t} VALUES ({placeholders});"
+                    tgt_cursor.executemany(insert_sql, rows)
+
+            print(f"[Analytics DB] Successfully initialized database '{db_name}' for team '{team}'.")
+        except Exception as e:
+            print(f"[Analytics DB] Error initializing database '{db_name}': {e}")
+        finally:
+            src_cursor.close()
+            src_conn.close()
+            tgt_cursor.close()
+            tgt_conn.close()
+
     def list_tables(self) -> list:
         """Returns a list of all user table names in the public schema."""
         query = """
-            SELECT table_name 
-            FROM information_schema.tables 
+            SELECT table_name
+            FROM information_schema.tables
             WHERE table_schema = 'public'
             ORDER BY table_name;
         """
@@ -42,7 +160,7 @@ class AnalyticsClient:
             tables = [row[0] for row in cursor.fetchall()]
             # Filter out internal/system tables if any
             tables = [t for t in tables if not t.startswith('pg_')]
-            
+
             # Dynamic filtering based on active analyst allowed_tables
             from shared.intelligence import active_agent_context
             from shared.session import active_sessions
@@ -51,10 +169,10 @@ class AnalyticsClient:
             allowed_tables = None
             if api_key in active_sessions:
                 allowed_tables = active_sessions[api_key].get('allowed_tables')
-            
+
             if allowed_tables is not None:
                 tables = [t for t in tables if t.lower() in allowed_tables]
-                
+
             return tables
         except Exception as e:
             print(f"[Analytics DB] Failed to list tables: {str(e)}")
@@ -71,8 +189,8 @@ class AnalyticsClient:
             raise ValueError(f"Table '{table_name}' does not exist or is invalid.")
 
         query = """
-            SELECT column_name, data_type 
-            FROM information_schema.columns 
+            SELECT column_name, data_type
+            FROM information_schema.columns
             WHERE table_schema = 'public' AND table_name = %s
             ORDER BY ordinal_position;
         """
@@ -192,7 +310,7 @@ class AnalyticsClient:
         if allowed_tables is not None:
             # Tokenize SQL query to find table references
             sql_words = set(re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', cleaned.lower()))
-            
+
             # Fetch master un-filtered list of public tables supporting both PostgreSQL and SQLite
             master_tables = []
             conn = self.get_connection()
@@ -209,7 +327,7 @@ class AnalyticsClient:
             finally:
                 cursor.close()
                 conn.close()
-                
+
             for t in master_tables:
                 if t in sql_words and t not in allowed_tables:
                     raise PermissionError(f"Access Denied: You do not have permission to query database table '{t}' under your active user profile.")
@@ -222,6 +340,30 @@ class AnalyticsClient:
         except Exception as e:
             print(f"[Analytics DB] Custom SQL failed: {str(e)}")
             raise e
+        finally:
+            cursor.close()
+            conn.close()
+
+    def get_table_rows(self, table_name: str, limit: int = 1000) -> list:
+        """Return rows from an authorized analytics table without file-based bootstrap access."""
+        return self.query_table(table_name, [], limit)
+
+    def run_compatible_read_query(self, sql: str, params: tuple = ()) -> list:
+        """Run read-only SQL while accepting legacy '?' placeholders."""
+        sql_pg = sql.replace("?", "%s")
+        cleaned = sql_pg.strip()
+        if not re.match(r'^\s*(SELECT|WITH)\b', cleaned, re.IGNORECASE):
+            raise PermissionError("Only read-only queries starting with 'SELECT' or 'WITH' are permitted.")
+
+        forbidden = r'\b(INSERT|UPDATE|DELETE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|REPLACE|RENAME|COMMIT|ROLLBACK|BEGIN)\b'
+        if re.search(forbidden, cleaned, re.IGNORECASE):
+            raise PermissionError("Security Violation: DDL and DML write operations are strictly blocked.")
+
+        conn = self.get_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        try:
+            cursor.execute(sql_pg, params)
+            return [dict(row) for row in cursor.fetchall()]
         finally:
             cursor.close()
             conn.close()

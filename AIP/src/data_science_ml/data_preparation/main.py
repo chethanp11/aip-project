@@ -1,19 +1,22 @@
 """
 Product 13: Data Preparation Workspace (Stateful Agentic AI)
-Assigned Banking Agent: Data Prep Profiler Agent
-Profiles credit default features by grounding columns in PostgreSQL banking datasets.
+Assigned AI Agent: Data Prep Profiler Agent
+Profiles dataset features by grounding columns in PostgreSQL datasets.
 """
 
 from typing import List, Dict, Any
-from shared.lms import run_sqlite_query
+from src.shared.infra.analytics_client import AnalyticsClient
 from shared.intelligence import call_llm
 
-async def run_data_preparation_workflow(columns: List[str] = None, dataset: List[Dict[str, Any]] = None) -> Dict[str, Any]:
-    print(f"[Workflow: Data Science - Prep] Initiating multi-agent banking feature preparation.")
+_analytics_client = AnalyticsClient()
+run_sqlite_query = _analytics_client.run_compatible_read_query
 
-    # 1. Grounding in PostgreSQL corporate ledgers if no custom dataset is provided
+async def run_data_preparation_workflow(columns: List[str] = None, dataset: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+    print(f"[Workflow: Data Science - Prep] Initiating multi-agent feature preparation.")
+
+    # 1. Grounding in primary database ledgers if no custom dataset is provided
     if not dataset or not columns:
-        print("[Data Prep] Querying PostgreSQL corporate banking ledgers for feature assembly...")
+        print("[Data Prep] Querying PostgreSQL primary ledgers for feature assembly...")
         db_rows = run_sqlite_query("""
             SELECT cc.client_id, cc.industry, cc.risk_score, cc.credit_rating, a.balance, a.interest_rate
             FROM corporate_clients cc
@@ -101,7 +104,7 @@ async def run_data_preparation_workflow(columns: List[str] = None, dataset: List
             prof['recommendations'].append(f"Impute {prof['nullCount']} missing cells using median value replacement ({val_to_impute}).")
         
         if prof['dataType'] == 'categorical':
-            prof['recommendations'].append("Apply One-Hot Encoding vectorization for banking categorical features.")
+            prof['recommendations'].append("Apply One-Hot Encoding vectorization for enterprise categorical features.")
         else:
             prof['recommendations'].append("Standardize continuous metrics using MinMax Scaling [0, 1].")
 
@@ -130,10 +133,10 @@ async def run_data_preparation_workflow(columns: List[str] = None, dataset: List
         null_summary = "None"
         
     system_prompt = """You are the Lead Multi-Agent AI coordinator for the AIM Intelligence Platform (AIP).
-    Synthesize an intelligent corporate discussion between three specialized agents auditing a Credit defaults feature table:
+    Synthesize an intelligent cross-functional discussion between three specialized agents auditing an analytical features table:
     1. Data Profiler Agent: Scans columns, identifies data types, highlights null value percentages, and spots outlier ranges.
     2. Feature Engineer Agent: Recommends mathematical transformations, median value replacements, MinMax continuous scaling, and One-Hot categorical vector encoding.
-    3. KMS Alignment Agent: Cross-references features with KMS metrics glossaries and banking privacy regulations.
+    3. KMS Alignment Agent: Cross-references features with KMS metrics glossaries and operational privacy regulations.
 
     Your output MUST be a JSON object with a single key "dialogue" containing a list of exactly 3 objects.
     Each object must have:
@@ -142,7 +145,7 @@ async def run_data_preparation_workflow(columns: List[str] = None, dataset: List
     - "action": A 3-5 word executive summary of their active operational role.
     Do not output any markdown formatting like ```json or anything else. Just the raw JSON object."""
 
-    user_prompt = f"""We are profiling Credit Risk defaults columns: {columns}.
+    user_prompt = f"""We are profiling features table columns: {columns}.
     Rows scanned: {len(dataset)}.
     Data profiling results:
     - Missing/Null fields detected: {null_summary}.
@@ -164,7 +167,7 @@ async def run_data_preparation_workflow(columns: List[str] = None, dataset: List
         dialogue = [
             {
                 'agent': "Data Profiler Agent",
-                'message': f"Scanned corporate ledgers and compiled features table. Found missing cells under: {null_summary or 'none'}. Categorized continuous columns and discrete categories.",
+                'message': f"Scanned enterprise ledgers and compiled features table. Found missing cells under: {null_summary or 'none'}. Categorized continuous columns and discrete categories.",
                 'action': "Data distribution profiling & audit."
             },
             {
@@ -174,7 +177,7 @@ async def run_data_preparation_workflow(columns: List[str] = None, dataset: List
             },
             {
                 'agent': "KMS Alignment Agent",
-                'message': f"Checked semantic column names against metrics_glossary.json. All features properly map to canonical definitions under the credit risk domain.",
+                'message': f"Checked semantic column names against metrics_glossary.json. All features properly map to canonical definitions under the risk domain.",
                 'action': "KMS semantic consistency validation."
             }
         ]

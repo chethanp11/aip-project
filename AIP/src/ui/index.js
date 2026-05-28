@@ -157,7 +157,7 @@ function setupAuthHandler() {
       // Update sidebar dynamic profile values
       const name = localStorage.getItem('AIP_USER_NAME') || 'Analytics Pro';
       const role = localStorage.getItem('AIP_USER_ROLE') || 'Analyst';
-      const uname = localStorage.getItem('AIP_USER_UNAME') || 'Treasury_Analyst';
+      const uname = localStorage.getItem('AIP_USER_UNAME') || 'Insights_Analyst';
       
       const avatarEl = document.getElementById('shell-user-avatar');
       const nameEl = document.getElementById('shell-user-name');

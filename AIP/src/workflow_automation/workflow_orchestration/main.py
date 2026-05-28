@@ -1,6 +1,6 @@
 """
 Product 10: Workflow Orchestration Engine (Stateful Agentic AI)
-Assigned Banking Agent: Platform Routing Agent
+Assigned Enterprise Agent: Platform Routing Agent
 """
 
 import time
@@ -340,7 +340,7 @@ async def run_custom_workflow(config: Dict[str, Any]) -> Dict[str, Any]:
         "trends": [1.42, 1.45, 1.38, 1.49, 1.55, 1.62, 1.85],
         "analysisType": "anomaly"
     } if task == 'profile' else {
-        "text": "Banking automation trigger has initiated successfully. Initial balance checks verified with zero regulatory flags."
+        "text": "Enterprise automation trigger has initiated successfully. Initial balance checks verified with zero regulatory flags."
     }
     builder.add_node(task_id, task_cap, task_input)
     
@@ -363,7 +363,7 @@ async def run_custom_workflow(config: Dict[str, Any]) -> Dict[str, Any]:
         "serverName": "slack" if notification == "slack" else "pagerduty",
         "toolName": "post_message" if notification == "slack" else "trigger_incident",
         "arguments": {
-            "channel": "#banking-alerts",
+            "channel": "#enterprise-alerts",
             "text": f"🔔 Custom Workflow [{name}] triggered immediately! Pipeline executed task [{task}] successfully."
         }
     }, require_approval=require_approval)

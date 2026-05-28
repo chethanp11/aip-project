@@ -1,6 +1,6 @@
 """
 Product 9: Workflow Design Console (Stateful Agentic AI)
-Assigned Banking Agent: Workflow Designer Agent
+Assigned Enterprise Agent: Workflow Designer Agent
 """
 
 import uuid
@@ -129,6 +129,8 @@ def validate_dag_schema(dag: Dict[str, Any]) -> Dict[str, Any]:
         'compiledConfig': dag if passed else None
     }
 
+from shared.session import get_profile_context_defaults
+
 def register_dag_to_kms(dag: Dict[str, Any]):
     """Registers the custom workflow DAG as a canonical knowledge entry in Postgres and visual nodes/edges in Neo4j."""
     pg = PostgresClient()
@@ -137,7 +139,26 @@ def register_dag_to_kms(dag: Dict[str, Any]):
     desc = dag.get('description', f"Analytical DAG pipeline workflow for {name}")
     content = json.dumps(dag)
     
-    print(f"[Workflow: Design] Registering DAG {wf_id} into enterprise KMS PostgreSQL and Neo4j databases.")
+    # Resolve dynamic session profile domain & ownership metadata
+    from shared.session import active_sessions
+    from shared.intelligence import active_agent_context
+    active_ctx = active_agent_context.get()
+    api_key = active_ctx.get('api_key', '') if active_ctx else ''
+    
+    user_defaults = get_profile_context_defaults()
+    user_domain = dag.get('business_domain') or user_defaults['business_domain']
+    user_sme = user_defaults['sme']
+    user_owner = "Workflow Designer Agent"
+    
+    if api_key in active_sessions:
+        session = active_sessions[api_key]
+        user_sme = session.get('display_name', user_sme)
+        user_owner = f"{session.get('role', 'Analyst')} Uploader"
+        allowed_domains = session.get('allowed_domains')
+        if allowed_domains and user_domain not in allowed_domains:
+            user_domain = allowed_domains[0]
+            
+    print(f"[Workflow: Design] Registering DAG {wf_id} into enterprise KMS PostgreSQL and Neo4j databases. Domain: {user_domain} | SME: {user_sme}")
     
     # 1. Update Postgres canonical knowledge
     pg.execute_query("""
@@ -151,7 +172,7 @@ def register_dag_to_kms(dag: Dict[str, Any]):
         content = EXCLUDED.content,
         freshness_date = EXCLUDED.freshness_date;
     """, (
-        f"k_{wf_id}", wf_id, f"Workflow: {name}", content, "Workflow Designer Agent", "Marcus Vance", "Corporate Analytics",
+        f"k_{wf_id}", wf_id, f"Workflow: {name}", content, user_owner, user_sme, user_domain,
         "workflow,dag", 1.0, "Approved", 1, time.strftime('%Y-%m-%d'), "Internal", "Workflow Design Console",
         "Designed Custom Workflow Ingestion", "", ""
     ), fetch=False)
@@ -259,32 +280,34 @@ def validate_pipeline_config(config: Dict[str, Any]) -> Dict[str, Any]:
     
     compiled_config = None
     if passed:
-        # Dynamically compile flat settings into full DAG layout
+        # Dynamically compile flat settings into full DAG layout, mapping default variables based on login profile!
+        defaults = get_profile_context_defaults()
+        
         builder = WorkflowDAGBuilder(name, f"Standard Flat alert triggered by {trigger}")
         
-        # Step 1 Node: Analytics task
+        # Step 1 Node: Analytics task (dynamic based on login profile!)
         task_id = "step_task"
         task_cap = "metric_interpretation" if task == 'profile' else "summarization"
         task_input = {
-            "metricId": "npl_ratio",
-            "trends": [1.42, 1.45, 1.38, 1.49, 1.55, 1.62, 1.85],
+            "metricId": defaults['metricId'],
+            "trends": defaults['trends'],
             "analysisType": "anomaly"
         } if task == 'profile' else {
-            "text": "Banking automation trigger has initiated successfully. Initial balance checks verified with zero regulatory flags."
+            "text": f"Enterprise automation trigger has initiated successfully. Initial balance checks verified with zero regulatory flags for domain {defaults['business_domain']}."
         }
         builder.add_node(task_id, task_cap, task_input)
         
-        # Step 2 Node: Build Narrative
+        # Step 2 Node: Build Narrative (dynamic based on login profile!)
         narrative_id = "step_narrative"
         builder.add_node(narrative_id, "narrative_generation", {
             "templateId": "briefing_brief",
             "variables": {
-                "metricName": "LDR Liquidity Pipeline",
-                "metricValue": "85.8%",
-                "compareValue": "82.5%",
-                "metricFormula": "loan_to_deposit_ratio",
+                "metricName": defaults['metricName'],
+                "metricValue": defaults['metricValue'],
+                "compareValue": defaults['compareValue'],
+                "metricFormula": defaults['metricFormula'],
                 "explanation": f"Custom workflow triggered via event: {trigger}",
-                "summaryText": "Automatic alert created via user-configured DAG notification rules."
+                "summaryText": f"Automatic alert created via user-configured DAG notification rules in domain {defaults['business_domain']}."
             }
         })
         builder.add_edge(task_id, narrative_id)
@@ -299,13 +322,14 @@ def validate_pipeline_config(config: Dict[str, Any]) -> Dict[str, Any]:
             "serverName": "slack" if notification == "slack" else "pagerduty",
             "toolName": "post_message" if notification == "slack" else "trigger_incident",
             "arguments": {
-                "channel": "#banking-alerts",
+                "channel": defaults['channel'],
                 "text": f"🔔 Custom Workflow [{name}] triggered immediately! Pipeline executed task [{task}] successfully."
             }
         }, require_approval=req_approval)
         builder.add_edge(narrative_id, notify_id)
         
         dag = builder.build()
+        dag['business_domain'] = defaults['business_domain'] # Set business domain context dynamically
         
         # Register compiled DAG to KMS for visual tracing
         register_dag_to_kms(dag)

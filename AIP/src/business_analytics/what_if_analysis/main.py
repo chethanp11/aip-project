@@ -1,19 +1,22 @@
 """
 Product 7: What-if Analysis Sandbox (Stateful Agentic AI)
-Assigned Banking Agent: What-if Simulator Agent
+Assigned Enterprise Agent: What-if Simulator Agent
 """
 
 from typing import Dict, Any
-from shared.lms import get_lms_table
+from src.shared.infra.analytics_client import AnalyticsClient
+
+_analytics_client = AnalyticsClient()
+get_lms_table = _analytics_client.get_table_rows
 
 def run_whatif_workflow(loan_rate: str, deposit_rate: str, assets: str, npl_rate: str) -> Dict[str, Any]:
-    print("[Workflow: Analytics - What-if] Simulating banking interest rate margins and profits.")
+    print("[Workflow: Analytics - What-if] Simulating operational margins and portfolio profits.")
 
-    # 1. Query LMS Tables to establish baseline balances if assets is omitted
+    # 1. Query Enterprise Ledger Tables to establish baseline balances if assets is omitted
     deposits_data = get_lms_table('deposits')
     loans_data = get_lms_table('loans')
 
-    lms_deposits_total = sum(d.get('amount', 0) for d in deposits_data) / 1000000000.0
+    lms_deposits_total = sum(d.get('amount', d.get('balance', 0)) for d in deposits_data) / 1000000000.0 if deposits_data else 0.0
     
     try:
         l_rate = float(loan_rate) if loan_rate else 6.5

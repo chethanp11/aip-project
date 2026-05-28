@@ -1,17 +1,24 @@
 """
 Product 16: Model Pulse (Stateful Agentic AI)
-Assigned Banking Agent: Model Pulse Agent
-Audits MoM credit defaults prediction drift, calculates PSI, and triggers auto-retraining.
+Assigned AI Agent: Model Pulse Agent
+Audits MoM prediction drift, calculates PSI, and triggers auto-retraining triggers.
 """
 
 import json
-from typing import List, Dict, Any
+from typing import List, Any, Dict
 from shared.intelligence import invoke_capability, call_llm
+from shared.session import get_profile_context_defaults
 
 async def run_model_pulse_workflow(accuracy_metrics: List[Any], prompt: str = "") -> Dict[str, Any]:
-    print("[Workflow: Data Science - Pulse] Auditing prediction drift for credit classifier.")
+    # 1. Dynamically retrieve active analyst context defaults
+    defaults = get_profile_context_defaults()
+    metric_name = defaults['metricName']
+    domain = defaults['business_domain']
+    channel = defaults['channel']
 
-    # 1. Robust dual-format parsing for flat lists and dictionary lists to prevent AttributeError
+    print(f"[Workflow: Data Science - Pulse] Auditing prediction drift for {metric_name} classifier. Domain: {domain}")
+
+    # Robust dual-format parsing for flat lists and dictionary lists to prevent AttributeError
     trends = []
     latencies = []
     
@@ -50,8 +57,8 @@ async def run_model_pulse_workflow(accuracy_metrics: List[Any], prompt: str = ""
     psi_score = round(drift_score * 2.8, 3) # Mock scaling to represent feature covariance shift
 
     # 2. Multi-Agent Drift Debate & Alerts
-    system_prompt = """You are the Lead Multi-Agent AI coordinator for the AIM Intelligence Platform (AIP).
-    Synthesize an intelligent corporate discussion between three specialized agents debating credit defaults model drift and retraining triggers:
+    system_prompt = f"""You are the Lead Multi-Agent AI coordinator for the AIM Intelligence Platform (AIP).
+    Synthesize an intelligent cross-functional discussion between three specialized agents debating {metric_name} classifier drift and retraining triggers:
     1. Drift Monitor Agent: Compares Month-over-Month feature distributions and calculates Population Stability Index (PSI) shifts.
     2. Anomaly Auditor Agent: Focuses on spot latency outliers and accuracy regressions against baseline champion metrics.
     3. Auto-Retrain Coordinator Agent: Dispatches active approvals, retraining routines, or webhook alert logs.
@@ -64,11 +71,13 @@ async def run_model_pulse_workflow(accuracy_metrics: List[Any], prompt: str = ""
     Do not output any markdown formatting like ```json or anything else. Just the raw JSON object."""
 
     user_prompt = f"""Concept Drift Auditing:
+    - Target Metric: {metric_name}
     - Baseline Approved Accuracy: {training_baseline}
     - Latest Prediction Accuracy: {latest_accuracy}
     - Calculated Variance: {drift_score}
     - Computed PSI Index: {psi_score}
     - Audit Status: {drift_status.upper()}
+    - Alert Target Channel: {channel}
     - Auditor prompt parameters: "{prompt or 'Standard telemetry check'}"
     Please generate the multi-agent debate transcript."""
 
@@ -154,7 +163,7 @@ async def run_model_pulse_workflow(accuracy_metrics: List[Any], prompt: str = ""
 
     drift_explanation = f"⚠️ Concept Drift Warning! Month-over-Month prediction accuracy has deteriorated to {latest_accuracy} (Approved baseline: {training_baseline}). Feature covariance PSI has shifted. Auto-retraining is highly recommended."
     if drift_status == 'stable':
-        drift_explanation = f"✅ Performance Stable. Credit default predictions remain within normal operational margins (accuracy: {latest_accuracy}, baseline: {training_baseline})."
+        drift_explanation = f"✅ Performance Stable. Predictions remain within normal operational margins (accuracy: {latest_accuracy}, baseline: {training_baseline})."
 
     # Return standard payload maintaining complete 100% backwards compatibility and rich stats
     return {

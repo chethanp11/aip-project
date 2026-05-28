@@ -1,7 +1,7 @@
 
             async function loadAlerts() {
                 const feed = document.getElementById('alerts-feed');
-                feed.innerHTML = '<div class="loader">🔍 Auditing HQLA and deposits ratios...</div>';
+                feed.innerHTML = '<div class="loader">🔍 Auditing metrics and performance ratios...</div>';
                 try {
                     const res = await fetch(`${API_BASE}/workflows/reporting/proactive-insights`);
                     const data = await res.json();

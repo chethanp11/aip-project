@@ -120,7 +120,7 @@ async function selectActiveTable(tableName) {
 
     // Update main headers
     document.getElementById('active-table-title').innerText = tableName;
-    document.getElementById('active-table-desc').innerText = `Construct filter criteria or execute read-only queries against corporate '${tableName}' schema.`;
+    document.getElementById('active-table-desc').innerText = `Construct filter criteria or execute read-only queries against '${tableName}' schema.`;
 
     // Reset Visual query builder and console
     document.getElementById('filter-rows-container').innerHTML = `

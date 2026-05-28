@@ -1,6 +1,6 @@
 """
 Report Building Workspace Stateful Workflow Engine (Refactored)
-Assigned Banking Agent: Report Builder Agent
+Assigned Enterprise Agent: Report Builder Agent
 Supports 6-stage sequential HITL report creation and update pipeline with Conversational Feedback Loops.
 """
 
@@ -10,7 +10,11 @@ import json
 import time
 from typing import Dict, Any, List
 from shared.intelligence import invoke_capability, call_llm
-from shared.lms import run_sqlite_query, get_lms_table
+from src.shared.infra.analytics_client import AnalyticsClient
+
+_analytics_client = AnalyticsClient()
+run_sqlite_query = _analytics_client.run_compatible_read_query
+get_lms_table = _analytics_client.get_table_rows
 
 # In-memory dictionary to store active, progressive report building sessions
 ACTIVE_BUILD_SESSIONS: Dict[str, Dict[str, Any]] = {}
@@ -75,11 +79,11 @@ async def generate_step_agent_decisions(
         context_summary += f", JSON Schema: {json.dumps(session['schema'])}"
     
     system_prompt = """You are the lead AI Multi-Agent Coordinator for the AIM Intelligence Platform (AIP).
-Your job is to generate highly professional, context-aware reviews, decisions, and rationales for multiple specialized Agent personas working in a sequential report-building workflow for a Banking Analytics organization.
+Your job is to generate highly professional, context-aware reviews, decisions, and rationales for multiple specialized Agent personas working in a sequential report-building workflow for an Enterprise Analytics organization.
 
 The 5 specialized Agent personas are:
-1. Requirements Auditor Agent: Audits financial requirements, checks compliance, and maps terms to KPIs.
-2. Data Engineer Agent: Ingests database ledgers, runs SQL transformations, and calculates balances.
+1. Requirements Auditor Agent: Audits operational requirements, checks compliance, and maps terms to KPIs.
+2. Data Engineer Agent: Ingests database ledgers, runs SQL transformations, and calculates segment metrics.
 3. Schema Architect Agent: Designs structured data schemas and JSON data models.
 4. UX Designer Agent: Creates visual layout templates, CSS color themes, and styling rules.
 5. Chief Analytics Officer Agent: Directs pipeline assignments, signs off on publication compliance, and seals documents.
@@ -116,7 +120,7 @@ Please generate the relevant agent decisions list."""
         if not approved:
             decisions.append({
                 'agent': "Requirements Auditor Agent",
-                'decision': f"Re-audited credit and liquidity KPIs list based on analyst comment: '{feedback}'.",
+                'decision': f"Re-audited performance KPIs list based on analyst comment: '{feedback}'.",
                 'rationale': f"Dynamically adjusted KPIs list tokens. Re-verified schema requirements coverage for user's request: '{requirements}'.",
                 'status': "Revised & Re-approved"
             })
@@ -124,8 +128,8 @@ Please generate the relevant agent decisions list."""
             decisions.extend([
                 {
                     'agent': "Requirements Auditor Agent",
-                    'decision': f"Audited parameters for requirements: '{requirements}'. Relational mapping matched core banking metrics.",
-                    'rationale': f"Matched credit & liquidity KPIs: {', '.join(kpis)} utilizing local KMS grounding references.",
+                    'decision': f"Audited parameters for requirements: '{requirements}'. Relational mapping matched core performance metrics.",
+                    'rationale': f"Matched operational KPIs: {', '.join(kpis)} utilizing local KMS grounding references.",
                     'status': "Approved"
                 },
                 {
@@ -140,7 +144,7 @@ Please generate the relevant agent decisions list."""
             decisions.append({
                 'agent': "Data Engineer Agent",
                 'decision': f"Restructured SQLite aggregations according to custom filtering guideline: '{feedback}'.",
-                'rationale': f"Re-computed currency balance ledgers from the AIP-Infra PostgreSQL corporate accounts ledger.",
+                'rationale': f"Re-computed currency balance ledgers from the primary database accounts ledger.",
                 'status': "Revised & Re-approved"
             })
         else:
@@ -154,7 +158,7 @@ Please generate the relevant agent decisions list."""
                 {
                     'agent': "Data Engineer Agent",
                     'decision': "Ingested ledger transaction entries from the AIP-Infra PostgreSQL source.",
-                    'rationale': f"Calculated total liquidity sweeping balance averages across corporate accounts for KPIs: {', '.join(kpis)}.",
+                    'rationale': f"Calculated total resource balance averages across accounts for KPIs: {', '.join(kpis)}.",
                     'status': "Completed"
                 }
             ])
@@ -170,7 +174,7 @@ Please generate the relevant agent decisions list."""
             decisions.extend([
                 {
                     'agent': "Data Engineer Agent",
-                    'decision': "Reconciled multi-currency aggregate balances against corporate credit buffer baselines.",
+                    'decision': "Reconciled multi-currency aggregate balances against operational buffer baselines.",
                     'rationale': "Verified calculations are 100% accurate. Handed over to Schema Architect Agent.",
                     'status': "Signed Off"
                 },
@@ -199,7 +203,7 @@ Please generate the relevant agent decisions list."""
                 },
                 {
                     'agent': "UX Designer Agent",
-                    'decision': "Compiled premium, responsive financial briefing HTML/CSS scaffolding template.",
+                    'decision': "Compiled premium, responsive briefing HTML/CSS scaffolding template.",
                     'rationale': "Designed elegant summary grids, custom alert status indicators, and color tokens styling.",
                     'status': "Completed"
                 }
@@ -237,7 +241,7 @@ async def initiate_report_build(mode: str, report_id: str, requirements: str, co
             old_data['reportName'] = matched['name']
             print(f"[Report Builder Agent] Resuming revision updates for published brief ID: {report_id}")
 
-    # 1. Match relevant banking KPIs based on keywords/KMS glossary
+    # 1. Match relevant performance KPIs based on keywords/KMS glossary
     kpis = []
     req_lower = requirements.lower()
     if 'lcr' in req_lower or 'liquidity coverage' in req_lower or 'buffer' in req_lower:
@@ -251,7 +255,9 @@ async def initiate_report_build(mode: str, report_id: str, requirements: str, co
         
     # Default fallback metrics if none matched
     if not kpis:
-        kpis = ["Corporate Liquidity Coverage", "Outstanding Treasury Sweeps Index"]
+        from shared.session import get_profile_context_defaults
+        defaults = get_profile_context_defaults()
+        kpis = [defaults['metricName'], f"Outstanding {defaults['business_domain']} Index"]
 
     # 2. Compile detailed Fact and Dimension schemas for review
     fact_tables = {
@@ -509,7 +515,7 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
 <div class="premium-report-briefing" style="padding:30px; background:#fff; border-radius:12px; border:1px solid #e2e8f0;">
     <div style="border-bottom:3px solid #3b82f6; padding-bottom:12px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
         <div>
-            <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:#3b82f6; letter-spacing:1px;">Governed Liquidity Audit Brief</span>
+            <span style="font-size:11px; text-transform:uppercase; font-weight:700; color:#3b82f6; letter-spacing:1px;">Governed Operational Audit Brief</span>
             <h2 style="font-size:22px; font-family:'Outfit',sans-serif; margin-top:4px;" id="report-title-field">TITLE_PLACEHOLDER</h2>
         </div>
         <div style="text-align:right;">
@@ -523,17 +529,17 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
             <h3 style="font-size:24px; color:#1e293b; margin-top:4px;">CLIENTS_PLACEHOLDER</h3>
         </div>
         <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:16px; border-radius:8px; text-align:center;">
-            <span style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:600;">Active Sweeps DAGs</span>
+            <span style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:600;">Active Allocations DAGs</span>
             <h3 style="font-size:24px; color:#1e293b; margin-top:4px;">SWEEPS_PLACEHOLDER</h3>
         </div>
         <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:16px; border-radius:8px; text-align:center;">
-            <span style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:600;">Outstanding Balance Total</span>
+            <span style="font-size:10px; color:#64748b; text-transform:uppercase; font-weight:600;">Outstanding Value Total</span>
             <h3 style="font-size:20px; color:#10b981; margin-top:6px;">BALANCES_PLACEHOLDER</h3>
         </div>
     </div>
  
     <div style="margin-bottom:24px;">
-        <h4 style="font-size:13px; text-transform:uppercase; margin-bottom:10px; color:#475569;">Grounded SQLite Corporate Ledgers Extract</h4>
+        <h4 style="font-size:13px; text-transform:uppercase; margin-bottom:10px; color:#475569;">Grounded SQLite Primary Ledgers Extract</h4>
         <table style="width:100%; border-collapse:collapse; font-size:12px;">
             <thead>
                 <tr style="background:#f8fafc; text-align:left;">
@@ -550,7 +556,7 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
     </div>
  
     <div style="background:#fef3c7; border-left:4px solid #f59e0b; padding:12px; border-radius:6px; font-size:12px;">
-        <strong>Treasury Analyst Briefing Context:</strong> OUTBOUND_CONTEXT_PLACEHOLDER
+        <strong>Analyst Briefing Context:</strong> OUTBOUND_CONTEXT_PLACEHOLDER
     </div>
  
     <div style="margin-top:20px; text-align:right; font-size:10px; color:#64748b;">

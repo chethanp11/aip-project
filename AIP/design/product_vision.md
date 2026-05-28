@@ -541,7 +541,7 @@ AIP should not become:
 
 To preserve the vision:
 
-- Keep business knowledge and seed data outside application code.
+- Keep business knowledge and governed data outside application code.
 - Keep generated reports, logs, artifacts, and runtime state outside source folders.
 - Keep user-facing data exploration read-only unless a separately governed write workflow is introduced.
 - Keep SME approval central to knowledge promotion.

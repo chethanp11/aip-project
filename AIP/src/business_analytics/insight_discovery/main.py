@@ -1,13 +1,13 @@
 """
 Product 5: Insight Discovery (Stateful Agentic AI)
-Assigned Banking Agent: Insight Discovery Agent
+Assigned Enterprise Agent: Insight Discovery Agent
 """
 
 from typing import List, Dict, Any
 from shared.intelligence import invoke_capability
 
 async def run_insight_discovery_workflow(segments_data: List[Dict[str, Any]]) -> Dict[str, Any]:
-    print("[Workflow: Analytics - Discovery] Surfacing banking segment micro-trends.")
+    print("[Workflow: Analytics - Discovery] Surfacing segment performance trends.")
     
     surfaced_insights = []
 
@@ -22,7 +22,7 @@ async def run_insight_discovery_workflow(segments_data: List[Dict[str, Any]]) ->
         })
 
         growth_rate = interpreter.get('growthRate', 0.0)
-        if abs(growth_rate) > 5.0:  # 5% shift is highly material in banking
+        if abs(growth_rate) > 5.0:  # 5% shift is highly material in performance monitoring
             surfaced_insights.append({
                 'cohort': cohort,
                 'growthRate': growth_rate,

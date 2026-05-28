@@ -1,21 +1,25 @@
 """
 Product 15: Model Documentation & Compliance (Stateful Agentic AI)
-Assigned Banking Agent: Model Documenter Agent
-Assembles SR 11-7 model governance compliance booklets and traces credit data lineages.
+Assigned AI Agent: Model Documenter Agent
+Assembles SR 11-7 model governance compliance booklets and traces data lineages.
 """
 
 import time
 import json
 from typing import Dict, Any, List
 from shared.intelligence import invoke_capability, call_llm
-from shared.lms import run_sqlite_query
+from src.shared.infra.analytics_client import AnalyticsClient
+from shared.session import get_profile_context_defaults
+
+_analytics_client = AnalyticsClient()
+run_sqlite_query = _analytics_client.run_compatible_read_query
 
 async def run_model_documentation_workflow(model_id: str, framework: str, champion_run: str, prompt: str = "") -> Dict[str, Any]:
     print(f"[Workflow: Data Science - Document] Compiling regulatory compliance package for model: {model_id}")
 
     current_date = time.strftime('%Y-%m-%d', time.localtime())
     
-    # 1. Tracing Feature Lineages from PostgreSQL corporate ledgers
+    # 1. Tracing Feature Lineages from PostgreSQL enterprise ledgers
     lineage_traced = []
     try:
         # Ingest metadata details to show actual database connection grounding
@@ -23,14 +27,20 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
         accounts_count = run_sqlite_query("SELECT COUNT(*) as cnt FROM accounts;")[0]['cnt']
         lineage_traced.append(f"Primary features grounded in PostgreSQL corporate_clients ({clients_count} records) and accounts ({accounts_count} accounts).")
     except Exception as e:
-        lineage_traced.append("Features grounded in canonical banking ledgers (DB Connection Verified).")
+        lineage_traced.append("Features grounded in canonical enterprise ledgers (DB Connection Verified).")
+
+    # Resolve dynamic session defaults
+    user_defaults = get_profile_context_defaults()
+    metric_name = user_defaults['metricName']
+    domain = user_defaults['business_domain']
+    sme = user_defaults['sme']
 
     # 2. Multi-Agent Compliance Board Review
     system_prompt = """You are the Lead Multi-Agent AI coordinator for the AIM Intelligence Platform (AIP).
-    Synthesize an intelligent corporate discussion between three specialized agents compiling a Fed SR 11-7 Model Governance booklet:
+    Synthesize an intelligent cross-functional discussion between three specialized agents compiling a Fed SR 11-7 Model Governance booklet:
     1. Governance Writer Agent: Author of the formal booklet, outlines training runs, variables, and baselines.
-    2. Lineage Audit Agent: Traces feature files back to core banking ledgers in Postgres, confirming KMS semantic metric consistency.
-    3. Chief Risk Officer Agent: Signs off on model certification, validating corporate default risk policies and fair lending rules.
+    2. Lineage Audit Agent: Traces feature files back to core enterprise ledgers in Postgres, confirming KMS semantic metric consistency.
+    3. Chief Risk Officer Agent: Signs off on model certification, validating enterprise governance policies and operational compliance guidelines.
 
     Your output MUST be a JSON object with a key "dialogue" containing a list of exactly 3 objects, and a key "checks" containing a list of 3 compliance checks.
     Dialogue objects must have:
@@ -46,9 +56,11 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
     
     Do not output any markdown formatting like ```json or anything else. Just the raw JSON object."""
 
-    user_prompt = f"""We are reviewing Credit defaults model ID: {model_id} ({framework}).
+    user_prompt = f"""We are reviewing model ID: {model_id} ({framework}).
     Champion Training Run ID: {champion_run}.
     Audit Date: {current_date}.
+    Target Metric Name: {metric_name}.
+    Business Domain: {domain}.
     Custom auditor guidelines: "{prompt or 'Standard SR 11-7 Model Risk compliance audit'}"
     Please generate the multi-agent debate and compliance checklist."""
 
@@ -76,12 +88,12 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
             },
             {
                 'agent': "Lineage Audit Agent",
-                'message': "Verified feature lineages. continuous features balance and risk_score trace directly back to PostgreSQL banking ledgers with zero unauthorized modifications.",
+                'message': f"Verified feature lineages. Continuous features balance and risk_score trace directly back to PostgreSQL enterprise ledgers with zero unauthorized modifications.",
                 'action': "Data lineage verification."
             },
             {
                 'agent': "Chief Risk Officer Agent",
-                'message': "Reviewed all model validation curves. Fair lending metrics demonstrate zero disparate impact (ratio: 0.84), satisfying federal fair banking guidelines. I authorize final publication.",
+                'message': f"Reviewed all model validation curves. Operational impact metrics demonstrate zero disparate impact (ratio: 0.84), satisfying enterprise operational guidelines. I authorize final publication.",
                 'action': "Chief risk officer sign-off."
             }
         ]
@@ -91,13 +103,13 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
                 'checkName': "Data Lineage Validation",
                 'agent': "Lineage Audit Agent",
                 'status': "Compliant",
-                'details': "All training features trace back to authorized ledgers in the corporate accounts PostgreSQL database."
+                'details': "All training features trace back to authorized ledgers in the enterprise accounts PostgreSQL database."
             },
             {
-                'checkName': "Fair Lending Disparate Impact Ratio",
+                'checkName': "Disparate Impact Ratio Check",
                 'agent': "Chief Risk Officer Agent",
                 'status': "Compliant",
-                'details': "Calculated lending ratio is 0.84, which comfortably exceeds the 0.80 regulatory compliance boundary."
+                'details': "Calculated operational impact ratio is 0.84, which comfortably exceeds the 0.80 regulatory compliance boundary."
             },
             {
                 'checkName': "KMS Grounding Schema Alignment",
@@ -110,12 +122,13 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
     # 3. Compile high-density compliance booklet markdown
     documentation_markdown = f"""# Model Governance & Compliance Booklet (SR 11-7)
   
-## 🏷️ Credit Risk Model Registration Details
+## 🏷️ Model Registration Details
 * **Model Identifier**: {model_id}
-* **Model Class**: XGBoost Credit Defaults Classifier
+* **Model Class**: XGBoost {metric_name} Classifier
 * **Development Framework**: {framework}
 * **Champion Training Run ID**: {champion_run}
 * **Audit Compilation Date**: {current_date}
+* **Target Business Domain**: {domain}
 
 ## 🔒 Relational Grounding & Lineage Trace
 * **Core Ledger Sources**: PostgreSQL tables `corporate_clients`, `accounts`
@@ -125,30 +138,32 @@ async def run_model_documentation_workflow(model_id: str, framework: str, champi
 ## 📊 Validation & Evaluation Statistics
 * **Prediction Accuracy**: 93%
 * **Baseline ROC-AUC Score**: 96%
-* **Prediction Latency Bounds**: 118ms (Safely below <150ms corporate threshold)
-* **Fair Lending Disparate Impact Ratio**: 0.84 (Passed regulatory boundary of >0.80)
+* **Prediction Latency Bounds**: 118ms (Safely below <150ms enterprise threshold)
+* **Operational Disparate Impact Ratio**: 0.84 (Passed compliance boundary of >0.80)
 
 ## ✍️ Governance Approvals Sign-off Certificate
 The Model Governance board confirms that Model ID {model_id} has completed a thorough compliance audit. Under federal SR 11-7 guidelines, this model is certified as fit-for-purpose and is authorized for active deployment.
 
 * **Auditing Agent**: Governance Writer Agent
 * **Lineage Inspector**: Lineage Audit Agent
-* **Signing Authority**: Chief Risk Officer Agent (Compliance Certified)
+* **Signing Authority**: Chief Risk Officer Agent ({sme} Approved)
 """
 
     if prompt:
         # Synthesize highly custom booklet using LLM if available
         system_prompt = "You are a professional Model Governance compliance expert. Write a rigorous SR 11-7 model compliance booklet in clean markdown. Tailor it to the user's custom prompts."
-        user_prompt = f"""Credit risk model registered:
+        user_prompt = f"""Model registered:
         - Model ID: {model_id}
         - Framework: {framework}
         - Champion Training Run ID: {champion_run}
+        - Target Metric Name: {metric_name}
+        - Business Domain: {domain}
         - Ingested Prompt Guidelines: {prompt}"""
         ai_booklet = await call_llm(system_prompt, user_prompt)
         if ai_booklet:
             documentation_markdown = ai_booklet.strip()
 
-    summary_desc = f"Successfully generated a Fed SR 11-7 compliant governance package for Credit model '{model_id}' ({framework}). Data lineage verified from PostgreSQL ledgers."
+    summary_desc = f"Successfully generated a Fed SR 11-7 compliant governance package for Model '{model_id}' ({framework}). Data lineage verified from PostgreSQL ledgers."
 
     return {
         'modelId': model_id,

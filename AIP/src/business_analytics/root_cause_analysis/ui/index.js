@@ -11,8 +11,8 @@
                         body: JSON.stringify({
                             datasetName: m,
                             metricsData: [
-                                { segment: 'North Plaza Treasury', value: 45.2 },
-                                { segment: 'South Bay Escrows', value: 12.5 }
+                                { segment: 'North Plaza Operations', value: 45.2 },
+                                { segment: 'South Bay Segment', value: 12.5 }
                             ]
                         })
                     });

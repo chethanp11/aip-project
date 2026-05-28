@@ -10,16 +10,16 @@
     <div class="sub-portal">
         
             <div class="card">
-                <h2>📝 Treasury Executive Narratives</h2>
-                <p class="desc">Compile compliance and treasury board briefing scripts.</p>
+                <h2>📝 Stakeholder Briefing Narratives</h2>
+                <p class="desc">Compile operational performance and board briefing scripts.</p>
                 <div class="form-group">
-                    <input type="text" id="nar-metric" value="Net Sweep Ratio" placeholder="Metric Name" />
+                    <input type="text" id="nar-metric" value="Net Allocation Ratio" placeholder="Metric Name" />
                     <input type="text" id="nar-val" value="94.2" placeholder="Value" />
-                    <input type="text" id="nar-driver" value="GlobalCorp Sweeps" placeholder="Primary Driver" />
+                    <input type="text" id="nar-driver" value="Global Segment Allocations" placeholder="Primary Driver" />
                 </div>
                 <button class="btn" id="nar-btn">Format Narrative Story</button>
                 <div class="results-box hide mt-20" id="nar-results">
-                    <h4>Outbound Treasury Script</h4>
+                    <h4>Outbound Stakeholder Script</h4>
                     <p id="nar-text"></p>
                 </div>
             </div>
@@ -27,7 +27,7 @@
     </div>
     
     <script>
-        const API_BASE = '/api/v1';
+        const API_BASE = 'http://localhost:8000/api/v1';
         
         // Authed Fetch Interceptor matching parent origin session storage
         const originalFetch = window.fetch;

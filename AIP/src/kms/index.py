@@ -1,6 +1,6 @@
 """
 KMS Grounding Engine, SQLite Vector DB & Graph DB Implementation
-Assigned Banking Agent: Analytical Grounding Agent
+Assigned Enterprise Agent: Analytical Grounding Agent
 Upgraded to Enterprise-grade Agentic Knowledge Management System
 Natively supporting Roles (Analyst, SME, Admin), Candidate layers, Ingestion pipelines, and Local DB storage.
 """
@@ -219,25 +219,6 @@ def log_ingestion_activity(msg: str):
         f.write(f"[{timestamp}] {msg}\n")
     print(f"[Ingestion Log] {msg}")
 
-def load_kms_seed_file(filename: str) -> Any:
-    """Load KMS seed/reference data from the active team folder."""
-    team = get_active_kms_team()
-    if not team:
-        raise RuntimeError("KMS seed loading requires an authenticated team context.")
-    seed_path = os.path.join(config.get_kms_team_seed_path(team), filename)
-    if not os.path.exists(seed_path):
-        raise FileNotFoundError(f"KMS seed data not found in AIP-Infra: {seed_path}")
-    with open(seed_path, 'r', encoding='utf-8') as seed_file:
-        return json.load(seed_file)
-
-def load_kms_seed_file_for_team(team: str, filename: str) -> Any:
-    """Load KMS seed/reference data for a specific team."""
-    seed_path = os.path.join(config.get_kms_team_seed_path(team), filename)
-    if not os.path.exists(seed_path):
-        raise FileNotFoundError(f"KMS team seed data not found in AIP-Infra: {seed_path}")
-    with open(seed_path, 'r', encoding='utf-8') as seed_file:
-        return json.load(seed_file)
-
 def get_active_kms_team() -> Optional[str]:
     """Return the authenticated KMS team, if a session is active."""
     try:
@@ -251,6 +232,13 @@ def get_active_kms_team() -> Optional[str]:
     except Exception as exc:
         print(f"[KMS Context] Unable to resolve active team: {str(exc)}")
     return None
+
+def require_active_kms_team() -> str:
+    """Return the authenticated KMS team; fail closed if no team session is active."""
+    team = get_active_kms_team()
+    if not team:
+        raise RuntimeError("KMS operation requires an authenticated team context.")
+    return team
 
 def get_active_kms_context_path() -> Optional[str]:
     """Return the authenticated team KMS context folder, if a session is active."""
@@ -268,7 +256,7 @@ def get_active_kms_context_path() -> Optional[str]:
     return None
 
 def load_active_kms_folder_context() -> str:
-    """Load team-specific context files from AIP-Infra/kms/<Team>/context."""
+    """Load workspace-specific context files from AIP-Infra/kms/<Team>/context."""
     context_path = get_active_kms_context_path()
     if not context_path:
         return ""
@@ -288,7 +276,7 @@ def load_active_kms_folder_context() -> str:
 
 def get_kms_data_paths() -> Dict[str, str]:
     """Ensures directories exist and returns absolute paths for active team runtime storage inside AIP-Infra."""
-    team = get_active_kms_team() or "Treasury"
+    team = require_active_kms_team()
     runtime_dir = config.get_kms_team_runtime_path(team)
 
     paths = {
@@ -317,7 +305,7 @@ def get_postgres_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS vector_chunks (
             chunk_id SERIAL PRIMARY KEY,
-            team TEXT NOT NULL DEFAULT 'Treasury',
+            team TEXT NOT NULL DEFAULT 'Unassigned',
             node_id TEXT NOT NULL,
             chunk_text TEXT NOT NULL,
             tokens TEXT NOT NULL
@@ -328,7 +316,7 @@ def get_postgres_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS canonical_knowledge (
             knowledge_id TEXT PRIMARY KEY,
-            team TEXT NOT NULL DEFAULT 'Treasury',
+            team TEXT NOT NULL DEFAULT 'Unassigned',
             node_id TEXT NOT NULL,
             title TEXT NOT NULL,
             content TEXT NOT NULL,
@@ -404,7 +392,7 @@ def get_postgres_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS candidate_knowledge (
             candidate_id TEXT PRIMARY KEY,
-            team TEXT NOT NULL DEFAULT 'Treasury',
+            team TEXT NOT NULL DEFAULT 'Unassigned',
             title TEXT NOT NULL,
             summary TEXT,
             extracted_text TEXT NOT NULL,
@@ -429,7 +417,7 @@ def get_postgres_db():
         );
         """)
 
-        # Scalable LOB domains table
+        # Scalable domain registry table
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS business_domains (
             domain_id TEXT PRIMARY KEY,
@@ -501,7 +489,7 @@ def get_postgres_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS graph_nodes (
             node_id TEXT PRIMARY KEY,
-            team TEXT NOT NULL DEFAULT 'Treasury',
+            team TEXT NOT NULL DEFAULT 'Unassigned',
             type TEXT NOT NULL,
             title TEXT NOT NULL,
             content TEXT NOT NULL,
@@ -512,7 +500,7 @@ def get_postgres_db():
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS graph_edges (
             edge_id TEXT PRIMARY KEY,
-            team TEXT NOT NULL DEFAULT 'Treasury',
+            team TEXT NOT NULL DEFAULT 'Unassigned',
             source_id TEXT NOT NULL,
             target_id TEXT NOT NULL,
             relationship TEXT NOT NULL,
@@ -527,83 +515,42 @@ def get_postgres_db():
         # Backfill team columns for existing KMS databases created before team isolation.
         for table in ["vector_chunks", "canonical_knowledge", "candidate_knowledge", "graph_nodes", "graph_edges"]:
             try:
-                cursor.execute(f"ALTER TABLE {table} ADD COLUMN team TEXT NOT NULL DEFAULT 'Treasury';")
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN team TEXT NOT NULL DEFAULT 'Unassigned';")
             except Exception:
                 try:
                     _postgres_conn.rollback()
                 except Exception:
                     pass
 
-        # Always clear and seed default tables to ensure profile updates are active
+        # Always refresh default users to ensure profile updates are active
         cursor.execute("DELETE FROM kms_users;")
         cursor.executemany("INSERT INTO kms_users VALUES (?, ?, ?, ?, ?, ?, ?);", [
-            ("Treasury_Analyst", "password", "Analyst", "Internal", "Treasury Analyst",
-             "Treasury & Capital Management,Cash Management",
-             "deposits,loans,accounts,transactions"),
-            ("Compliance_Analyst", "password", "Analyst", "Internal", "Compliance Analyst",
-             "Regulatory Compliance",
-             "liquidity_buffers,liquidity_sweeps,sweep_executions,corporate_clients"),
-            ("Model_Analyst", "password", "Analyst", "Internal", "Model Analyst",
-             "Model Risk Management (MRM)",
+            ("Insights_Analyst", "password", "Analyst", "Internal", "Insights Analyst",
+             "Insights & Performance,Planning Analytics",
+             "accounts,transactions"),
+            ("Governance_Analyst", "password", "Analyst", "Internal", "Governance Analyst",
+             "Governance & Controls",
+             "controls,policies,operational_records"),
+            ("ModelOps_Analyst", "password", "Analyst", "Internal", "Model Operations Analyst",
+             "Model Operations",
              ""),
-            ("Credit_Analyst", "password", "Analyst", "Internal", "Credit Analyst",
-             "Credit Portfolio Risk",
-             "corporate_clients"),
-            ("Treasury_SME", "password", "SME", "Confidential", "Treasury SME",
-             "Treasury & Capital Management,Cash Management",
-             "deposits,loans,accounts,transactions"),
-            ("Compliance_SME", "password", "SME", "Confidential", "Compliance SME",
-             "Regulatory Compliance",
-             "liquidity_buffers,liquidity_sweeps,sweep_executions,corporate_clients"),
-            ("Model_SME", "password", "SME", "Confidential", "Model SME",
-             "Model Risk Management (MRM)",
+            ("Operations_Analyst", "password", "Analyst", "Internal", "Operations Analyst",
+             "Operations Performance",
+             "operational_records,accounts"),
+            ("Insights_SME", "password", "SME", "Confidential", "Insights SME",
+             "Insights & Performance,Planning Analytics",
+             "accounts,transactions"),
+            ("Governance_SME", "password", "SME", "Confidential", "Governance SME",
+             "Governance & Controls",
+             "controls,policies,operational_records"),
+            ("ModelOps_SME", "password", "SME", "Confidential", "Model Operations SME",
+             "Model Operations",
              ""),
-            ("Credit_SME", "password", "SME", "Confidential", "Credit SME",
-             "Credit Portfolio Risk",
-             "corporate_clients")
+            ("Operations_SME", "password", "SME", "Confidential", "Operations SME",
+             "Operations Performance",
+             "operational_records,accounts")
         ])
         _postgres_conn.commit()
-
-        bootstrap_team = "Treasury"
-        cursor.execute("SELECT COUNT(*) FROM business_domains;")
-        if cursor.fetchone()[0] == 0:
-            lob_domains = [tuple(row) for row in load_kms_seed_file_for_team(bootstrap_team, 'business_domains.json')]
-            cursor.executemany("INSERT INTO business_domains VALUES (?, ?, ?);", lob_domains)
-            _postgres_conn.commit()
-
-        cursor.execute("SELECT COUNT(*) FROM business_terms;")
-        if cursor.fetchone()[0] == 0:
-            terms = load_kms_seed_file_for_team(bootstrap_team, 'business_terms.json')
-            cursor.executemany("INSERT INTO business_terms VALUES (?, ?);",
-                                [(t['term'], t['definition']) for t in terms])
-            _postgres_conn.commit()
-
-        cursor.execute("SELECT COUNT(*) FROM metrics_glossary;")
-        if cursor.fetchone()[0] == 0:
-            metrics = load_kms_seed_file_for_team(bootstrap_team, 'metrics_glossary.json')
-            cursor.executemany("INSERT INTO metrics_glossary VALUES (?, ?, ?, ?, ?, ?);",
-                                [(m['id'], m['name'], m['description'], m['formula'], m['format'], json.dumps(m['trends'])) for m in metrics])
-            _postgres_conn.commit()
-
-        cursor.execute("SELECT COUNT(*) FROM analytical_templates;")
-        if cursor.fetchone()[0] == 0:
-            templates = load_kms_seed_file_for_team(bootstrap_team, 'analytical_templates.json')
-            cursor.executemany("INSERT INTO analytical_templates VALUES (?, ?, ?);",
-                                [(t['id'], t['name'], t['structure']) for t in templates])
-            _postgres_conn.commit()
-
-        cursor.execute("SELECT COUNT(*) FROM knowledge_articles;")
-        if cursor.fetchone()[0] == 0:
-            articles = load_kms_seed_file_for_team(bootstrap_team, 'knowledge_articles.json')
-            cursor.executemany("INSERT INTO knowledge_articles VALUES (?, ?, ?);",
-                                [(a['title'], a['category'], a['content']) for a in articles])
-            _postgres_conn.commit()
-
-        # Seed canonical and graph nodes inside PostgreSQL per team if empty.
-        for team in ["Treasury", "Compliance", "Model", "Credit"]:
-            cursor.execute("SELECT COUNT(*) FROM graph_nodes WHERE team = ?;", (team,))
-            if cursor.fetchone()[0] == 0:
-                prepopulate_kms_knowledge(_postgres_conn, team)
 
         # Initialize and verify Neo4j Graph Database
         get_graph_db()
@@ -627,72 +574,6 @@ def get_kms_db():
     """Alias for backwards compatibility mapping to the postgres emulated connection."""
     return get_postgres_db()
 
-# ==========================================================
-# 📚 PRE-POPULATE DATAblueprints
-# ==========================================================
-def _team_node_id(team: str, node_id: str) -> str:
-    return f"{team}::{node_id}"
-
-def _team_edge_id(team: str, edge_id: str) -> str:
-    return f"{team}::{edge_id}"
-
-def prepopulate_kms_knowledge(conn, team: str):
-    seed = load_kms_seed_file_for_team(team, 'knowledge_seed.json')
-    cursor = conn.cursor()
-
-    # 1. Broad regulatory and policy corpus nodes loaded from AIP-Infra.
-    for n_id, n_type, n_title, n_content in seed.get('nodes', []):
-        team_node_id = _team_node_id(team, n_id)
-        cursor.execute("INSERT OR REPLACE INTO graph_nodes (node_id, team, type, title, content, metadata) VALUES (?, ?, ?, ?, ?, ?);", (team_node_id, team, n_type, n_title, n_content, "{}"))
-        tokenize_and_store_vector_chunk(team_node_id, n_content, team)
-
-        tags = "basel3,liquidity" if "basel" in n_id else "federal,treasury"
-        sme = "Dr. Sarah Lin" if "basel" in n_id else "Marcus Vance"
-        domain = "Treasury & Capital Management" if "hqla" in n_id or "slr" in n_id else "Regulatory Compliance"
-        sec_class = "Confidential" if "ccar" in n_id or "reg_w" in n_id else "Internal"
-
-        cursor.execute("""
-        INSERT OR REPLACE INTO canonical_knowledge (
-            knowledge_id, team, node_id, title, content, owner, sme, business_domain,
-            tags, confidence, approval_status, version, freshness_date,
-            security_classification, source_traceability, lineage, superseded_by, deprecation_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-        """, (
-            _team_node_id(team, "k_" + n_id), team, team_node_id, n_title, n_content, "Regulatory Risk ALCO", sme, domain,
-            tags, 1.0, "Approved", 1, "2026-05-01", sec_class, "U.S. Fed Reserve / BCBS Policy Papers",
-            "Initial Seed", "", ""
-        ))
-
-    cursor.executemany(
-        "INSERT OR REPLACE INTO graph_edges (edge_id, team, source_id, target_id, relationship, metadata) VALUES (?, ?, ?, ?, ?, ?);",
-        [(_team_edge_id(team, edge_id), team, _team_node_id(team, source_id), _team_node_id(team, target_id), relationship, "{}") for edge_id, source_id, target_id, relationship in seed.get('edges', [])]
-    )
-
-    cursor.execute("INSERT OR REPLACE INTO security_audit_logs VALUES (?, ?, ?, ?, ?, ?);",
-                   ("log_seed_1", "2026-05-23T20:00:00Z", "SYSTEM_BOOT", "Platform Routing Agent", "k_node_basel_3", "Success"))
-    cursor.execute("INSERT OR REPLACE INTO governance_approvals VALUES (?, ?, ?, ?, ?, ?);",
-                   ("app_seed_1", "k_node_basel_3", "Dr. Sarah Lin", 15, "2026-05-15", "Approved"))
-
-    cursor.executemany("INSERT OR REPLACE INTO source_connectors VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", seed.get('connectors', []))
-    cursor.executemany("""
-    INSERT OR REPLACE INTO candidate_knowledge (
-        candidate_id, team, title, summary, extracted_text, knowledge_type, source_document,
-        source_application, source_url_path, source_timestamp, domain, tags,
-        entities, relationships, suggested_owner, suggested_sme, confidence_score,
-        duplicate_score, conflict_warning, freshness_score, review_status,
-        reviewer_comments, created_timestamp
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-    """, [(_team_node_id(team, row[0]), team, *row[1:]) for row in seed.get('candidates', [])])
-
-    cursor.execute("INSERT OR REPLACE INTO observability_metrics (timestamp, metric_name, value, metadata) VALUES (?, ?, ?, ?);",
-                   ("2026-05-23T22:00:00Z", "KMS_TOTAL_KNOWLEDGE_ENTITIES", float(len(seed.get('nodes', []))), "{}"))
-    cursor.execute("INSERT OR REPLACE INTO observability_metrics (timestamp, metric_name, value, metadata) VALUES (?, ?, ?, ?);",
-                   ("2026-05-23T22:00:00Z", "KMS_AVERAGE_RETRIEVAL_LATENCY_MS", 14.5, "{}"))
-    cursor.execute("INSERT OR REPLACE INTO observability_metrics (timestamp, metric_name, value, metadata) VALUES (?, ?, ?, ?);",
-                   ("2026-05-23T22:00:00Z", "KMS_RETRIEVAL_ACCURACY_SCORE", 0.98, "{}"))
-    cursor.execute("INSERT OR REPLACE INTO observability_metrics (timestamp, metric_name, value, metadata) VALUES (?, ?, ?, ?);",
-                   ("2026-05-23T22:00:00Z", "KMS_SECURITY_AUDIT_EXCEPTIONS", 0.0, "{}"))
-
 def tokenize(text: str) -> List[str]:
     """Helper to clean and tokenize a block of text."""
     cleaned = text.lower().replace('.', ' ').replace(',', ' ').replace('(', ' ').replace(')', ' ').replace('-', ' ')
@@ -702,7 +583,7 @@ def tokenize_and_store_vector_chunk(node_id: str, text: str, team: Optional[str]
     """Chunks text, tokenizes, and saves into vector table."""
     conn = get_kms_db()
     cursor = conn.cursor()
-    active_team = team or get_active_kms_team() or "Treasury"
+    active_team = team or require_active_kms_team()
 
     # Split text into sentences or chunks of ~150 characters
     sentences = text.split('. ')
@@ -765,7 +646,7 @@ def advanced_retrieval_orchestration(
 
     # Step 14: Retrieval Planner Agent
     log_agent_action("Retrieval Planner Agent", "PLAN_RETRIEVAL", f"Received query: '{query_str}' using Search Mode: {search_mode}.")
-    active_team = get_active_kms_team() or "Treasury"
+    active_team = require_active_kms_team()
 
     # Fetch chunks
     cursor.execute("SELECT * FROM vector_chunks WHERE team = ?;", (active_team,))
@@ -1070,7 +951,7 @@ async def ingest_custom_file_to_kms(
     # Dynamic LLM parsing or fallback
     c_lower = content.lower()
 
-    system_prompt = "You are a banking classification agent. Summarize the provided document into a single, high-fidelity sentence under 120 characters."
+    system_prompt = "You are an enterprise knowledge classification agent. Summarize the provided document into a single, high-fidelity sentence under 120 characters."
     if prompt:
         system_prompt += f" Adhere strictly to these user guidelines: {prompt}"
 
@@ -1100,7 +981,7 @@ async def ingest_custom_file_to_kms(
     log_agent_action("Duplicate Detection Agent", 8, f"Calculated catalog semantic duplication score: {duplicate_score * 100}%")
 
     # Step 9: Create candidate records
-    active_team = get_active_kms_team() or "Treasury"
+    active_team = require_active_kms_team()
     candidate_id = _team_node_id(active_team, "cand_" + uuid_suffix())
     cursor.execute("""
     INSERT INTO candidate_knowledge (
@@ -1140,6 +1021,9 @@ async def ingest_custom_file_to_kms(
 def uuid_suffix() -> str:
     return uuid.uuid4().hex[:6]
 
+def _team_node_id(team: str, node_id: str) -> str:
+    return f"{team}::{node_id}"
+
 # ==========================================================
 # ⚖️ GOVERNANCE, SME APPROVAL, & ROLLBACK ACTIONS
 # ==========================================================
@@ -1171,7 +1055,7 @@ def get_kms_filter_options() -> Dict[str, List[str]]:
         cursor.execute(sql, params)
         return [row[0] for row in cursor.fetchall() if row[0]]
 
-    active_team = get_active_kms_team() or "Treasury"
+    active_team = require_active_kms_team()
     return {
         'domains': values("SELECT name FROM business_domains ORDER BY name;"),
         'sources': values("SELECT DISTINCT source_application FROM candidate_knowledge WHERE team = ? AND source_application IS NOT NULL UNION SELECT DISTINCT type FROM source_connectors WHERE type IS NOT NULL ORDER BY 1;", (active_team,)),
@@ -1194,7 +1078,7 @@ def list_canonical_knowledge() -> List[Dict[str, Any]]:
     """Returns a list of all canonical knowledge elements currently active in the KMS registry."""
     conn = get_kms_db()
     cursor = conn.cursor()
-    active_team = get_active_kms_team() or "Treasury"
+    active_team = require_active_kms_team()
     cursor.execute("""
     SELECT ck.*, gn.type as node_type
     FROM canonical_knowledge ck
@@ -1215,7 +1099,7 @@ def list_candidate_knowledge() -> List[Dict[str, Any]]:
     """Returns a list of candidate knowledge awaiting SME review and edits."""
     conn = get_kms_db()
     cursor = conn.cursor()
-    active_team = get_active_kms_team() or "Treasury"
+    active_team = require_active_kms_team()
     cursor.execute("SELECT * FROM candidate_knowledge WHERE team = ? ORDER BY created_timestamp DESC;", (active_team,))
     return [dict(row) for row in cursor.fetchall()]
 
@@ -1223,7 +1107,7 @@ def update_candidate_details(candidate_id: str, title: str, summary: str, domain
     """Allows SMEs to edit candidate definitions prior to approval/publishing."""
     conn = get_kms_db()
     cursor = conn.cursor()
-    active_team = get_active_kms_team() or "Treasury"
+    active_team = require_active_kms_team()
     cursor.execute("""
     UPDATE candidate_knowledge
     SET title = ?, summary = ?, domain = ?, tags = ?, relationships = ?
@@ -1240,7 +1124,7 @@ def act_on_candidate_knowledge(candidate_id: str, status: str, comments: str = "
     """
     conn = get_kms_db()
     cursor = conn.cursor()
-    active_team = get_active_kms_team() or "Treasury"
+    active_team = require_active_kms_team()
 
     # 1. Update candidate record status
     cursor.execute("""
@@ -1303,7 +1187,7 @@ def rollback_knowledge_version(knowledge_id: str) -> Dict[str, Any]:
     """Simulates rolling back knowledge asset to standard version 1."""
     conn = get_kms_db()
     cursor = conn.cursor()
-    active_team = get_active_kms_team() or "Treasury"
+    active_team = require_active_kms_team()
 
     cursor.execute("UPDATE canonical_knowledge SET version = 1, approval_status = 'Approved' WHERE knowledge_id = ? AND team = ?;", (knowledge_id, active_team))
 
@@ -1319,7 +1203,7 @@ def get_kms_observability_data() -> Dict[str, Any]:
     cursor = conn.cursor()
 
     # Freshness/SLA statistics
-    active_team = get_active_kms_team() or "Treasury"
+    active_team = require_active_kms_team()
     cursor.execute("SELECT COUNT(*) FROM canonical_knowledge WHERE approval_status = 'Approved' AND team = ?;", (active_team,))
     approved_count = cursor.fetchone()[0]
 
@@ -1363,14 +1247,16 @@ def check_kms_integrity() -> Dict[str, Any]:
     }
 
 def get_kpis_definitions() -> List[Dict[str, Any]]:
-    metrics = load_kms_seed_file('metrics_glossary.json')
-    return [{"name": metric.get("name"), "formula": metric.get("formula")} for metric in metrics]
+    conn = get_kms_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name, formula FROM metrics_glossary ORDER BY name;")
+    return [{"name": row["name"], "formula": row["formula"]} for row in cursor.fetchall()]
 
 def approve_canonical_knowledge(knowledge_id: str, approved: bool) -> Dict[str, Any]:
     """SME approves or rejects an existing canonical knowledge catalog item."""
     conn = get_kms_db()
     cursor = conn.cursor()
-    active_team = get_active_kms_team() or "Treasury"
+    active_team = require_active_kms_team()
     status = "Approved" if approved else "Rejected"
     cursor.execute("UPDATE canonical_knowledge SET approval_status = ? WHERE knowledge_id = ? AND team = ?;", (status, knowledge_id, active_team))
 
@@ -1406,7 +1292,7 @@ async def sync_source_connector(connector_id: str) -> Dict[str, Any]:
         owner=connector['owner'] or "Connector Sync",
         security_class="Internal",
         sme="Marcus Vance",
-        business_domain=connector['domain'] or "Regulatory Compliance"
+        business_domain=connector['domain'] or "Governance & Controls"
     )
 
     # Update connector status and history

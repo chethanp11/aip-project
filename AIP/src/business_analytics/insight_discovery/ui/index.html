@@ -10,8 +10,8 @@
     <div class="sub-portal">
         
             <div class="card">
-                <h2>💡 Treasury Insight Discovery</h2>
-                <p class="desc">Mines corporate balances MoM trends to highlight significant cash shifts.</p>
+                <h2>💡 Dynamic Insight Discovery</h2>
+                <p class="desc">Mines segment metric MoM trends to highlight significant performance shifts.</p>
                 <button class="btn" id="disc-btn">Surface Segment Insights</button>
                 <div class="results-grid mt-20 hide" id="disc-results"></div>
             </div>
@@ -19,7 +19,7 @@
     </div>
     
     <script>
-        const API_BASE = '/api/v1';
+        const API_BASE = 'http://localhost:8000/api/v1';
         
         // Authed Fetch Interceptor matching parent origin session storage
         const originalFetch = window.fetch;

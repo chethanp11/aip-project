@@ -24,7 +24,7 @@ async def handler(input_params: Dict[str, Any]) -> Dict[str, Any]:
         return {'summary': 'No text provided to summarize.'}
 
     # Attempt live LLM summary if key is available
-    system_prompt = "You are a professional banking systems analyst. Summarize the provided logs or analysis outputs into precise, high-density bulleted key takeaways."
+    system_prompt = "You are a professional enterprise systems analyst. Summarize the provided logs or analysis outputs into precise, high-density bulleted key takeaways."
     if prompt:
         system_prompt += f" Adhere strictly to these user directives: {prompt}"
         

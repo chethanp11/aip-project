@@ -1,6 +1,6 @@
 """
 Product 11: Task Automation & Approvals routing (Stateful Agentic AI)
-Assigned Banking Agent: Approval Routing Agent
+Assigned Enterprise Agent: Approval Routing Agent
 """
 
 import asyncio
@@ -212,7 +212,7 @@ async def resume_approval_workflow(approval_id: str, approved: bool) -> Dict[str
         
         return {
             'success': False,
-            'message': f"Workflow Run [{approval['name']}] rejected by Banking Compliance Officer. Pipeline terminated.",
+            'message': f"Workflow Run [{approval['name']}] rejected by Governance Officer. Pipeline terminated.",
             'traces': [
                 {'stepId': 'step_manual_approval', 'capability': 'user_action', 'status': 'rejected', 'durationMs': 0}
             ]
@@ -258,7 +258,7 @@ async def resume_approval_workflow(approval_id: str, approved: bool) -> Dict[str
             'serverName': 'slack' if notification == 'slack' else 'pagerduty',
             'toolName': 'post_message' if notification == 'slack' else 'trigger_incident',
             'arguments': {
-                'channel': '#banking-alerts',
+                'channel': '#enterprise-alerts',
                 'text': f"🔔 Workflow Run [{name}] APPROVED by Analyst. Resumed pipeline task [{task}] successfully."
             }
         }
