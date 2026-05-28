@@ -1,0 +1,2 @@
+Grounded operational policies retrieved from Corporate Operations Confluence (Confluence) for domain Cash Management.
+Under Basel III LCR and NSFR rules, corporate cash sweep aggregations are subject to maximum outflow volatility. The bank Asset-Liability Committee (ALCO) requires Level 1 HQLA buffer coverage of at least 110% target to absorb potential digital run stress.
