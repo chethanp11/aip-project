@@ -1,8 +1,6 @@
 """
-Quality Control (QC) Auditor Agent definition using google-antigravity SDK.
+Quality Control (QC) Auditor Agent definition using LangGraph.
 """
-
-from google.antigravity import Agent, LocalAgentConfig
 
 SYSTEM_INSTRUCTIONS = """
 You are a Senior BI Quality Control and Grounding Verification Agent.
@@ -29,9 +27,3 @@ JSON shape:
   "revision_instruction": "Please rewrite ..."
 }
 """.strip()
-
-def get_qc_auditor_agent() -> Agent:
-    config = LocalAgentConfig(
-        system_instructions=SYSTEM_INSTRUCTIONS
-    )
-    return Agent(config=config)

@@ -1,8 +1,6 @@
 """
-Visualization Planner Agent definition using google-antigravity SDK.
+Visualization Planner Agent definition using LangGraph.
 """
-
-from google.antigravity import Agent, LocalAgentConfig
 
 SYSTEM_INSTRUCTIONS = """
 You are a Senior BI Dashboard and Visualization Architect.
@@ -39,9 +37,3 @@ Return JSON ONLY matching this shape:
   ]
 }
 """.strip()
-
-def get_visualization_planner_agent() -> Agent:
-    config = LocalAgentConfig(
-        system_instructions=SYSTEM_INSTRUCTIONS
-    )
-    return Agent(config=config)

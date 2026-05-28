@@ -1,8 +1,7 @@
 """
-SQL Debugger Agent definition using google-antigravity SDK.
+SQL Debugger Agent definition using LangGraph.
 """
 
-from google.antigravity import Agent, LocalAgentConfig
 from src.shared.tools.database_tool import get_database_schema
 
 SYSTEM_INSTRUCTIONS = """
@@ -16,9 +15,5 @@ Return JSON ONLY matching this shape:
 {"repaired_sql": "SELECT ..."}
 """.strip()
 
-def get_sql_debugger_agent() -> Agent:
-    config = LocalAgentConfig(
-        tools=[get_database_schema],
-        system_instructions=SYSTEM_INSTRUCTIONS
-    )
-    return Agent(config=config)
+def get_tools():
+    return [get_database_schema]

@@ -241,3 +241,19 @@ def test_conv_bi_semantic_bypassing_intent_classification(
         assert "Non-Performing Loans" in res["narrative"]
         assert res["visualDecision"]["has_visual"] is False
         assert res["visualHtml"] == ""
+
+
+@patch("src.reporting.conversational_bi.main.call_llm")
+def test_conv_bi_langgraph_agent_execution(mock_call_llm):
+    """Verifies that the LangGraphAgent compiles and executes correctly via StateGraph."""
+    from src.reporting.conversational_bi.main import LangGraphAgent
+    
+    mock_call_llm.return_value = "LangGraph response output."
+    
+    agent = LangGraphAgent(system_instructions="You are a helpful assistant.")
+    
+    # Run chat inside event loop
+    res = asyncio.run(agent.chat("Hello", json_mode=False))
+    
+    assert res == "LangGraph response output."
+    mock_call_llm.assert_called_once_with("You are a helpful assistant.", "Hello", json_mode=False)

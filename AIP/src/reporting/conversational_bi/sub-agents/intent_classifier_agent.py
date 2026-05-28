@@ -1,8 +1,6 @@
 """
-Intent Classifier Agent definition using google-antigravity SDK.
+Intent Classifier Agent definition using LangGraph.
 """
-
-from google.antigravity import Agent, LocalAgentConfig
 
 SYSTEM_INSTRUCTIONS = """
 You are a Conversational BI Intent Classifier Agent.
@@ -23,9 +21,3 @@ Return JSON ONLY matching the following shape:
   "route": "semantic" | "analytical"
 }
 """.strip()
-
-def get_intent_classifier_agent() -> Agent:
-    config = LocalAgentConfig(
-        system_instructions=SYSTEM_INSTRUCTIONS
-    )
-    return Agent(config=config)

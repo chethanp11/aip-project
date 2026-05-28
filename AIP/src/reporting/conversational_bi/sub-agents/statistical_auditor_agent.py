@@ -1,8 +1,6 @@
 """
-Statistical Validity Auditor Agent definition using google-antigravity SDK.
+Statistical Validity Auditor Agent definition using LangGraph.
 """
-
-from google.antigravity import Agent, LocalAgentConfig
 
 SYSTEM_INSTRUCTIONS = """
 You are a Senior Data Science and Statistical Validity Auditor Agent.
@@ -21,9 +19,3 @@ Return JSON ONLY matching the following shape:
   "revision_instruction": "Please revise the trend description. State that the correlation is weak or omit the claim of reliability."
 }
 """.strip()
-
-def get_statistical_auditor_agent() -> Agent:
-    config = LocalAgentConfig(
-        system_instructions=SYSTEM_INSTRUCTIONS
-    )
-    return Agent(config=config)

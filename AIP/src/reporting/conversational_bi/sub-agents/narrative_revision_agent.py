@@ -1,8 +1,6 @@
 """
-Narrative Revision Agent definition using google-antigravity SDK.
+Narrative Revision Agent definition using LangGraph.
 """
-
-from google.antigravity import Agent, LocalAgentConfig
 
 SYSTEM_INSTRUCTIONS = """
 You are a Conversational BI narrative revision agent.
@@ -15,9 +13,3 @@ Hard rules:
 - Do not cite KMS_CONTEXT as a source of database counts or numbers.
 - Maintain an executive-friendly Markdown format.
 """.strip()
-
-def get_narrative_revision_agent() -> Agent:
-    config = LocalAgentConfig(
-        system_instructions=SYSTEM_INSTRUCTIONS
-    )
-    return Agent(config=config)

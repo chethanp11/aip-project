@@ -669,26 +669,9 @@ def advanced_retrieval_orchestration(
             })
 
     scored_chunks.sort(key=lambda x: x['score'], reverse=True)
-    top_chunks = scored_chunks[:limit]
-
-    if not top_chunks:
-        log_agent_action("Retrieval Planner Agent", "ZERO_MATCHES", "No vector-overlapping chunks matched in the governed knowledge repository.")
-        return {
-            'context': "No direct evidence segments recovered from the active AIP-Infra KMS indices.",
-            'matched_nodes': [],
-            'matched_chunks': [],
-            'agent_traces': agent_traces,
-            'contradictions': ["No direct evidence segments recovered from search indices."],
-            'missing_context': ["The query topics do not exist in the active KMS glossary repository."],
-            'latency_ms': int((time.time() - start_time) * 1000)
-        }
 
     # Step 15: Context Builder Agent
-    log_agent_action("Context Builder Agent", "RBAC_FILTER", f"Applying role-aware security filters (User Role: {user_role} | Clearance: {security_clearance})")
-
-    # RBAC filtering: only allow nodes that are public or match clearance level
-    clearance_hierarchy = {'Public': 0, 'Internal': 1, 'Confidential': 2, 'Restricted': 3}
-    user_val = clearance_hierarchy.get(security_clearance, 1)
+    log_agent_action("Context Builder Agent", "RBAC_FILTER", f"Applying role-aware security filters (User Role: {user_role} | Clearance: {security_clearance}) and deduplicating matches...")
 
     # Fetch allowed domains from active agent context / session
     from shared.session import active_sessions
@@ -699,12 +682,18 @@ def advanced_retrieval_orchestration(
     if api_key in active_sessions:
         allowed_domains = active_sessions[api_key].get('allowed_domains')
 
+    clearance_hierarchy = {'Public': 0, 'Internal': 1, 'Confidential': 2, 'Restricted': 3}
+    user_val = clearance_hierarchy.get(security_clearance, 1)
+
     filtered_chunks = []
     filtered_node_ids = set()
+    for c in scored_chunks:
+        node_id = c['node_id']
+        if node_id in filtered_node_ids:
+            continue
 
-    for c in top_chunks:
         # Check canonical knowledge security grade AND approved-only filter for Analysts!
-        cursor.execute("SELECT security_classification, approval_status, business_domain FROM canonical_knowledge WHERE node_id = ? AND team = ?;", (c['node_id'], active_team))
+        cursor.execute("SELECT security_classification, approval_status, business_domain FROM canonical_knowledge WHERE node_id = ? AND team = ?;", (node_id, active_team))
         row = cursor.fetchone()
         if row:
             node_clearance = row['security_classification']
@@ -713,20 +702,35 @@ def advanced_retrieval_orchestration(
 
             # Enforce dynamic domain checking based on logged in user profile context
             if allowed_domains is not None and node_domain not in allowed_domains:
-                log_agent_action("Context Builder Agent", "DOMAIN_BLOCK", f"Filtered chunk on node '{c['node_id']}' because domain '{node_domain}' is not authorized for active user profile.")
+                log_agent_action("Context Builder Agent", "DOMAIN_BLOCK", f"Filtered chunk on node '{node_id}' because domain '{node_domain}' is not authorized for active user profile.")
                 continue
 
             # Enforce Analyst retrieval constraint: Retrieve approved-only knowledge
             if user_role == "Analyst" and node_status != "Approved":
-                log_agent_action("Context Builder Agent", "STATUS_BLOCK", f"Filtered chunk on node '{c['node_id']}' because it is in status '{node_status}' (Analyst retrieve approved-only).")
+                log_agent_action("Context Builder Agent", "STATUS_BLOCK", f"Filtered chunk on node '{node_id}' because it is in status '{node_status}' (Analyst retrieve approved-only).")
                 continue
 
             node_val = clearance_hierarchy.get(node_clearance, 1)
             if node_val > user_val:
-                log_agent_action("Context Builder Agent", "SECURITY_BLOCK", f"Filtered chunk on node '{c['node_id']}' due to insufficient security clearance (Required: {node_clearance} vs User: {security_clearance}).")
+                log_agent_action("Context Builder Agent", "SECURITY_BLOCK", f"Filtered chunk on node '{node_id}' due to insufficient security clearance (Required: {node_clearance} vs User: {security_clearance}).")
                 continue
+
         filtered_chunks.append(c)
-        filtered_node_ids.add(c['node_id'])
+        filtered_node_ids.add(node_id)
+        if len(filtered_chunks) >= limit:
+            break
+
+    if not filtered_chunks:
+        log_agent_action("Retrieval Planner Agent", "ZERO_MATCHES", "No vector-overlapping chunks matched in the governed knowledge repository after security filters.")
+        return {
+            'context': "No direct evidence segments recovered from the active AIP-Infra KMS indices.",
+            'matched_nodes': [],
+            'matched_chunks': [],
+            'agent_traces': agent_traces,
+            'contradictions': ["No direct evidence segments recovered from search indices."],
+            'missing_context': ["The query topics do not exist in the active KMS glossary repository."],
+            'latency_ms': int((time.time() - start_time) * 1000)
+        }
 
     # Multi-hop relationship traversal:
     log_agent_action("Context Builder Agent", "GRAPH_TRAVERSAL", "Traversing graph relationships edges to retrieve neighboring policy rules...")
