@@ -38,11 +38,16 @@ AIP separates execution, reasoning, and semantic knowledge into three clean modu
 ## 🔒 Session & Security Parameters
 - All routes under `/api/v1` (excluding authentication and public static files) require a bearer token starting with `AIP-`.
 - Default KMS bootstrap credentials (seeded automatically in PostgreSQL):
-  - **Analyst User**: `analyst` / `password` (issues `AIP-ANALYST-SESSION-...` tokens)
-  - **SME User**: `sme` / `password` (issues `AIP-SME-SESSION-...` tokens)
-- Role-based Access Control (RBAC):
-  - **Analyst**: Accesses approved canonical knowledge. Restricted from draft candidates or unapproved regulations.
-  - **SME**: Direct governance rights (reviewing candidates, editing, approving, or rolling back canonical entries).
+  - **Analyst User**: `analyst` / `password` (Access to all domains/tables)
+  - **Treasury Analyst**: `treasury_analyst` / `password` (Restricted domains: `Treasury & Capital Management, Cash Management`; Restricted tables: `deposits, loans, accounts, transactions`)
+  - **Compliance Analyst**: `compliance_analyst` / `password` (Restricted domains: `Regulatory Compliance`; Restricted tables: `liquidity_buffers, liquidity_sweeps, sweep_executions, corporate_clients`)
+  - **Model Analyst**: `model_analyst` / `password` (Restricted domains: `Model Risk Management (MRM)`; Restricted tables: `accounts`)
+  - **Credit Analyst**: `credit_analyst` / `password` (Restricted domains: `Credit Portfolio Risk`; Restricted tables: `corporate_clients, accounts`)
+  - **SME User**: `sme` / `password` (Access to all domains/tables with direct governance rights)
+- Role-based Access Control (RBAC) & Dynamic Restriction Context:
+  - **KMS Domain Restrictions**: Search nodes retrieved via pgvector and Neo4j are dynamically filtered by `allowed_domains` matching the logged-in analyst context. Analysts only retrieve approved canonical knowledge.
+  - **LMS Data Restrictions**: Custom database queries and table listings are dynamically intercepted and filtered by `allowed_tables`. Unauthorized tables are strictly blocked and raise access-denied warnings.
+  - **SME Persona**: Direct governance rights (reviewing candidates, editing, approving, or rolling back canonical entries).
 
 ---
 
