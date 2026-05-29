@@ -1,7 +1,7 @@
 
             async function getApprovals() {
                 const feed = document.getElementById('approvals-feed');
-                feed.innerHTML = '<div class="loader">🔍 Auditing approval queues...</div>';
+                feed.innerHTML = '<div class="loader">🔍 Auditing compliance queues...</div>';
                 
                 try {
                     const res = await fetch(`${API_BASE}/workflows/automation/approvals`);

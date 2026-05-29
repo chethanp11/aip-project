@@ -22,10 +22,7 @@
                 try {
                     const res = await fetch(`${API_BASE}/workflows/reporting/conversational-bi`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...(localStorage.getItem('AIP_API_KEY') ? { 'Authorization': `Bearer ${localStorage.getItem('AIP_API_KEY')}` } : {})
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ question: text })
                     });
                     const data = await res.json();
@@ -33,7 +30,7 @@
                     
                     const bMsg = document.createElement('div');
                     bMsg.className = 'message bot';
-                    bMsg.innerHTML = data.renderedHtml || data.visualHtml || data.narrative.replace(/\n/g, '<br/>');
+                    bMsg.innerHTML = data.narrative.replace(/\n/g, '<br/>');
                     box.appendChild(bMsg);
                 } catch(err) {
                     lMsg.innerText = `Error: ${err.message}`;

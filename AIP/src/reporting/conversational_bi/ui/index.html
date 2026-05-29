@@ -30,20 +30,33 @@
         
         // Authed Fetch Interceptor matching parent origin session storage
         const originalFetch = window.fetch;
-        window.fetch = async function(url, options = {}) {
-            let token = localStorage.getItem('AIP_API_KEY') || '';
-            if (!token && window.parent && window.parent !== window) {
-                try {
-                    token = window.parent.localStorage.getItem('AIP_API_KEY') || '';
-                } catch (err) {
-                    token = '';
+        async function resolveAipToken() {
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+                let token = localStorage.getItem('AIP_API_KEY') || '';
+                if (!token && window.parent && window.parent !== window) {
+                    try {
+                        token = window.parent.localStorage.getItem('AIP_API_KEY') || '';
+                    } catch (err) {
+                        token = '';
+                    }
                 }
+                if (token) return token;
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
-            if (url.includes('/api/v1')) {
-                options.headers = options.headers || {};
-                if (token) {
-                    options.headers['Authorization'] = `Bearer ${token}`;
+            return '';
+        }
+        window.fetch = async function(url, options = {}) {
+            const isApiRequest = typeof url === 'string' && url.includes('/api/v1');
+            if (isApiRequest) {
+                const token = await resolveAipToken();
+                if (!token) {
+                    return new Response(JSON.stringify({ error: 'Authentication token is not available yet.' }), {
+                        status: 401,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
                 }
+                options.headers = options.headers || {};
+                options.headers['Authorization'] = `Bearer ${token}`;
             }
             return originalFetch(url, options);
         };

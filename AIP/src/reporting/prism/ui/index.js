@@ -1,5 +1,5 @@
 
-            const seedReports = [
+            const sampleReports = [
                 { name: 'Margin Breakdown Q1', query: 'SELECT (revenue - cost) / active_base FROM regional_ledger', usage: 120, owner: 'Planning' },
                 { name: 'Yield Spread Review', query: 'SELECT (revenue-cost)/active_base FROM regional_ledger', usage: 8, owner: 'Leadership Review' },
                 { name: 'Regional Balance Ledger', query: 'SELECT allocated_value / baseline_value FROM operating_balances', usage: 84, owner: 'Operations' }
@@ -17,7 +17,7 @@
                     const res = await fetch(`${API_BASE}/workflows/reporting/prism-lite`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ reports: seedReports })
+                        body: JSON.stringify({ reports: sampleReports })
                     });
                     const data = await res.json();
                     

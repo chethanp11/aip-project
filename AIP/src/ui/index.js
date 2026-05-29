@@ -221,8 +221,8 @@ function applyUIConfiguration() {
   const visibleSubproducts = config.visible_subproducts || {};
 
   // Auto-enable parent suite if any of its subproducts are allowed
-  const suitesList = ['reporting', 'analytics', 'automation', 'data-science'];
-  suitesList.forEach(suiteId => {
+  const suiteIds = ['reporting', 'analytics', 'automation', 'data-science'];
+  suiteIds.forEach(suiteId => {
     const allowedTabs = visibleSubproducts[suiteId] || [];
     if (allowedTabs.length > 0 && !visibleSuites.includes(suiteId)) {
       visibleSuites.push(suiteId);
@@ -252,8 +252,7 @@ function applyUIConfiguration() {
   });
 
   // 2. Hide/Show Subproduct Tabs inside sections
-  const suitesList = ['reporting', 'analytics', 'automation', 'data-science'];
-  suitesList.forEach(suiteId => {
+  suiteIds.forEach(suiteId => {
     const suiteSection = document.getElementById(`page-${suiteId}`);
     if (!suiteSection) return;
     
