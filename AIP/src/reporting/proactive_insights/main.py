@@ -1,5 +1,5 @@
 """
-Product 4: Proactive Insights Alerts (Stateful Agentic AI)
+Product 4: Proactive Alerts (Stateful Agentic AI)
 Assigned Enterprise Agent: Proactive Monitor Agent
 """
 

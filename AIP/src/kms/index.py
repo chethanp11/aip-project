@@ -565,6 +565,8 @@ def get_postgres_db():
         cursor.execute("DELETE FROM kms_users;")
         cursor.executemany("INSERT INTO kms_users VALUES (?, ?, ?, ?, ?, ?, ?);", [
             ("user", "password", "Analyst", "Internal", "AIP User", "General", "accounts"),
+            ("analyst", "password", "Analyst", "Internal", "Default Analyst", "General", "accounts"),
+            ("sme", "password", "SME", "Confidential", "Default SME", "General", "accounts"),
             ("Treasury_User", "password", "Business User", "Internal", "Treasury Business User",
              "Treasury & Capital Management,Cash Management",
              "accounts,transactions,liquidity_buffers,liquidity_sweeps,sweep_executions,treasury_positions,cash_forecasts,funding_plans,collateral_positions,fx_exposures,interest_rate_swaps,investment_securities,intraday_liquidity_events,nostro_balances,repo_transactions,stress_test_scenarios"),

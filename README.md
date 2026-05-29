@@ -19,7 +19,7 @@ AIP organizes its user-facing products and workflows into four primary suites:
 *   **PRISM**: Report inventory intelligence, duplicate report detection, usage analysis, and overlap analysis.
 *   **Report Building**: Automated report generation, narrative assistance, standards enforcement, and report quality checks.
 *   **Conversational BI**: Natural language analytics, KPI explanation, analytical questioning, and insight retrieval.
-*   **Proactive Insights**: Automatic anomaly detection, trend detection, recommendation generation, and proactive monitoring.
+*   **Proactive Alerts**: Automatic anomaly detection, trend detection, recommendation generation, and proactive monitoring.
 
 ### 2. Business Analytics Suite
 *Accelerate analytical execution and exploratory insight discovery.*
@@ -434,7 +434,7 @@ The development of AIP is governed by this precise 10-step build sequence:
 2.  **KMS Integration**: Implement semantic metrics compilation, lineage evaluation, and search APIs.
 3.  **Intelligence Layer**: Build reasoning engines, session tracking, routing pipelines, and prompt structures.
 4.  **Capability Framework**: Implement the 8 core capabilities (`knowledge_retrieval`, `context_management`, etc.).
-5.  **Reporting Suite**: Implement stateful workflows for PRISM, Report Builder, Conversational BI, and Proactive Insights.
+5.  **Reporting Suite**: Implement stateful workflows for PRISM, Report Builder, Conversational BI, and Proactive Alerts.
 6.  **Business Analytics Suite**: Implement exploratory canvas, RCA drivers, and simulation pipelines.
 7.  **Data Science & ML Suite**: Implement profiling, experiment trackers, and Model Pulse drift monitors.
 8.  **Workflow Automation Suite**: Implement workflow builders, execution schedulers, and incident alert systems.

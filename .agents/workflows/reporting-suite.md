@@ -36,7 +36,7 @@ The Report Builder state machine is managed in `src/reporting/report_building/ma
 
 ---
 
-## 💬 3. Developing Conversational BI & Proactive Insights
+## 💬 3. Developing Conversational BI & Proactive Alerts
 - **Conversational BI Routing**:
   - The natural language query routing resides in `src/reporting/conversational_bi/main.py`.
   - It sequentially calls `knowledge_retrieval` (stateless capability) followed by ledger data lookups via `get_lms_table` inside `shared/lms.py`.

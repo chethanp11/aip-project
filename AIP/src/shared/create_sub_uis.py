@@ -167,12 +167,12 @@ APPS = [
     },
     {
         'path': 'src/reporting/proactive_insights',
-        'title': 'Proactive Insights Alerts',
+        'title': 'Proactive Alerts',
         'accent': '#f43f5e', # Rose
         'icon': '🔔',
         'html': """
             <div class="card">
-                <h2>🔔 Proactive Performance Insights</h2>
+                <h2>🔔 Proactive Performance Alerts</h2>
                 <p class="desc">Continuous background analysis flagging operational exceptions and performance metrics drops.</p>
                 <button class="btn" id="refresh-alerts">Scans Active Ledgers</button>
                 <div class="alerts-feed mt-20" id="alerts-feed"></div>
@@ -779,12 +779,19 @@ def make_directories():
     </div>
     
     <script>
-        const API_BASE = 'http://localhost:8000/api/v1';
+        const API_BASE = '/api/v1';
         
         // Authed Fetch Interceptor matching parent origin session storage
         const originalFetch = window.fetch;
         window.fetch = async function(url, options = {{}}) {{
-            const token = localStorage.getItem('AIP_API_KEY') || '';
+            let token = localStorage.getItem('AIP_API_KEY') || '';
+            if (!token && window.parent && window.parent !== window) {{
+                try {{
+                    token = window.parent.localStorage.getItem('AIP_API_KEY') || '';
+                }} catch (err) {{
+                    token = '';
+                }}
+            }}
             if (url.includes('/api/v1')) {{
                 options.headers = options.headers || {{}};
                 if (token) {{

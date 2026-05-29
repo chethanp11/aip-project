@@ -44,7 +44,7 @@ Primary pages:
 - KMS Workspace
 - Database Explorer
 
-Each suite page embeds a micro-frontend in an iframe. All same-origin iframes use local storage bearer token forwarding through either a global fetch interceptor or explicit `authedFetch` wrappers.
+Each suite page embeds a micro-frontend in an iframe. All same-origin iframes use local storage bearer token forwarding through either a global fetch interceptor or explicit `authedFetch` wrappers. Micro-frontends call APIs through relative `/api/v1` paths so authentication stays bound to the active host and port.
 
 ## 3. KMS Workspace Flow
 
@@ -166,7 +166,7 @@ Flow:
 5. If LLM/infra is unavailable, route returns explicit fallback narrative instead of failing.
 6. Workflow returns narrative and optional Vega-Lite chart spec.
 
-### Proactive Insights
+### Proactive Alerts
 
 Route: `GET /api/v1/workflows/reporting/proactive-insights`
 
@@ -265,7 +265,7 @@ Implemented UX patterns:
 
 ## 10. UX Guardrails
 
-- UI routes must call `/api/v1/*` and pass the current `AIP_API_KEY` bearer token.
+- UI routes must call relative `/api/v1/*` paths and pass the current `AIP_API_KEY` bearer token.
 - Micro-frontends should not embed hardcoded secrets or direct database credentials.
 - User-facing copy should distinguish infrastructure errors from analytical results.
 - Data exploration is read-only from the UI.

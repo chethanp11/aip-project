@@ -222,9 +222,9 @@ Business value:
 - Improved access to institutional knowledge.
 - Better business usability for non-technical questions.
 
-### 7.4 Proactive Insights
+### 7.4 Proactive Alerts
 
-Proactive Insights surfaces important metric movements.
+Proactive Alerts surfaces important metric movements.
 
 Business capabilities:
 

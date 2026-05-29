@@ -250,7 +250,7 @@ Each invocation logs:
 - PRISM parses direct metadata or uploaded files, normalizes SQL/schema, detects exact duplicates and overlaps.
 - Report Builder keeps `ACTIVE_BUILD_SESSIONS` in memory, progresses six stages, handles rejected feedback, and publishes HTML files to `REPORT_PATH`.
 - Conversational BI is implemented as a pure, multi-agent orchestrator using the stateful LangGraph runtime framework. It coordinates a pipeline of specialized sub-agents located in `sub-agents/` (including Intent Classifier for semantic bypassing, KMS Retrieval, Lineage Resolver, SQL Planner, SQL Debugger for self-healing retries, Narrative Writer, QC Auditor for grounding, Statistical Auditor for data-science verification, Narrative Revision, and Visualization Planner) and invokes generic, reusable shared tools under `src/shared/tools/` (such as `kms_tool`, `database_tool` with dynamic value discovery, `visualization_tool`, `data_profile_tool` for PII redaction and metrics profiling, `graph_tool` for Neo4j lineages, and `analytics_tool` for linear regression time-series diagnostics). No business logic, prompts, or HTML layout logic resides in the orchestrator.
-- Proactive Insights uses metric interpretation over fixed trend baselines to produce alert objects.
+- Proactive Alerts uses metric interpretation over fixed trend baselines to produce alert objects.
 
 ### Business analytics
 

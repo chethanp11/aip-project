@@ -19,12 +19,19 @@
     </div>
     
     <script>
-        const API_BASE = 'http://localhost:8000/api/v1';
+        const API_BASE = '/api/v1';
         
         // Authed Fetch Interceptor matching parent origin session storage
         const originalFetch = window.fetch;
         window.fetch = async function(url, options = {}) {
-            const token = localStorage.getItem('AIP_API_KEY') || '';
+            let token = localStorage.getItem('AIP_API_KEY') || '';
+            if (!token && window.parent && window.parent !== window) {
+                try {
+                    token = window.parent.localStorage.getItem('AIP_API_KEY') || '';
+                } catch (err) {
+                    token = '';
+                }
+            }
             if (url.includes('/api/v1')) {
                 options.headers = options.headers || {};
                 if (token) {

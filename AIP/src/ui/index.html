@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="index.css">
+  <link rel="stylesheet" href="index.css?v=2.0.0">
   <style>
     /* Styling specifically for Micro-Frontend Embedding */
     .subproduct-iframe {
@@ -218,7 +218,7 @@
             <button class="tab-btn active" onclick="switchSubProduct('reporting', 'prism')">PRISM (Rationalize)</button>
             <button class="tab-btn" onclick="switchSubProduct('reporting', 'builder')">Reporting</button>
             <button class="tab-btn" onclick="switchSubProduct('reporting', 'bi')">Conversational BI</button>
-            <button class="tab-btn" onclick="switchSubProduct('reporting', 'proactive')">Proactive Insights</button>
+            <button class="tab-btn" onclick="switchSubProduct('reporting', 'proactive')">Proactive Alerts</button>
           </div>
 
           <div id="subproduct-reporting-prism" class="subproduct-panel active">
@@ -376,7 +376,7 @@
                     <input type="checkbox" value="bi" class="config-tab-checkbox" /> Conversational BI
                   </label>
                   <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
-                    <input type="checkbox" value="proactive" class="config-tab-checkbox" /> Proactive Insights
+                    <input type="checkbox" value="proactive" class="config-tab-checkbox" /> Proactive Alerts
                   </label>
                 </div>
               </div>
@@ -488,6 +488,6 @@
     </main>
   </div>
 
-  <script src="index.js"></script>
+  <script src="index.js?v=2.0.0"></script>
 </body>
 </html>
