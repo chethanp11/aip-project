@@ -485,6 +485,45 @@ def get_postgres_db():
         );
         """)
 
+        # Create Dynamic UI Configurations metadata table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ui_configurations (
+            category TEXT PRIMARY KEY,
+            visible_suites TEXT,
+            visible_subproducts TEXT
+        );
+        """)
+
+        # Seed UI Configurations defaults
+        cursor.execute("SELECT COUNT(*) FROM ui_configurations;")
+        if cursor.fetchone()[0] == 0:
+            cursor.executemany("INSERT INTO ui_configurations VALUES (?, ?, ?);", [
+                ("Business User",
+                 "home,reporting,analytics,db-explorer",
+                 json.dumps({
+                     "reporting": ["bi", "proactive"],
+                     "analytics": ["discovery", "rca", "whatif", "narratives"],
+                     "automation": [],
+                     "data-science": []
+                 })),
+                ("Analytics Professional",
+                 "home,reporting,data-science,db-explorer",
+                 json.dumps({
+                     "reporting": ["prism", "builder"],
+                     "analytics": [],
+                     "automation": [],
+                     "data-science": ["prep", "develop", "document", "pulse"]
+                 })),
+                ("Business Admin",
+                 "home,reporting,analytics,automation,data-science,kms,db-explorer,ui-config",
+                 json.dumps({
+                     "reporting": ["prism", "builder", "bi", "proactive"],
+                     "analytics": ["discovery", "rca", "whatif", "narratives"],
+                     "automation": ["design", "orchestration", "approvals", "monitor"],
+                     "data-science": ["prep", "develop", "document", "pulse"]
+                 }))
+            ])
+
         # Replicated Graph Nodes & Edges directly inside PostgreSQL for unified query support
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS graph_nodes (
@@ -525,6 +564,19 @@ def get_postgres_db():
         # Always refresh default users to ensure profile updates are active
         cursor.execute("DELETE FROM kms_users;")
         cursor.executemany("INSERT INTO kms_users VALUES (?, ?, ?, ?, ?, ?, ?);", [
+            ("user", "password", "Analyst", "Internal", "AIP User", "General", "accounts"),
+            ("Treasury_User", "password", "Business User", "Internal", "Treasury Business User",
+             "Treasury & Capital Management,Cash Management",
+             "accounts,transactions,liquidity_buffers,liquidity_sweeps,sweep_executions,treasury_positions,cash_forecasts,funding_plans,collateral_positions,fx_exposures,interest_rate_swaps,investment_securities,intraday_liquidity_events,nostro_balances,repo_transactions,stress_test_scenarios"),
+            ("Compliance_User", "password", "Business User", "Internal", "Compliance Business User",
+             "Regulatory Compliance",
+             "corporate_clients,transactions,regulatory_obligations,compliance_controls,compliance_reviews,compliance_issues"),
+            ("Wealth_User", "password", "Business User", "Internal", "Wealth Business User",
+             "Wealth Management",
+             "accounts,corporate_clients,transactions,wealth_clients,investment_accounts,portfolio_holdings,advisory_mandates,financial_plans,client_risk_profiles,investment_transactions,fee_schedules,relationship_managers,client_goals"),
+            ("Credit_User", "password", "Business User", "Internal", "Credit Business User",
+             "Credit Portfolio Risk",
+             "corporate_clients,accounts,transactions,credit_facilities,credit_risk_ratings,delinquency_events"),
             ("Treasury_Analyst", "password", "Analyst", "Internal", "Treasury Analyst",
              "Treasury & Capital Management,Cash Management",
              "accounts,transactions,liquidity_buffers,liquidity_sweeps,sweep_executions,treasury_positions,cash_forecasts,funding_plans,collateral_positions,fx_exposures,interest_rate_swaps,investment_securities,intraday_liquidity_events,nostro_balances,repo_transactions,stress_test_scenarios"),

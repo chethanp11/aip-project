@@ -24,53 +24,49 @@
 
   <!-- Analyst Login Screen -->
   <div id="auth-login-screen" class="login-screen">
-    <div class="login-card-container">
+    <div class="login-card-container" style="max-width: 420px; width: 100%;">
       <div class="login-brand">
         <span class="login-logo">▲</span>
         <h2>AIM Intelligence Platform</h2>
         <p>Enterprise Analytics Operating System (AIP)</p>
       </div>
       
-      <!-- Role-based Authentication Tabs -->
-      <div class="login-tabs" style="display: flex; gap: 8px; background: #f1f5f9; padding: 4px; border-radius: 10px; border: 1px solid #e2e8f0;">
-        <button type="button" id="login-tab-analyst" class="tab-btn active" style="flex: 1; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); transition: all 0.2s;">Analyst Console</button>
-        <button type="button" id="login-tab-sme" class="tab-btn" style="flex: 1; padding: 10px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #64748b; background: transparent; transition: all 0.2s;">SME Console</button>
-      </div>
-
       <form id="login-form" class="login-form">
-        <!-- Analyst User IDs Dropdown -->
-        <div class="form-group" id="group-analyst-ids">
-          <label for="login-analyst-id" style="color: #475569;">Select Analyst ID:</label>
-          <select id="login-analyst-id" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
-            <option value="Treasury_Analyst" style="color: black;">Treasury_Analyst (Corporate Treasury)</option>
-            <option value="Compliance_Analyst" style="color: black;">Compliance_Analyst (Regulatory Compliance)</option>
-            <option value="Wealth_Analyst" style="color: black;">Wealth_Analyst (Wealth Management)</option>
-            <option value="Credit_Analyst" style="color: black;">Credit_Analyst (Credit Portfolio)</option>
+        <!-- Business LOB Select -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="login-business-lob" style="color: #475569; font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Select Business / Division:</label>
+          <select id="login-business-lob" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
+            <option value="Treasury" style="color: black;">Treasury (Corporate Treasury)</option>
+            <option value="Compliance" style="color: black;">Compliance (Regulatory Compliance)</option>
+            <option value="Wealth" style="color: black;">Wealth (Wealth Management)</option>
+            <option value="Credit" style="color: black;">Credit (Credit Portfolio Risk)</option>
           </select>
         </div>
 
-        <!-- SME User IDs Dropdown (Hidden by default) -->
-        <div class="form-group hide" id="group-sme-ids">
-          <label for="login-sme-id" style="color: #475569;">Select SME ID:</label>
-          <select id="login-sme-id" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
-            <option value="Treasury_SME" style="color: black;">Treasury_SME (Corporate Treasury SME)</option>
-            <option value="Compliance_SME" style="color: black;">Compliance_SME (Regulatory Compliance SME)</option>
-            <option value="Wealth_SME" style="color: black;">Wealth_SME (Wealth Management SME)</option>
-            <option value="Credit_SME" style="color: black;">Credit_SME (Credit Portfolio SME)</option>
+        <!-- User Category / Persona Select -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="login-user-category" style="color: #475569; font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Select User Category (Persona):</label>
+          <select id="login-user-category" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
+            <option value="Business User" style="color: black;">👥 Business User</option>
+            <option value="Analytics Professional" style="color: black;">📊 Analytics Professional</option>
+            <option value="Business Admin" style="color: black;">👑 Business Admin</option>
           </select>
         </div>
 
-        <!-- Hidden input to track target username dynamically populated by JS -->
-        <input type="hidden" id="login-username" value="Treasury_Analyst" />
+        <!-- User ID Input Field (Dynamically Assembled) -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="login-username" style="color: #475569; font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">User ID / Account:</label>
+          <input type="text" id="login-username" value="user" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-size: 14px; outline: none; transition: border-color 0.2s;" required />
+        </div>
 
         <!-- Premium Password Field -->
-        <div class="form-group">
-          <label for="login-password" style="color: #475569;">Console Access Password:</label>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="login-password" style="color: #475569; font-weight: 600; font-size: 13px; display: block; margin-bottom: 6px;">Console Access Password:</label>
           <input type="password" id="login-password" value="password" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; font-size: 14px; outline: none; transition: border-color 0.2s;" required />
         </div>
         
-        <div class="login-error-message hide" id="login-error-msg"></div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px; padding: 12px; font-size: 14px; font-weight: 600; border-radius: 8px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); cursor: pointer; color: white;">Authenticate & Access OS</button>
+        <div class="login-error-message hide" id="login-error-msg" style="margin-bottom: 12px; color: #ef4444; font-size: 13px; font-weight: 500;"></div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px; padding: 12px; font-size: 14px; font-weight: 600; border-radius: 8px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); cursor: pointer; color: white; transition: all 0.2s;">Authenticate & Access OS</button>
       </form>
       
       <div class="login-card-footer">
@@ -112,6 +108,9 @@
         </a>
         <a href="#" class="nav-item" data-page="db-explorer">
           <span class="nav-icon">🛢️</span> Database Explorer
+        </a>
+        <a href="#" class="nav-item" data-page="ui-config">
+          <span class="nav-icon">⚙️</span> UI Configuration
         </a>
       </nav>
       
@@ -338,6 +337,149 @@
         <!-- ========================================== -->
         <section id="page-db-explorer" class="page-view">
           <iframe src="/ui/db_explorer/" class="subproduct-iframe" style="height: calc(100vh - 160px);"></iframe>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- 8. UI CONFIGURATION VIEW (SME self-service) -->
+        <!-- ========================================== -->
+        <section id="page-ui-config" class="page-view" style="padding: 24px; font-family: 'Inter', sans-serif;">
+          <div class="suite-header" style="margin-bottom: 24px;">
+            <h2 style="font-family: 'Outfit', sans-serif; font-weight: 700; color: #0f172a; font-size: 26px; margin: 0 0 6px 0;">UI Configuration Manager</h2>
+            <p style="color: #64748b; font-size: 14px; margin: 0;">SME Self-Service: Customize visible suites, tools, and tabs for each user persona instantly without backend development.</p>
+          </div>
+
+          <div class="card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <div class="form-group" style="margin-bottom: 24px; max-width: 400px;">
+              <label for="uiconfig-select-category" style="color: #475569; font-weight: 600; display: block; margin-bottom: 8px;">Select User Persona Category to Configure:</label>
+              <select id="uiconfig-select-category" class="btn" style="width: 100%; background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; outline: none; font-size: 14px; cursor: pointer;">
+                <option value="Business User">Business User</option>
+                <option value="Analytics Professional">Analytics Professional</option>
+                <option value="Business Admin">Business Admin</option>
+              </select>
+            </div>
+
+            <div class="config-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 24px;">
+              <!-- Suite 1: Reporting Suite -->
+              <div class="config-card" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #f8fafc;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                  <input type="checkbox" id="config-suite-reporting" value="reporting" class="config-suite-checkbox" style="width: 16px; height: 16px; cursor: pointer;" />
+                  <label for="config-suite-reporting" style="font-weight: 600; color: #1e293b; font-size: 15px; cursor: pointer;">📰 Reporting Suite</label>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; padding-left: 24px;" id="config-tabs-reporting">
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="prism" class="config-tab-checkbox" /> PRISM (Rationalize)
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="builder" class="config-tab-checkbox" /> Reporting Builder
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="bi" class="config-tab-checkbox" /> Conversational BI
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="proactive" class="config-tab-checkbox" /> Proactive Insights
+                  </label>
+                </div>
+              </div>
+
+              <!-- Suite 2: Business Analytics -->
+              <div class="config-card" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #f8fafc;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                  <input type="checkbox" id="config-suite-analytics" value="analytics" class="config-suite-checkbox" style="width: 16px; height: 16px; cursor: pointer;" />
+                  <label for="config-suite-analytics" style="font-weight: 600; color: #1e293b; font-size: 15px; cursor: pointer;">📈 Business Analytics</label>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; padding-left: 24px;" id="config-tabs-analytics">
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="discovery" class="config-tab-checkbox" /> Insight Discovery
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="rca" class="config-tab-checkbox" /> Root Cause Analysis
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="whatif" class="config-tab-checkbox" /> What-if Simulation
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="narratives" class="config-tab-checkbox" /> Business Narratives
+                  </label>
+                </div>
+              </div>
+
+              <!-- Suite 3: Workflow Automation -->
+              <div class="config-card" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #f8fafc;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                  <input type="checkbox" id="config-suite-automation" value="automation" class="config-suite-checkbox" style="width: 16px; height: 16px; cursor: pointer;" />
+                  <label for="config-suite-automation" style="font-weight: 600; color: #1e293b; font-size: 15px; cursor: pointer;">⚡ Workflow Automation</label>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; padding-left: 24px;" id="config-tabs-automation">
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="design" class="config-tab-checkbox" /> Workflow Design
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="orchestration" class="config-tab-checkbox" /> Workflow Orchestration
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="approvals" class="config-tab-checkbox" /> Task Approvals
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="monitor" class="config-tab-checkbox" /> Monitoring Telemetry
+                  </label>
+                </div>
+              </div>
+
+              <!-- Suite 4: Data Science & ML -->
+              <div class="config-card" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #f8fafc;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                  <input type="checkbox" id="config-suite-data-science" value="data-science" class="config-suite-checkbox" style="width: 16px; height: 16px; cursor: pointer;" />
+                  <label for="config-suite-data-science" style="font-weight: 600; color: #1e293b; font-size: 15px; cursor: pointer;">🧪 Data Science & ML</label>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; padding-left: 24px;" id="config-tabs-data-science">
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="prep" class="config-tab-checkbox" /> Data Preparation
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="develop" class="config-tab-checkbox" /> Model Development
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="document" class="config-tab-checkbox" /> Model Documentation
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" value="pulse" class="config-tab-checkbox" /> Model Pulse
+                  </label>
+                </div>
+              </div>
+
+              <!-- Other Suites (System level, no subtabs) -->
+              <div class="config-card" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; background: #f8fafc;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+                  <span style="font-weight: 600; color: #1e293b; font-size: 15px;">🔧 Additional System Pages</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" id="config-suite-home" value="home" class="config-suite-checkbox" /> 📊 Dashboard Home
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" id="config-suite-kms" value="kms" class="config-suite-checkbox" /> 📚 KMS Workspace
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" id="config-suite-db-explorer" value="db-explorer" class="config-suite-checkbox" /> 🛢️ Database Explorer
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #475569; cursor: pointer;">
+                    <input type="checkbox" id="config-suite-ui-config" value="ui-config" class="config-suite-checkbox" /> ⚙️ UI Config Manager
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+              <button type="button" id="uiconfig-save-btn" class="btn btn-primary" style="padding: 12px 24px; font-size: 14px; font-weight: 600; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); cursor: pointer; color: white; transition: all 0.2s;">
+                💾 Save UI Configuration
+              </button>
+              <button type="button" id="uiconfig-reset-btn" class="btn" style="padding: 12px 24px; font-size: 14px; font-weight: 500; border-radius: 8px; background: #e2e8f0; color: #475569; border: none; cursor: pointer;">
+                🔄 Reset Form
+              </button>
+            </div>
+            
+            <div id="uiconfig-msg" class="hide" style="margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 500;"></div>
+          </div>
         </section>
 
         <!-- Remove Shared capabilities and System audit logs pages -->

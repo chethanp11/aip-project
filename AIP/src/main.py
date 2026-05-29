@@ -190,19 +190,51 @@ async def context_and_auth_middleware(request: Request, call_next):
 async def login(payload: Dict[str, Any]):
     username = payload.get('username')
     password = payload.get('password')
+    lob = payload.get('lob')
+    category = payload.get('category')
 
     # Authenticate any registered Analyst or SME profile
     user = authenticate_kms_user(username, password)
     if user:
+        # If logging in as the general "user" account, dynamically assume LOB and Category persona
+        if username == "user" and lob and category:
+            # Category mappings to role and clearance
+            if category == "Business User":
+                user['role'] = "Business User"
+                user['clearance'] = "Internal"
+                user['display_name'] = f"{lob} Business User"
+            elif category == "Analytics Professional":
+                user['role'] = "Analyst"
+                user['clearance'] = "Internal"
+                user['display_name'] = f"{lob} Analyst"
+            elif category == "Business Admin":
+                user['role'] = "SME"
+                user['clearance'] = "Confidential"
+                user['display_name'] = f"{lob} SME"
+            
+            # LOB mapping to domains and tables
+            if lob == "Treasury":
+                user['allowed_domains'] = "Treasury & Capital Management,Cash Management"
+                user['allowed_tables'] = "accounts,transactions,liquidity_buffers,liquidity_sweeps,sweep_executions,treasury_positions,cash_forecasts,funding_plans,collateral_positions,fx_exposures,interest_rate_swaps,investment_securities,intraday_liquidity_events,nostro_balances,repo_transactions,stress_test_scenarios"
+            elif lob == "Compliance":
+                user['allowed_domains'] = "Regulatory Compliance"
+                user['allowed_tables'] = "corporate_clients,transactions,regulatory_obligations,compliance_controls,compliance_reviews,compliance_issues"
+            elif lob == "Wealth":
+                user['allowed_domains'] = "Wealth Management"
+                user['allowed_tables'] = "accounts,corporate_clients,transactions,wealth_clients,investment_accounts,portfolio_holdings,advisory_mandates,financial_plans,client_risk_profiles,investment_transactions,fee_schedules,relationship_managers,client_goals"
+            elif lob == "Credit":
+                user['allowed_domains'] = "Credit Portfolio Risk"
+                user['allowed_tables'] = "corporate_clients,accounts,transactions,credit_facilities,credit_risk_ratings,delinquency_events"
+
         role = user['role']
         session_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=9))
-        secure_token = f"AIP-{role.upper()}-SESSION-{session_suffix}"
+        secure_token = f"AIP-{role.upper().replace(' ', '_')}-SESSION-{session_suffix}"
 
         # Store user profile in active session
         allowed_domains = [d.strip() for d in (user.get('allowed_domains') or '').split(',') if d.strip()] if user.get('allowed_domains') else None
-        kms_team = config.resolve_kms_team(user['username'], allowed_domains)
+        kms_team = config.resolve_kms_team(user['username'] if username != 'user' else f"{lob}_{role}", allowed_domains)
         session_payload = {
-            'username': user['username'],
+            'username': user['username'] if username != 'user' else f"{lob}_{role}",
             'role': user['role'],
             'clearance': user['clearance'],
             'display_name': user['display_name'],
@@ -237,6 +269,77 @@ async def logout(request: Request):
         print(f"[Auth Logout] Successfully logged out token: {token}")
         return {'success': True}
     return {'success': False, 'error': 'No active session token provided.'}
+
+# ==========================================================================
+# ⚙️ DYNAMIC UI CONFIGURATION ENDPOINTS
+# ==========================================================================
+@app.get("/api/v1/ui/config")
+async def get_ui_config():
+    """Retrieves all persona-based UI configurations from PostgreSQL."""
+    try:
+        from src.kms.index import get_postgres_db
+        import json
+        conn = get_postgres_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT category, visible_suites, visible_subproducts FROM ui_configurations;")
+        rows = cursor.fetchall()
+        
+        configs = {}
+        for r in rows:
+            try:
+                subproducts = json.loads(r['visible_subproducts'])
+            except Exception:
+                subproducts = {}
+            configs[r['category']] = {
+                "visible_suites": [s.strip() for s in r['visible_suites'].split(',') if s.strip()],
+                "visible_subproducts": subproducts
+            }
+        return configs
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error reading UI config: {str(e)}")
+
+@app.post("/api/v1/ui/config")
+async def save_ui_config(payload: Dict[str, Any], request: Request):
+    """Saves/Updates persona UI configuration. Restricts access strictly to Business Admins (SME)."""
+    # Verify authentication and authorization
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        raise HTTPException(status_code=401, detail="Missing authorization header.")
+    
+    token = auth_header.split(' ', 1)[1]
+    from shared.session import active_sessions
+    if token not in active_sessions:
+        raise HTTPException(status_code=401, detail="Session expired or invalid.")
+        
+    session = active_sessions[token]
+    # Restrict to SME (Business Admin) role only!
+    if session.get('role') != 'SME':
+        raise HTTPException(status_code=403, detail="Forbidden: Only Business Admins (SME) can modify UI configurations.")
+
+    category = payload.get('category')
+    visible_suites = payload.get('visible_suites') # String, e.g., "home,reporting,analytics"
+    visible_subproducts = payload.get('visible_subproducts') # Dict/JSON, e.g. {"reporting": ["bi"]}
+
+    if not category or not isinstance(visible_suites, str) or not isinstance(visible_subproducts, dict):
+        raise HTTPException(status_code=400, detail="Invalid payload. category, visible_suites, and visible_subproducts are required.")
+
+    try:
+        from src.kms.index import get_postgres_db
+        import json
+        conn = get_postgres_db()
+        cursor = conn.cursor()
+        
+        # PostgreSQL UPSERT emulated/handled
+        cursor.execute("DELETE FROM ui_configurations WHERE category = %s;", (category,))
+        cursor.execute("""
+            INSERT INTO ui_configurations (category, visible_suites, visible_subproducts)
+            VALUES (%s, %s, %s);
+        """, (category, visible_suites, json.dumps(visible_subproducts)))
+        conn.commit()
+        print(f"[UI Config Update] SME {session.get('username')} updated UI config for category '{category}' successfully.")
+        return {"success": True, "message": f"UI Configuration for category '{category}' updated successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error writing UI config: {str(e)}")
 
 # ==========================================================================
 # 📊 ENTERPRISE LEDGER DATABASE ROUTE
