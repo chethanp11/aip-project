@@ -14,6 +14,8 @@ try:
 except ImportError:
     pd = None
 
+DEFAULT_JACCARD_THRESHOLD = 0.5
+
 def parse_excel_report(file_bytes: bytes, filename: str) -> List[Dict[str, Any]]:
     """
     Parses an Excel file (.xlsx or .xls) using pandas.
@@ -107,7 +109,11 @@ def parse_html_report(file_content: str, filename: str) -> Dict[str, Any]:
         'reportId': report_id
     }
 
-async def run_prism_workflow(reports: List[Dict[str, Any]], prompt: str = "") -> Dict[str, Any]:
+async def run_prism_workflow(
+    reports: List[Dict[str, Any]],
+    prompt: str = "",
+    threshold: float = DEFAULT_JACCARD_THRESHOLD
+) -> Dict[str, Any]:
     print(f"[Workflow: Reporting - PRISM] Screening {len(reports)} report templates.")
     
     duplicates = []
@@ -193,7 +199,7 @@ async def run_prism_workflow(reports: List[Dict[str, Any]], prompt: str = "") ->
             # Select max similarity index
             similarity = max(q_similarity, c_similarity)
             
-            if similarity >= 0.5 and rep_a['query'] != rep_b['query']:
+            if similarity >= threshold and rep_a['query'] != rep_b['query']:
                 overlaps.append({
                     'reportA': rep_a['name'],
                     'reportB': rep_b['name'],

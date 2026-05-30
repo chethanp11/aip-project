@@ -9,6 +9,10 @@ from typing import List, Any, Dict
 from shared.intelligence import invoke_capability, call_llm
 from shared.session import get_profile_context_defaults
 
+# Population Stability Index (PSI) drift stability alarm thresholds
+PSI_WARNING_THRESHOLD = 0.10
+PSI_CRITICAL_THRESHOLD = 0.25
+
 async def run_model_pulse_workflow(accuracy_metrics: List[Any], prompt: str = "") -> Dict[str, Any]:
     # 1. Dynamically retrieve active analyst context defaults
     defaults = get_profile_context_defaults()
@@ -44,17 +48,16 @@ async def run_model_pulse_workflow(accuracy_metrics: List[Any], prompt: str = ""
     latest_accuracy = trends[-1]
     drift_score = round(abs(training_baseline - latest_accuracy), 3)
 
-    # Compute drift alerts status
-    # 0.25 PSI limit represents a major shift requiring immediate retraining approval
-    drift_detected = drift_score >= 0.05
-    drift_status = 'stable'
-    if drift_score >= 0.10:
-        drift_status = 'critical'
-    elif drift_score >= 0.05:
-        drift_status = 'warning'
-
     # Compute feature level Population Stability Index (PSI) MoM shifts
     psi_score = round(drift_score * 2.8, 3) # Mock scaling to represent feature covariance shift
+
+    # Compute drift alerts status based on Population Stability Index (PSI) thresholds
+    drift_detected = psi_score >= PSI_WARNING_THRESHOLD
+    drift_status = 'stable'
+    if psi_score >= PSI_CRITICAL_THRESHOLD:
+        drift_status = 'critical'
+    elif psi_score >= PSI_WARNING_THRESHOLD:
+        drift_status = 'warning'
 
     # 2. Multi-Agent Drift Debate & Alerts
     system_prompt = f"""You are the Lead Multi-Agent AI coordinator for the AIM Intelligence Platform (AIP).

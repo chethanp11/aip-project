@@ -2,28 +2,128 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Multi-Channel Narratives</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Channel Narratives & Storytelling</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css" />
 </head>
 <body>
-    <div class="sub-portal">
+    <div class="container">
         
-            <div class="card">
-                <h2>📝 Stakeholder Briefing Narratives</h2>
-                <p class="desc">Compile operational performance and board briefing scripts.</p>
-                <div class="form-group">
-                    <input type="text" id="nar-metric" value="Net Allocation Ratio" placeholder="Metric Name" />
-                    <input type="text" id="nar-val" value="94.2" placeholder="Value" />
-                    <input type="text" id="nar-driver" value="Global Segment Allocations" placeholder="Primary Driver" />
-                </div>
-                <button class="btn" id="nar-btn">Format Narrative Story</button>
-                <div class="results-box hide mt-20" id="nar-results">
-                    <h4>Outbound Stakeholder Script</h4>
-                    <p id="nar-text"></p>
-                </div>
+        <!-- Header -->
+        <header class="app-header">
+            <div class="app-title-group">
+                <span class="app-logo">▲</span>
+                <h1>Chief Communications narratives & Storytelling</h1>
+                <span class="pulse-dot"></span>
             </div>
-        
+            <p class="app-desc">Synthesizes professional, stakeholder-grade commentary and briefing copies tailored specifically by distribution channels.</p>
+        </header>
+
+        <div class="layout-grid">
+            
+            <!-- Left Column: Copywriting Parameters -->
+            <div class="card" style="display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <h3 class="card-title">📝 Narratives Configurator</h3>
+                    <p class="app-desc" style="font-size: 12px; margin-bottom: 12px;">Input operational metrics variables to compile outbound stories automatically.</p>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="nar-metric">Metric Name</label>
+                        <input type="text" id="nar-metric" value="Net Allocation Ratio" />
+                    </div>
+                    <div class="form-group">
+                        <label for="nar-val">Current Value</label>
+                        <input type="text" id="nar-val" value="94.2" />
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="nar-growth">Growth Rate (MoM %)</label>
+                        <input type="text" id="nar-growth" value="12.4" />
+                    </div>
+                    <div class="form-group">
+                        <label for="nar-driver">Primary Variance Driver</label>
+                        <input type="text" id="nar-driver" value="Global Segment Allocations" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="nar-prompt">Outbound Directive Prompt</label>
+                    <textarea id="nar-prompt" rows="3" placeholder="e.g., Emphasize long-term stability and compliant liquidity sweeps."></textarea>
+                </div>
+
+                <button class="btn" id="nar-btn" style="width: 100%; font-weight: 700; margin-top: 8px;">✨ Synthesize Story Narrative</button>
+            </div>
+
+            <!-- Right Column: Channel Mockup Screen -->
+            <div class="card" style="display: flex; flex-direction: column; min-height: 500px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                    <h3 class="card-title" style="margin-bottom: 0;">📱 Live Mockup Previews</h3>
+                    <button class="btn btn-secondary" id="btn-copy-clipboard" style="padding: 6px 12px; font-size: 12px;">📋 Copy Copywriting</button>
+                </div>
+
+                <!-- Channel Switch Tabs -->
+                <div class="channel-tabs">
+                    <button class="tab-btn active" id="tab-slack">Slack Alert Channel</button>
+                    <button class="tab-btn" id="tab-board">Boardroom Slide</button>
+                </div>
+
+                <!-- Previews Canvas -->
+                <div class="mockup-preview-container">
+                    
+                    <!-- 1. Simulated Slack dark theme mockup -->
+                    <div class="slack-mockup" id="preview-slack">
+                        <div class="slack-header">
+                            <span>#</span> executive-briefs
+                        </div>
+                        <div class="slack-body">
+                            <div class="slack-avatar">AIP</div>
+                            <div class="slack-message-box">
+                                <span class="slack-bot-name">AIP Storyteller Bot <span class="slack-bot-badge">bot</span></span>
+                                <div class="slack-msg-text" id="slack-msg-content">🚨 *AIP System Alert: Net Allocation Ratio* 🚨
+
+Latest evaluated status: *94.2* (growth: *12.4% MoM*).
+
+*Key Diagnostics:* Root cause drivers analysis isolated the core factor behind performance shift to be: Global Segment Allocations. Growth computed at 12.4% in the latest cycle.
+
+_CC: @leadership-committee_</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Widescreen Presentation Slide mockup -->
+                    <div class="slide-mockup hide" id="preview-board">
+                        <div class="slide-header">
+                            <span class="slide-eyebrow">Enterprise Executive Commentary</span>
+                            <span class="slide-logo">▲ AIM Platform</span>
+                        </div>
+                        <div class="slide-body" id="board-msg-content">
+                            <!-- Board narrative -->
+                        </div>
+                        <div class="slide-footer">
+                            <span>Q2 Briefing Deck</span>
+                            <span>Confidential - Internal Audit Only</span>
+                            <span>Page 1 of 1</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Clipboard success Toast Notification -->
+    <div class="toast" id="toast">
+        <span style="font-size: 16px;">✓</span> Copywriting content copied to clipboard!
     </div>
     
     <script>

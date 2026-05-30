@@ -709,7 +709,8 @@ async def execution_logs_clear():
 async def prism_lite(payload: Dict[str, Any]):
     reports = payload.get('reports', [])
     prompt = payload.get('prompt', '')
-    return await run_prism_workflow(reports, prompt)
+    threshold = payload.get('threshold', 0.5)
+    return await run_prism_workflow(reports, prompt, threshold)
 
 @app.post("/api/v1/workflows/reporting/prism/upload")
 async def upload_reports_for_screening(

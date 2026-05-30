@@ -23,6 +23,16 @@ def run_whatif_workflow(earning_rate: str, resource_cost_rate: str, assets: str,
         d_rate = float(resource_cost_rate) if resource_cost_rate else 2.5
         total_assets = float(assets) if assets else (lms_deposits_total / 0.90 if lms_deposits_total > 0 else 10.0)
         def_rate = float(npl_rate) if npl_rate else 1.5
+
+        # Financial boundary sanity checks
+        if l_rate < 0:
+            l_rate = 6.5
+        if d_rate < 0:
+            d_rate = 2.5
+        if total_assets <= 0:
+            total_assets = 10.0
+        if def_rate < 0:
+            def_rate = 1.5
     except ValueError:
         l_rate = 6.5
         d_rate = 2.5

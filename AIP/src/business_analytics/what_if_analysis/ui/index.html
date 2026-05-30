@@ -2,44 +2,154 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>What-if Simulation Sandbox</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css" />
 </head>
 <body>
-    <div class="sub-portal">
+    <div class="container">
         
-            <div class="card">
-                <h2>📊 Dynamic Margins Simulator</h2>
-                <p class="desc">Compute target yields, baseline overheads, and net margins dynamically.</p>
-                <div class="slider-row">
-                    <label>Target Earning Rate (<span id="lbl-earning">6.5</span>%)</label>
-                    <input type="range" id="sim-earning" min="1.0" max="15.0" step="0.1" value="6.5" />
+        <!-- Header -->
+        <header class="app-header">
+            <div class="app-title-group">
+                <span class="app-logo">▲</span>
+                <h1>What-If Scenario Sandbox</h1>
+                <span class="pulse-dot"></span>
+            </div>
+            <p class="app-desc">Simulate downstream net interest spreads, earnings metrics, and default sensitivity bounds dynamically using ledger base balances.</p>
+        </header>
+
+        <div class="layout-grid">
+            
+            <!-- Left Column: Simulation Range Parameters -->
+            <div class="card" style="display: flex; flex-direction: column; gap: 20px;">
+                <div>
+                    <h3 class="card-title">🎲 Scenario Settings</h3>
+                    <p class="app-desc" style="font-size: 12px; margin-bottom: 12px;">Modify target yields and cost factors below or choose a scenario preset.</p>
                 </div>
-                <div class="slider-row">
-                    <label>Baseline Resource Cost Rate (<span id="lbl-dep">2.2</span>%)</label>
-                    <input type="range" id="sim-dep" min="0.1" max="8.0" step="0.1" value="2.2" />
-                </div>
-                <div class="slider-row">
-                    <label>Total Managed Base (TMB: <span id="lbl-assets">150</span>M)</label>
-                    <input type="range" id="sim-assets" min="10" max="500" step="5" value="150" />
-                </div>
-                <div class="slider-row">
-                    <label>Resource Deficit Variance Rate (RDV: <span id="lbl-npl">2.5</span>%)</label>
-                    <input type="range" id="sim-npl" min="0.0" max="10.0" step="0.1" value="2.5" />
-                </div>
-                <div class="results-grid mt-20">
-                    <div class="metric-card">
-                        <span>Projected Net Margin</span>
-                        <h3 id="res-nim">0.0%</h3>
+
+                <!-- Presets Selector -->
+                <div>
+                    <h4 style="font-family: var(--font-display); font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 8px;">Scenario Presets</h4>
+                    <div class="presets-grid">
+                        <button class="btn-preset" id="preset-inflation">
+                            📈 High Inflation
+                            <span>Rates Surge + High Yield</span>
+                        </button>
+                        <button class="btn-preset" id="preset-recession">
+                            📉 Recession Shock
+                            <span>Deficit Spike + High Costs</span>
+                        </button>
+                        <button class="btn-preset" id="preset-growth">
+                            🚀 Optimistic Growth
+                            <span>Low Cost + Max Spread</span>
+                        </button>
+                        <button class="btn-preset" id="preset-baseline">
+                            ⚖️ Neutral Baseline
+                            <span>Standard Core Rates</span>
+                        </button>
                     </div>
-                    <div class="metric-card">
-                        <span>Net Yield Profit</span>
-                        <h3 id="res-profit">$0</h3>
+                </div>
+
+                <!-- Sliders Panel -->
+                <div class="sliders-box" style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                    <div class="slider-row">
+                        <div class="slider-label-row">
+                            <label for="sim-earning">Target Earning Rate (Asset Yield)</label>
+                            <span class="slider-val"><span id="lbl-earning">6.5</span>%</span>
+                        </div>
+                        <input type="range" id="sim-earning" min="1.0" max="15.0" step="0.1" value="6.5" />
+                    </div>
+
+                    <div class="slider-row">
+                        <div class="slider-label-row">
+                            <label for="sim-dep">Baseline Resource Cost Rate</label>
+                            <span class="slider-val"><span id="lbl-dep">2.2</span>%</span>
+                        </div>
+                        <input type="range" id="sim-dep" min="0.1" max="8.0" step="0.1" value="2.2" />
+                    </div>
+
+                    <div class="slider-row">
+                        <div class="slider-label-row">
+                            <label for="sim-assets">Total Managed Base (TMB Assets)</label>
+                            <span class="slider-val"><span id="lbl-assets">150</span> Billion</span>
+                        </div>
+                        <input type="range" id="sim-assets" min="1" max="500" step="1" value="150" />
+                    </div>
+
+                    <div class="slider-row">
+                        <div class="slider-label-row">
+                            <label for="sim-npl">Resource Deficit Variance Rate (RDV)</label>
+                            <span class="slider-val"><span id="lbl-npl">2.5</span>%</span>
+                        </div>
+                        <input type="range" id="sim-npl" min="0.0" max="10.0" step="0.1" value="2.5" />
                     </div>
                 </div>
             </div>
-        
+
+            <!-- Right Column: Monte Carlo Calculations Dashboard -->
+            <div class="card" style="display: flex; flex-direction: column; gap: 24px; min-height: 480px;">
+                <div>
+                    <h3 class="card-title">📊 Simulated Yield Calculations</h3>
+                </div>
+
+                <div class="results-grid">
+                    
+                    <!-- Highlight NIM -->
+                    <div class="metric-card highlight">
+                        <span>Projected Net Interest Margin (NIM)</span>
+                        <h3 id="res-nim">0.00%</h3>
+                    </div>
+
+                    <!-- Revenue -->
+                    <div class="metric-card">
+                        <span>Projected Gross Revenue</span>
+                        <h3 id="res-rev">$0.0B</h3>
+                    </div>
+
+                    <!-- Expense -->
+                    <div class="metric-card">
+                        <span>Projected Resource Expense</span>
+                        <h3 id="res-exp">$0.0B</h3>
+                    </div>
+
+                    <!-- Default costs -->
+                    <div class="metric-card">
+                        <span>Projected Deficit Variance Loss</span>
+                        <h3 id="res-def">$0.0B</h3>
+                    </div>
+
+                    <!-- Net Spread -->
+                    <div class="metric-card">
+                        <span>Net Spread Yield Profit</span>
+                        <h3 id="res-profit">$0.0B</h3>
+                    </div>
+
+                </div>
+
+                <!-- NIM target scale slider -->
+                <div class="yield-gauge-card">
+                    <div class="yield-gauge-header">
+                        <span>Net Interest Margin Target vs Threshold</span>
+                        <span id="res-nim-label" style="color: var(--accent-color); font-weight: 700;">Stable</span>
+                    </div>
+                    <div class="yield-gauge-track">
+                        <div class="yield-gauge-bar" id="yield-bar" style="width: 0%;"></div>
+                    </div>
+                    <div class="yield-gauge-markers">
+                        <span>0% (Risk Bounds)</span>
+                        <span>2.5% (Baseline Target)</span>
+                        <span>5%+ (Max Spread)</span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
     </div>
     
     <script>

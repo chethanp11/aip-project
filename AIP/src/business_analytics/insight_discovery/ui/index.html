@@ -2,20 +2,83 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Insight Discovery Segmenter</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insight Discovery & Trend Canvas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css" />
 </head>
 <body>
-    <div class="sub-portal">
+    <div class="container">
         
-            <div class="card">
-                <h2>💡 Dynamic Insight Discovery</h2>
-                <p class="desc">Mines segment metric MoM trends to highlight significant performance shifts.</p>
-                <button class="btn" id="disc-btn">Surface Segment Insights</button>
-                <div class="results-grid mt-20 hide" id="disc-results"></div>
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="app-title-group">
+                <span class="app-logo">▲</span>
+                <h1>Insight Discovery Exploratory Canvas</h1>
+                <span class="pulse-dot"></span>
             </div>
-        
+            <p class="app-desc">Statistically mines historical segment timelines MoM to surface material anomalies, trends, and growth indicators for leadership review.</p>
+        </header>
+
+        <div class="layout-grid">
+            
+            <!-- Left Panel: Cohort Configurator -->
+            <div class="card" style="display: flex; flex-direction: column; gap: 20px;">
+                <div>
+                    <h3 class="card-title">👥 Segment Registry</h3>
+                    <p class="app-desc" style="font-size: 12px; margin-bottom: 12px;">Add or select the cohorts you wish to scan for performance anomalies.</p>
+                </div>
+
+                <!-- Registered List -->
+                <div class="cohorts-list" id="cohorts-container">
+                    <!-- Dynamic Items -->
+                </div>
+
+                <!-- Add Custom Segment Form -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                    <h4 style="font-family: var(--font-display); font-size: 13px; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; color: var(--text-secondary);">Add Custom Segment</h4>
+                    
+                    <div class="form-group">
+                        <label for="new-cohort-name">Cohort Name</label>
+                        <input type="text" id="new-cohort-name" placeholder="e.g., Regional Savings C" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="new-cohort-timeline">Historical MoM Growth Rates (%)</label>
+                        <input type="text" id="new-cohort-timeline" placeholder="e.g., 1.2, -0.5, 3.4, 7.8" />
+                        <span class="app-desc" style="font-size: 11px;">Enter comma-separated floats representing sequence values.</span>
+                    </div>
+
+                    <button class="btn btn-secondary" id="btn-add-cohort" style="width: 100%;">➕ Add to Scan List</button>
+                </div>
+
+                <button class="btn" id="disc-btn" style="width: 100%; margin-top: 8px; font-weight: 700;">🔍 Run Segment Scan</button>
+            </div>
+
+            <!-- Right Panel: Surfaced Discoveries Grid -->
+            <div class="card" style="min-height: 480px;">
+                <div class="results-header-actions">
+                    <h3 class="card-title" style="margin-bottom: 0;">💡 Surfaced Material Discoveries</h3>
+                    <span id="scan-count" class="app-desc" style="font-weight: 600;">Scanned: 0 cohorts</span>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="results-empty">
+                    <div class="empty-icon">📈</div>
+                    <h4>No Active Diagnostics Run</h4>
+                    <p class="app-desc" style="font-size: 12px; margin-top: 4px;">Click 'Run Segment Scan' to invoke the stateful Insight Discovery Agent.</p>
+                </div>
+
+                <!-- Results Grid -->
+                <div class="results-grid hide" id="disc-results">
+                    <!-- Dynamic Insight Cards -->
+                </div>
+            </div>
+
+        </div>
+
     </div>
     
     <script>

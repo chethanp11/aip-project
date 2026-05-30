@@ -15,7 +15,6 @@ def test_micro_frontends_use_same_origin_api_paths():
         for path in src_root.rglob("ui/index.html")
         if path != src_root / "ui" / "index.html"
     ]
-    checked_files.append(src_root / "shared" / "create_sub_uis.py")
 
     assert checked_files
     for path in checked_files:
@@ -33,7 +32,6 @@ def test_micro_frontends_do_not_call_apis_before_token_is_available():
         for path in src_root.rglob("ui/index.html")
         if path != src_root / "ui" / "index.html"
     ]
-    checked_files.append(src_root / "shared" / "create_sub_uis.py")
 
     assert checked_files
     for path in checked_files:

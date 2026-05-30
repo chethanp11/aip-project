@@ -2,23 +2,135 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>PRISM Report Rationalizer</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRISM Catalog Rationalizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css" />
 </head>
 <body>
-    <div class="sub-portal">
+    <div class="container">
         
-            <div class="card">
-                <h2>💎 PRISM Catalog Rationalization</h2>
-                <p class="desc">Scans SQL databases to merge duplicate report structures and eliminate low-usage legacy cards.</p>
-                <button class="btn" id="prism-btn">Audit and Rationalize Catalog</button>
-                <div class="results-box hide" id="prism-results">
-                    <h4>PRISM Rationalizer Audit Outcomes</h4>
-                    <ul id="prism-recom"></ul>
-                </div>
+        <!-- Header -->
+        <header class="app-header">
+            <div class="app-title-group">
+                <span class="app-logo">▲</span>
+                <h1>PRISM Catalog & Schema Rationalizer</h1>
+                <span class="pulse-dot"></span>
             </div>
-        
+            <p class="app-desc">Scans database ledger templates to merge duplicate SQL query logic and deprecate unutilized legacy columns.</p>
+        </header>
+
+        <div class="layout-grid">
+            
+            <!-- Left Column: Report Inventory Catalog Configurations -->
+            <div class="card" style="display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <h3 class="card-title">📂 Catalog Inventory Sandbox</h3>
+                    <p class="app-desc" style="font-size: 12px; margin-bottom: 12px;">Add or select the reports you wish to audit for query structure overlap.</p>
+                </div>
+
+                <!-- Preset Catalog Selectors -->
+                <div>
+                    <h4 style="font-family: var(--font-display); font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 8px;">Simulate File Upload Presets</h4>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-secondary" id="preset-excel" style="flex: 1; padding: 8px; font-size: 11px;">📊 Excel Upload</button>
+                        <button class="btn btn-secondary" id="preset-html" style="flex: 1; padding: 8px; font-size: 11px;">📄 HTML Brief</button>
+                        <button class="btn btn-secondary" id="preset-neutral" style="flex: 1; padding: 8px; font-size: 11px;">⚙️ SQL Inventory</button>
+                    </div>
+                </div>
+
+                <!-- Spreadsheet Catalog Grid -->
+                <div class="spreadsheet-container" style="margin-top: 4px;">
+                    <table class="spreadsheet">
+                        <thead>
+                            <tr>
+                                <th>Report / Template Name</th>
+                                <th>SQL Query / Columns</th>
+                                <th style="width: 70px;">Usage</th>
+                                <th style="width: 40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="catalog-rows">
+                            <!-- Dynamic Catalog Rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <button class="btn-add-row" id="btn-add-row" style="margin-bottom: 0;">➕ Add Report Card</button>
+
+                <!-- Threshold settings -->
+                <div class="slider-row" style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 8px;">
+                    <div class="slider-label-row">
+                        <label for="sim-threshold">Jaccard Overlap Threshold</label>
+                        <span class="slider-val"><span id="lbl-threshold">50</span>% Match</span>
+                    </div>
+                    <input type="range" id="sim-threshold" min="10" max="100" step="5" value="50" />
+                </div>
+
+                <!-- Directives prompt -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="prism-prompt">Audit Custom Directives</label>
+                    <textarea id="prism-prompt" rows="2" placeholder="e.g., Prioritize merge operations and estimated query transaction savings."></textarea>
+                </div>
+
+                <button class="btn" id="prism-btn" style="width: 100%; font-weight: 700; margin-top: 8px;">🔍 Analyze Catalog</button>
+            </div>
+
+            <!-- Right Column: Audit Results & Actionable Merge Deck -->
+            <div class="card" style="min-height: 520px; display: flex; flex-direction: column;">
+                <div>
+                    <h3 class="card-title">💎 Catalog Optimization Plan</h3>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="results-empty" style="margin: auto 0;">
+                    <div class="empty-icon">💎</div>
+                    <h4>No Catalog Audit Run</h4>
+                    <p class="app-desc" style="font-size: 12px; margin-top: 4px;">Load report files on the left and run analysis to compile overlap summaries.</p>
+                </div>
+
+                <!-- Audit Outcomes Canvas -->
+                <div class="hide" id="prism-results" style="display: flex; flex-direction: column; flex-grow: 1;">
+                    
+                    <!-- AI Executive distil commentary -->
+                    <div class="summary-card" id="executive-summary">
+                        Distilling reports inventory...
+                    </div>
+
+                    <!-- Metrics cards -->
+                    <div class="outcomes-grid">
+                        <div class="stat-card">
+                            <span>Exact Duplicate Matches</span>
+                            <h3 id="stat-dups">0</h3>
+                        </div>
+                        <div class="stat-card">
+                            <span>Threshold Conflict Overlaps</span>
+                            <h3 id="stat-overlaps">0</h3>
+                        </div>
+                    </div>
+
+                    <!-- Low Usage Deprecations Target list -->
+                    <div id="deprecation-list-container" style="margin-bottom: 20px;" class="hide">
+                        <h4 style="font-family: var(--font-display); font-size: 13.5px; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; color: var(--text-secondary);">Deprecation Candidates (Low Usage)</h4>
+                        <div id="deprecation-cards"></div>
+                    </div>
+
+                    <!-- Consolidation Plans cards -->
+                    <div>
+                        <h4 style="font-family: var(--font-display); font-size: 13.5px; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; color: var(--text-secondary);">Consolidation Action Plan Cards</h4>
+                        <div class="plans-grid" id="consolidation-cards">
+                            <!-- Dynamic Consolidation Cards -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
     </div>
     
     <script>

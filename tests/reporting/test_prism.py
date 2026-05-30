@@ -138,3 +138,35 @@ def test_parse_html_report():
     assert 'hqla_balance' in parsed['columns']
     assert 'SELECT hqla_balance, cash_outflows' in parsed['query']
     assert parsed['type'] == 'HTML'
+
+@pytest.mark.anyio
+async def test_run_prism_workflow_threshold_filtering():
+    """
+    Verifies that a higher similarity threshold filters out partial overlaps.
+    """
+    reports = [
+        {
+            'name': 'NIM Calculation Standard',
+            'query': 'SELECT interest_income, interest_expense, earning_assets FROM branch_ledger',
+            'columns': ['interest_income', 'interest_expense', 'earning_assets'],
+            'usage': 100,
+            'owner': 'Finance',
+            'type': 'SQL Ledger'
+        },
+        {
+            'name': 'ALCO Interest Yield Review',
+            'query': 'SELECT interest_income, interest_expense, earning_assets, net_yield FROM branch_ledger',
+            'columns': ['interest_income', 'interest_expense', 'earning_assets', 'net_yield'],
+            'usage': 8,
+            'owner': 'ALCO',
+            'type': 'SQL Ledger'
+        }
+    ]
+    
+    # Under a threshold of 0.85, the 0.75 Jaccard overlap similarity should not trigger overlaps
+    high_threshold_results = await run_prism_workflow(reports, threshold=0.85)
+    assert len(high_threshold_results['overlaps']) == 0
+    
+    # Under the default threshold (0.5), it should successfully trigger overlaps
+    default_results = await run_prism_workflow(reports)
+    assert len(default_results['overlaps']) >= 1

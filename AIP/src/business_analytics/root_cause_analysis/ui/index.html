@@ -2,28 +2,118 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Root Cause Analysis (RCA)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css" />
 </head>
 <body>
-    <div class="sub-portal">
+    <div class="container">
         
-            <div class="card">
-                <h2>🔍 Performance Variance Root Cause Analysis</h2>
-                <p class="desc">Identify primary drivers for performance variance or operational delays.</p>
-                <select class="input-select" id="rca-metric">
-                    <option value="Deposit Outflows">Operating Resource Outflows</option>
-                    <option value="NPL Surcharge">Operational Deficit Surcharge</option>
-                </select>
-                <button class="btn" id="rca-btn">Decompose Drivers</button>
-                <div class="results-box hide mt-20" id="rca-results">
-                    <h4>Decomposition Summary</h4>
-                    <p id="rca-summary" class="bold"></p>
-                    <div id="rca-drivers" class="mt-10"></div>
-                </div>
+        <!-- Header -->
+        <header class="app-header">
+            <div class="app-title-group">
+                <span class="app-logo">▲</span>
+                <h1>RCA Diagnostics & Driver Deconstruction</h1>
+                <span class="pulse-dot"></span>
             </div>
-        
+            <p class="app-desc">Identifies primary drivers behind operational balance variance and net yield adjustments through multi-hop relational scans.</p>
+        </header>
+
+        <div class="layout-grid">
+            
+            <!-- Left Column: Interactive Ledger Data & Prompts -->
+            <div class="card" style="display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <h3 class="card-title">🗂️ Segment Ledger Entries</h3>
+                    <p class="app-desc" style="font-size: 12px; margin-bottom: 12px;">Edit segment allocations and weights directly inside this sandbox spreadsheet.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="rca-dataset">Dataset Target</label>
+                    <select id="rca-dataset">
+                        <option value="Operating Resource Outflows">Operating Resource Outflows</option>
+                        <option value="Corporate Deficit Surcharges">Corporate Deficit Surcharges</option>
+                        <option value="Liquidity Sweeps Variance">Liquidity Sweeps Variance</option>
+                    </select>
+                </div>
+
+                <!-- Ledger Grid -->
+                <div class="spreadsheet-container">
+                    <table class="spreadsheet">
+                        <thead>
+                            <tr>
+                                <th>Portfolio Segment Name</th>
+                                <th style="width: 140px;">Weight Value</th>
+                                <th style="width: 45px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledger-rows">
+                            <!-- Dynamic Row Fields -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <button class="btn-add-row" id="btn-add-row">➕ Add Segment Row</button>
+
+                <!-- Directive Box -->
+                <div class="form-group">
+                    <label for="rca-prompt">Analyst Directives / Focus Prompts</label>
+                    <textarea id="rca-prompt" rows="3" placeholder="e.g., Emphasize liquidity compliance issues and outline regulatory limits."></textarea>
+                </div>
+
+                <button class="btn" id="rca-btn" style="width: 100%; font-weight: 700;">🔍 Run Diagnostic Scan</button>
+            </div>
+
+            <!-- Right Column: High Fidelity Outcomes -->
+            <div class="card" style="min-height: 520px; display: flex; flex-direction: column;">
+                <div>
+                    <h3 class="card-title">⚡ Decomposed Insights & Diagnostics</h3>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="results-empty" style="margin: auto 0;">
+                    <div class="empty-icon">🔍</div>
+                    <h4>No Analytical Run Active</h4>
+                    <p class="app-desc" style="font-size: 12px; margin-top: 4px;">Initialize ledger values on the left and execute the scan to surface waterfall variances.</p>
+                </div>
+
+                <!-- Dynamic Results Canvas -->
+                <div class="hide" id="rca-results" style="display: flex; flex-direction: column; flex-grow: 1;">
+                    
+                    <!-- Primary Driver Alert -->
+                    <div class="driver-alert" id="primary-driver-alert">
+                        <div class="driver-alert-icon">⚠️</div>
+                        <div class="driver-alert-info">
+                            <h4>Primary Performance Volatility Driver</h4>
+                            <p id="primary-driver-text">Identifying...</p>
+                        </div>
+                    </div>
+
+                    <!-- Waterfall Chart -->
+                    <div class="chart-box">
+                        <h4 style="font-family: var(--font-display); font-size: 13.5px; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; color: var(--text-secondary);">Waterfall Variance Contribution</h4>
+                        <div class="waterfall-container" id="waterfall-chart">
+                            <!-- CSS Dynamic Rows -->
+                        </div>
+                    </div>
+
+                    <!-- Markdown Diagnostic Summary -->
+                    <div style="flex-grow: 1;">
+                        <h4 style="font-family: var(--font-display); font-size: 13.5px; font-weight: 700; margin-bottom: 12px; text-transform: uppercase; color: var(--text-secondary);">Stakeholder Diagnostic Copy</h4>
+                        <div class="narrative-card" id="rca-narrative">
+                            <!-- Markdown rendered content -->
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
     </div>
     
     <script>
