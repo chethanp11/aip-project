@@ -1,0 +1,10 @@
+{
+  "id": "alert_bb6af6",
+  "rule_id": "rule_2",
+  "metric": "LCR (Liquidity Coverage Ratio)",
+  "type": "Exception Rule Triggered",
+  "message": "The current LCR of 5.0% falls significantly below the required minimum of 110%.",
+  "recommendation": "Immediate review of liquidity management strategies and increase LCR to meet the regulatory requirement.",
+  "severity": "High",
+  "kms_grounding": "Grounded via KMS Policy [Extracted candidate: confluence_sync_7ab4dc.md]: Grounded operational policies retrieved from Corporate Operations Confluence (Confluence) for domain Cash Management.\nUnder Basel III LCR and NSFR rules, corporate cash sweep aggregations are subject to maximum outflow volatility. The bank Asset-Liab..."
+}

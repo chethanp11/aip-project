@@ -1,0 +1,10 @@
+{
+  "id": "alert_4f4723",
+  "rule_id": "rule_3",
+  "metric": "PSI",
+  "type": "Exception Rule Triggered",
+  "message": "The Population Stability Index (PSI) has exceeded the alert threshold of 0.2.",
+  "recommendation": "Review the factors contributing to the high PSI and consider implementing measures to stabilize the population metrics.",
+  "severity": "Medium",
+  "kms_grounding": "Grounded via KMS Policy [Basel III Liquidity Framework]: Standard liquidity buffer and interest rate yield thresholds...."
+}

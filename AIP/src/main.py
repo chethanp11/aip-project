@@ -911,6 +911,92 @@ async def conversational_bi(payload: Dict[str, Any]):
 async def proactive_insights():
     return await run_proactive_insights_workflow()
 
+@app.get("/api/v1/workflows/reporting/proactive-insights/rules")
+async def get_proactive_alert_rules():
+    import os
+    import json
+    from src.shared.config.config import ALERTS_PATH
+    
+    rules_file = os.path.join(ALERTS_PATH, "rules.json")
+    if not os.path.exists(rules_file):
+        # Seed default rules
+        default_rules = [
+            {"id": "rule_1", "rule": "Notify if Net Interest Margin (NIM) drops below 3.6%"},
+            {"id": "rule_2", "rule": "Alert if liquidity coverage ratio (LCR) falls below 110%"},
+            {"id": "rule_3", "rule": "Alert if Population Stability Index (PSI) exceeds 0.2"}
+        ]
+        os.makedirs(ALERTS_PATH, exist_ok=True)
+        with open(rules_file, "w", encoding="utf-8") as f:
+            json.dump(default_rules, f, indent=2)
+        return default_rules
+        
+    try:
+        with open(rules_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read rules: {str(e)}")
+
+@app.post("/api/v1/workflows/reporting/proactive-insights/rules")
+async def create_proactive_alert_rule(payload: Dict[str, Any]):
+    import os
+    import json
+    import uuid
+    from src.shared.config.config import ALERTS_PATH
+    
+    rule_text = payload.get("rule", "").strip()
+    if not rule_text:
+        raise HTTPException(status_code=400, detail="Rule text cannot be empty.")
+        
+    rules_file = os.path.join(ALERTS_PATH, "rules.json")
+    rules = []
+    if os.path.exists(rules_file):
+        try:
+            with open(rules_file, "r", encoding="utf-8") as f:
+                rules = json.load(f)
+        except Exception:
+            rules = []
+            
+    new_rule = {
+        "id": f"rule_{uuid.uuid4().hex[:6]}",
+        "rule": rule_text
+    }
+    rules.append(new_rule)
+    
+    try:
+        os.makedirs(ALERTS_PATH, exist_ok=True)
+        with open(rules_file, "w", encoding="utf-8") as f:
+            json.dump(rules, f, indent=2)
+        return {"success": True, "rule": new_rule}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save rule: {str(e)}")
+
+@app.delete("/api/v1/workflows/reporting/proactive-insights/rules/{rule_id}")
+async def delete_proactive_alert_rule(rule_id: str):
+    import os
+    import json
+    from src.shared.config.config import ALERTS_PATH
+    
+    rules_file = os.path.join(ALERTS_PATH, "rules.json")
+    if not os.path.exists(rules_file):
+        raise HTTPException(status_code=404, detail="No rules found.")
+        
+    try:
+        with open(rules_file, "r", encoding="utf-8") as f:
+            rules = json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read rules: {str(e)}")
+        
+    filtered_rules = [r for r in rules if r.get("id") != rule_id]
+    if len(filtered_rules) == len(rules):
+        raise HTTPException(status_code=404, detail="Rule not found.")
+        
+    try:
+        with open(rules_file, "w", encoding="utf-8") as f:
+            json.dump(filtered_rules, f, indent=2)
+        return {"success": True, "message": "Rule deleted successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete rule: {str(e)}")
+
 # ==========================================================================
 # 📈 BUSINESS ANALYTICS SUITE ROUTES
 # ==========================================================================
@@ -1067,13 +1153,16 @@ sub_apps_paths = [
     ("/ui/db_explorer", "src/db_explorer/ui")
 ]
 
+main_dir = os.path.dirname(os.path.abspath(__file__))
+
 for mount_url, local_dir in sub_apps_paths:
-    abs_local_dir = os.path.abspath(local_dir)
+    rel_path = local_dir.replace("src/", "", 1) if local_dir.startswith("src/") else local_dir
+    abs_local_dir = os.path.abspath(os.path.join(main_dir, rel_path))
     os.makedirs(abs_local_dir, exist_ok=True)
     app.mount(mount_url, NoCacheStaticFiles(directory=abs_local_dir, html=True))
 
 # 3. Mount the master UI platform shell onto root "/"
-master_ui_dir = os.path.abspath('src/ui')
+master_ui_dir = os.path.abspath(os.path.join(main_dir, 'ui'))
 if os.path.exists(master_ui_dir):
     app.mount("/", NoCacheStaticFiles(directory=master_ui_dir, html=True), name="ui_master")
 else:

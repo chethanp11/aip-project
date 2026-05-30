@@ -350,3 +350,221 @@ body {
 .hide {
     display: none !important;
 }
+
+/* Premium Workspace Grid & Rules Styles */
+.workspace-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr;
+    gap: 24px;
+    align-items: start;
+    margin-bottom: 30px;
+}
+
+@media (max-width: 900px) {
+    .workspace-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.section-subtitle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    line-height: 1.4;
+}
+
+.rules-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-group label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.input-group textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.7);
+    font-family: var(--font-family);
+    font-size: 13px;
+    resize: vertical;
+    transition: var(--transition-smooth);
+}
+
+.input-group textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+
+.rule-templates {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.templates-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.template-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.chip {
+    background: var(--accent-light);
+    color: var(--warning-color);
+    border: 1px solid hsl(38, 92%, 90%);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.chip:hover {
+    background: hsl(38, 92%, 92%);
+    transform: translateY(-1px);
+}
+
+.active-rules-container {
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+}
+
+.sub-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+}
+
+.active-rules-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.active-rule-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    gap: 10px;
+    transition: var(--transition-smooth);
+}
+
+.active-rule-item:hover {
+    background: #f1f5f9;
+}
+
+.rule-item-details {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.rule-pulse-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--success-color);
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 8px var(--success-color);
+    animation: scannerPulse 1.5s infinite;
+}
+
+@keyframes scannerPulse {
+    0% { transform: scale(0.9); opacity: 0.6; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+.rule-text-content {
+    font-size: 12px;
+    color: #334155;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.rule-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: var(--transition-smooth);
+}
+
+.rule-delete-btn:hover {
+    background: #e2e8f0;
+    color: var(--danger-color);
+}
+
+.empty-rules {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 16px;
+    font-style: italic;
+}
+
+/* Upgraded Alert KMS Grounding CSS styles */
+.alert-kms-box {
+    background: var(--info-bg);
+    border: 1px solid hsl(212, 100%, 90%);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-left: 3px solid var(--info-color);
+}
+
+.kms-header {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--info-color);
+    letter-spacing: 0.5px;
+}
+
+.kms-text {
+    font-size: 12px;
+    color: #1e293b;
+    line-height: 1.4;
+    font-style: italic;
+}

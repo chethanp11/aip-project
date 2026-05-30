@@ -1,0 +1,10 @@
+{
+  "id": "alert_4564f6",
+  "rule_id": "rule_1",
+  "metric": "NIM (Net Interest Margin)",
+  "type": "Exception Rule Triggered",
+  "message": "The current NIM is 3.55%, which is below the alert threshold of 3.6%.",
+  "recommendation": "Consider reviewing the interest rate strategy and assessing the impact on profitability.",
+  "severity": "Medium",
+  "kms_grounding": "Grounded via KMS Policy [Table Metadata: interest_rate_swaps]: # Table Metadata: interest_rate_swaps\n- **Business Domain**: Treasury & Capital Management\n- **Team Scope**: Treasury\n- **Business Meaning**: Interest-rate derivative positions used for asset-liability and rate-risk management.\n- **Typical Use**: hed..."
+}

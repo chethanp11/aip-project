@@ -32,7 +32,15 @@ User opens `/`. The root shell in `AIP/src/ui/index.html` shows the login screen
 
 ## 2. Shell Navigation Flow
 
-After login, the sidebar drives page switching in `AIP/src/ui/index.js`.
+After login, the sidebar drives page switching in `AIP/src/ui/index.js`. 
+
+### Sidebar Navigation & Collapse Flow
+- **Sidebar Toggling**: Users can toggle between an expanded state (`260px` width) and a collapsed state (`70px` width) using the toggle button next to the logo.
+- **Layout Adaptations**: When collapsed:
+  - Navigation item text, section titles, user profile descriptions, and logout button labels are hidden.
+  - Sidebar links and the logout button collapse to centered icon/avatar triggers.
+  - Hovering over collapsed items shows custom glassmorphic CSS tooltips containing the page title or action label.
+- **State Persistence**: The collapse state is stored in `localStorage` under `AIP_SIDEBAR_COLLAPSED` (`"true"`/`"false"`). On initialization, the controller immediately reads this key and applies the `.collapsed` class to prevent layout shifts.
 
 Primary pages:
 
@@ -168,13 +176,19 @@ Flow:
 
 ### Proactive Alerts
 
-Route: `GET /api/v1/workflows/reporting/proactive-insights`
+Routes:
+- `GET /api/v1/workflows/reporting/proactive-insights` (Scan and retrieve active alerts)
+- `GET /api/v1/workflows/reporting/proactive-insights/rules` (Fetch rules)
+- `POST /api/v1/workflows/reporting/proactive-insights/rules` (Create natural language alert rule)
+- `DELETE /api/v1/workflows/reporting/proactive-insights/rules/{rule_id}` (Remove rule scanner)
 
 Flow:
-
-1. UI requests alert feed.
-2. Workflow evaluates NIM and NPL trends through `metric_interpretation`.
-3. Workflow returns alert cards with severity, message, and recommendation.
+1. User configures a custom rule in free-flow natural language.
+2. UI registers the rule via the rules POST API Gateway endpoint.
+3. On active scanning request, the workflow loads rules and runs an advanced KMS search query for each rule to extract policy limits.
+4. Active metrics are evaluated against rules and KMS policy boundaries.
+5. Surfaces and writes active exception alert objects to the storage path `/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/alerts`.
+6. UI renders exception cards complete with **📚 Grounded via KMS Regulation Context** badges and response procedures.
 
 ## 6. Business Analytics Flows
 

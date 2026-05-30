@@ -23,6 +23,7 @@ window.fetch = async function(url, options = {}) {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  initSidebarCollapse();
   setupNavigation();
   setupAuthHandler();
   
@@ -509,3 +510,35 @@ async function refreshPlatformTelemetry() {
     console.error("Telemetry query failed:", error);
   }
 }
+
+// ==========================================
+// ◀ COLLAPSABLE SIDEBAR CONTROLLER
+// ==========================================
+function initSidebarCollapse() {
+  const sidebar = document.getElementById('app-sidebar');
+  const toggleBtn = document.getElementById('sidebar-toggle-btn');
+  if (!sidebar) return;
+
+  const isCollapsed = localStorage.getItem('AIP_SIDEBAR_COLLAPSED') === 'true';
+  if (isCollapsed) {
+    sidebar.classList.add('collapsed');
+    if (toggleBtn) {
+      toggleBtn.title = 'Expand Sidebar';
+    }
+  } else {
+    sidebar.classList.remove('collapsed');
+    if (toggleBtn) {
+      toggleBtn.title = 'Collapse Sidebar';
+    }
+  }
+
+  if (toggleBtn && !toggleBtn.dataset.listenerBound) {
+    toggleBtn.dataset.listenerBound = 'true';
+    toggleBtn.addEventListener('click', () => {
+      const collapsed = sidebar.classList.toggle('collapsed');
+      localStorage.setItem('AIP_SIDEBAR_COLLAPSED', collapsed ? 'true' : 'false');
+      toggleBtn.title = collapsed ? 'Expand Sidebar' : 'Collapse Sidebar';
+    });
+  }
+}
+

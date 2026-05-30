@@ -50,23 +50,57 @@
             </div>
         </div>
 
-        <!-- Alert Feed card container -->
-        <div class="card" style="min-height: 400px; display: flex; flex-direction: column;">
-            <div class="card-header-actions">
-                <h3 class="card-title" style="margin-bottom: 0;">🔔 Surfaced Performance Drift Alerts</h3>
-                <button class="btn" id="refresh-alerts">🔍 Scan Active Ledgers</button>
+        <!-- Two-Column Workspace Layout -->
+        <div class="workspace-grid">
+            <!-- Left Column: Configure Rules -->
+            <div class="card rules-card">
+                <h3 class="card-title">⚙️ Configure Alert Scanners</h3>
+                <p class="section-subtitle">Set up active, continuous rule scanners in free-flow natural language. Grounded in KMS compliance context.</p>
+                
+                <div class="rules-form">
+                    <div class="input-group">
+                        <label for="rule-input">Rule Description (Free Flow)</label>
+                        <textarea id="rule-input" placeholder="e.g. Alert if Net Interest Margin (NIM) drops below 3.6% or LCR is below 110%"></textarea>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="add-rule-btn" style="width: 100%; margin-top: 10px;">⚡ Save & Activate Scanner</button>
+                </div>
+                
+                <div class="rule-templates">
+                    <span class="templates-label">Quick Seed Templates:</span>
+                    <div class="template-chips">
+                        <button class="chip" onclick="seedTemplate('Notify if Net Interest Margin (NIM) drops below 3.6%')">NIM Breach</button>
+                        <button class="chip" onclick="seedTemplate('Alert if liquidity coverage ratio (LCR) falls below 110%')">LCR Target</button>
+                        <button class="chip" onclick="seedTemplate('Alert if Population Stability Index (PSI) exceeds 0.2')">PSI Stability</button>
+                    </div>
+                </div>
+
+                <div class="active-rules-container">
+                    <h4 class="sub-section-title">📡 Active Alert Scanners (<span id="rules-count">0</span>)</h4>
+                    <div class="active-rules-list" id="active-rules-list">
+                        <!-- Dynamic active rules list -->
+                    </div>
+                </div>
             </div>
 
-            <!-- Empty State -->
-            <div class="empty-state" id="results-empty" style="margin: auto 0;">
-                <div class="empty-icon">🔔</div>
-                <h4>Active Monitor Idle</h4>
-                <p class="app-desc" style="font-size: 12px; margin-top: 4px;">Click 'Scan Active Ledgers' to invoke the proactive monitor and trace ledger drifts.</p>
-            </div>
+            <!-- Right Column: Surfaced Alerts -->
+            <div class="card alerts-card" style="min-height: 400px; display: flex; flex-direction: column;">
+                <div class="card-header-actions">
+                    <h3 class="card-title" style="margin-bottom: 0;">🔔 Surfaced Performance Drift Alerts</h3>
+                    <button class="btn" id="refresh-alerts">🔍 Scan Active Ledgers</button>
+                </div>
 
-            <!-- Alert Feed list -->
-            <div class="alerts-feed-grid hide" id="alerts-feed">
-                <!-- Dynamic Alert Cards -->
+                <!-- Empty State -->
+                <div class="empty-state" id="results-empty" style="margin: auto 0;">
+                    <div class="empty-icon">🔔</div>
+                    <h4>Active Monitor Idle</h4>
+                    <p class="app-desc" style="font-size: 12px; margin-top: 4px;">Click 'Scan Active Ledgers' to invoke the proactive monitor and trace ledger drifts.</p>
+                </div>
+
+                <!-- Alert Feed list -->
+                <div class="alerts-feed-grid hide" id="alerts-feed">
+                    <!-- Dynamic Alert Cards -->
+                </div>
             </div>
         </div>
 

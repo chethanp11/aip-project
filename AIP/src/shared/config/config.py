@@ -51,6 +51,7 @@ ARTIFACT_PATH = os.path.join(STORAGE_ROOT, "artifacts")
 ARCHIVE_PATH = os.path.join(STORAGE_ROOT, "archives")
 LOG_PATH = os.path.join(INFRA_ROOT, "logs")
 CHATS_PATH = os.path.join(STORAGE_ROOT, "chats")
+ALERTS_PATH = os.path.join(STORAGE_ROOT, "alerts")
 
 def resolve_kms_team(username: str, allowed_domains: list[str] | None = None) -> str:
     """Resolve Analyst/SME usernames and domain grants to a shared business team folder."""
@@ -85,7 +86,7 @@ def get_kms_team_runtime_path(team: str) -> str:
     return os.path.join(get_kms_team_path(team), "runtime")
 
 # Ensure external paths exist
-for path in [REPORT_PATH, ARTIFACT_PATH, ARCHIVE_PATH, LOG_PATH, KMS_ROOT, CHATS_PATH]:
+for path in [REPORT_PATH, ARTIFACT_PATH, ARCHIVE_PATH, LOG_PATH, KMS_ROOT, CHATS_PATH, ALERTS_PATH]:
     if path:
         os.makedirs(path, exist_ok=True)
 

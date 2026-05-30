@@ -79,38 +79,43 @@
   <div class="app-container hide" id="main-app-shell">
     
     <!-- Sidebar Navigation -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="app-sidebar">
+      <button id="sidebar-toggle-btn" class="sidebar-toggle" aria-label="Toggle Sidebar" title="Collapse Sidebar">
+        <span class="toggle-icon">◀</span>
+      </button>
       <div class="sidebar-brand">
-        <span class="brand-logo">▲</span>
-        <span class="brand-text">AIM Intelligence Platform</span>
+        <div class="brand-info">
+          <span class="brand-logo">▲</span>
+          <span class="brand-text">AIM Intelligence Platform</span>
+        </div>
       </div>
       
       <nav class="sidebar-nav">
-        <a href="#" class="nav-item active" data-page="home">
-          <span class="nav-icon">📊</span> Dashboard Home
+        <a href="#" class="nav-item active" data-page="home" data-tooltip="Dashboard Home">
+          <span class="nav-icon">📊</span> <span class="nav-text">Dashboard Home</span>
         </a>
         <div class="nav-section-title">Suites</div>
-        <a href="#" class="nav-item" data-page="reporting">
-          <span class="nav-icon">📰</span> Reporting Suite
+        <a href="#" class="nav-item" data-page="reporting" data-tooltip="Reporting Suite">
+          <span class="nav-icon">📰</span> <span class="nav-text">Reporting Suite</span>
         </a>
-        <a href="#" class="nav-item" data-page="analytics">
-          <span class="nav-icon">📈</span> Business Analytics
+        <a href="#" class="nav-item" data-page="analytics" data-tooltip="Business Analytics">
+          <span class="nav-icon">📈</span> <span class="nav-text">Business Analytics</span>
         </a>
-        <a href="#" class="nav-item" data-page="automation">
-          <span class="nav-icon">⚡</span> Workflow Automation
+        <a href="#" class="nav-item" data-page="automation" data-tooltip="Workflow Automation">
+          <span class="nav-icon">⚡</span> <span class="nav-text">Workflow Automation</span>
         </a>
-        <a href="#" class="nav-item" data-page="data-science">
-          <span class="nav-icon">🧪</span> Data Science & ML
+        <a href="#" class="nav-item" data-page="data-science" data-tooltip="Data Science & ML">
+          <span class="nav-icon">🧪</span> <span class="nav-text">Data Science & ML</span>
         </a>
         <div class="nav-section-title">Knowledge & System</div>
-        <a href="#" class="nav-item" data-page="kms">
-          <span class="nav-icon">📚</span> KMS Workspace
+        <a href="#" class="nav-item" data-page="kms" data-tooltip="KMS Workspace">
+          <span class="nav-icon">📚</span> <span class="nav-text">KMS Workspace</span>
         </a>
-        <a href="#" class="nav-item" data-page="db-explorer">
-          <span class="nav-icon">🛢️</span> Database Explorer
+        <a href="#" class="nav-item" data-page="db-explorer" data-tooltip="Database Explorer">
+          <span class="nav-icon">🛢️</span> <span class="nav-text">Database Explorer</span>
         </a>
-        <a href="#" class="nav-item" data-page="ui-config">
-          <span class="nav-icon">⚙️</span> UI Configuration
+        <a href="#" class="nav-item" data-page="ui-config" data-tooltip="UI Configuration">
+          <span class="nav-icon">⚙️</span> <span class="nav-text">UI Configuration</span>
         </a>
       </nav>
       
@@ -122,8 +127,8 @@
             <div class="user-role" id="shell-user-role">Tenant ID: 994821</div>
           </div>
         </div>
-        <button id="shell-logout-btn" class="btn btn-danger" style="width: 100%; padding: 8px 12px; font-size: 12px; border-radius: 6px; background: #ef4444; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; transition: background 0.2s;">
-          🚪 Logout Profile
+        <button id="shell-logout-btn" class="btn btn-danger" data-tooltip="Logout Profile" style="width: 100%; padding: 8px 12px; font-size: 12px; border-radius: 6px; background: #ef4444; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; transition: background 0.2s;">
+          <span class="logout-icon">🚪</span> <span class="logout-text">Logout Profile</span>
         </button>
       </div>
     </aside>

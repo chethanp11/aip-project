@@ -7,6 +7,11 @@ const telSme = document.getElementById('tel-sme');
 const telMetric = document.getElementById('tel-metric');
 const telChannel = document.getElementById('tel-channel');
 
+const ruleInput = document.getElementById('rule-input');
+const addRuleBtn = document.getElementById('add-rule-btn');
+const activeRulesList = document.getElementById('active-rules-list');
+const rulesCount = document.getElementById('rules-count');
+
 // switch shell navigation page from iframe
 function deepLinkToPage(pageName) {
     if (window.parent && typeof window.parent.switchPage === 'function') {
@@ -15,6 +20,77 @@ function deepLinkToPage(pageName) {
         console.log(`Deep linking requested to parent view: ${pageName}`);
         alert(`Deep link target: switching view to '${pageName}'`);
     }
+}
+
+// Rules CRUD integrations
+async function loadAlertRules() {
+    try {
+        const res = await fetch(`${API_BASE}/workflows/reporting/proactive-insights/rules`);
+        if (!res.ok) throw new Error(`Status: ${res.status}`);
+        const rules = await res.json();
+        rulesCount.innerText = rules.length;
+        
+        if (rules.length === 0) {
+            activeRulesList.innerHTML = `<div class="empty-rules">No active rule scanners. Seeding defaults...</div>`;
+            return;
+        }
+        
+        activeRulesList.innerHTML = rules.map(r => `
+            <div class="active-rule-item">
+                <div class="rule-item-details">
+                    <span class="rule-pulse-dot"></span>
+                    <span class="rule-text-content">${r.rule}</span>
+                </div>
+                <button class="rule-delete-btn" onclick="deleteAlertRule('${r.id}')" title="Remove scanner">✕</button>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error("Failed to load rules:", err);
+    }
+}
+
+async function addAlertRule(ruleText) {
+    if (!ruleText.trim()) return;
+    addRuleBtn.disabled = true;
+    addRuleBtn.innerHTML = '⚡ Activating...';
+    
+    try {
+        const res = await fetch(`${API_BASE}/workflows/reporting/proactive-insights/rules`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rule: ruleText })
+        });
+        
+        if (!res.ok) throw new Error(`Status: ${res.status}`);
+        
+        ruleInput.value = '';
+        await loadAlertRules();
+        await refreshAlertsStream();
+    } catch (err) {
+        alert("Failed to add rule: " + err.message);
+    } finally {
+        addRuleBtn.disabled = false;
+        addRuleBtn.innerHTML = '⚡ Save & Activate Scanner';
+    }
+}
+
+async function deleteAlertRule(ruleId) {
+    if (!confirm("Are you sure you want to deactivate this rule scanner?")) return;
+    try {
+        const res = await fetch(`${API_BASE}/workflows/reporting/proactive-insights/rules/${ruleId}`, {
+            method: 'DELETE'
+        });
+        if (!res.ok) throw new Error(`Status: ${res.status}`);
+        await loadAlertRules();
+        await refreshAlertsStream();
+    } catch (err) {
+        alert("Failed to delete rule: " + err.message);
+    }
+}
+
+function seedTemplate(templateText) {
+    ruleInput.value = templateText;
+    ruleInput.focus();
 }
 
 // Fetch baselines and alerts
@@ -34,19 +110,11 @@ async function refreshAlertsStream() {
         
         const data = await res.json();
         
-        // Update Telemetry Panel
-        // Since the endpoint also retrieves the active profile details, we can request them
-        // Let's call standard session profile context directly if needed, but actually
-        // run_proactive_insights_workflow also returns active baselines, let's look:
-        // Wait, the endpoint proactive_insights() returns: { 'alerts': alerts, 'updatedAt': ... }
-        // Let's see if we can parse the alert items. Each alert item has: metric, type, message, recommendation, severity
-        
         if (data.alerts && data.alerts.length > 0) {
             const firstAlert = data.alerts[0];
             telMetric.innerText = firstAlert.metric.toUpperCase();
             
             // Render active baselines mock values to make it look dynamic
-            // Let's populate the other telemetry values nicely
             telDomain.innerText = firstAlert.metric.includes('PSI') || firstAlert.metric.includes('Stability') ? 'Model Operations' : 'Corporate Treasury';
             telSme.innerText = firstAlert.metric.includes('PSI') ? 'Model Analyst' : 'Treasury Analyst';
             telChannel.innerText = firstAlert.metric.includes('PSI') ? '#model-pulse-alerts' : '#general-alerts';
@@ -66,14 +134,24 @@ async function refreshAlertsStream() {
                     icon = 'ℹ️';
                 }
                 
+                // KMS Context details block
+                const kmsBlock = alertItem.kms_grounding ? `
+                    <div class="alert-kms-box">
+                        <span class="kms-header">📚 Grounded via KMS Regulation Context</span>
+                        <p class="kms-text">${alertItem.kms_grounding}</p>
+                    </div>
+                ` : '';
+                
                 return `
                     <div class="alert-item-card severity-${sev}">
                         <div class="alert-card-header">
-                            <span class="alert-metric-name">${icon} ${alertItem.type}</span>
+                            <span class="alert-metric-name">${icon} ${alertItem.metric} Exception</span>
                             <span class="alert-badge ${sevBadgeClass}">${alertItem.severity} Risk</span>
                         </div>
                         <div class="alert-body">
                             <p class="alert-message-text">${alertItem.message}</p>
+                            
+                            ${kmsBlock}
                             
                             <div class="alert-recommendation-box">
                                 <span class="recom-header">Recommended Standard Response Procedure</span>
@@ -96,7 +174,7 @@ async function refreshAlertsStream() {
             resultsEmpty.innerHTML = `
                 <div class="empty-icon">✓</div>
                 <h4>Scan Complete: Ledgers Fully Optimal</h4>
-                <p class="app-desc" style="font-size: 12px; margin-top: 4px;">Active monitoring has run. All drift variances reside safely inside target bounds.</p>
+                <p class="app-desc" style="font-size: 12px; margin-top: 4px;">Active monitoring has run. All custom and default rules reside safely inside target bounds.</p>
             `;
             resultsEmpty.classList.remove('hide');
         }
@@ -109,8 +187,20 @@ async function refreshAlertsStream() {
     }
 }
 
-// Bind event listener
+// Bind event listeners
+addRuleBtn.addEventListener('click', () => {
+    addAlertRule(ruleInput.value);
+});
+
 refreshBtn.addEventListener('click', refreshAlertsStream);
 
-// Initialize alerts on startup
-refreshAlertsStream();
+// Make globals for inline onclick calls in iframe context
+window.seedTemplate = seedTemplate;
+window.deleteAlertRule = deleteAlertRule;
+
+// Initialize on startup
+async function init() {
+    await loadAlertRules();
+    await refreshAlertsStream();
+}
+init();

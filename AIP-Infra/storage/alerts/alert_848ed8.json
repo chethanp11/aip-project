@@ -1,0 +1,10 @@
+{
+  "id": "alert_848ed8",
+  "rule_id": "rule_1",
+  "metric": "NIM (Net Interest Margin)",
+  "type": "Exception Rule Triggered",
+  "message": "The Net Interest Margin has dropped below the threshold of 3.6%. Current NIM is 3.55%.",
+  "recommendation": "Consider reviewing interest rate strategies and loan pricing to improve NIM.",
+  "severity": "Medium",
+  "kms_grounding": "Grounded via KMS Policy [Basel III Liquidity Framework]: Standard liquidity buffer and interest rate yield thresholds...."
+}

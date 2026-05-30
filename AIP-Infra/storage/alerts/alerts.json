@@ -1,0 +1,32 @@
+[
+  {
+    "id": "alert_9f9b2a",
+    "rule_id": "rule_1",
+    "metric": "NIM (Net Interest Margin)",
+    "type": "Exception Rule Triggered",
+    "message": "The current NIM is 3.55%, which is below the alert threshold of 3.6%.",
+    "recommendation": "Consider reviewing the interest income and expense strategies to improve the NIM.",
+    "severity": "Medium",
+    "kms_grounding": "Grounded via KMS Policy [Table Metadata: fx_exposures]: # Table Metadata: fx_exposures\n- **Business Domain**: Treasury & Capital Management\n- **Team Scope**: Treasury\n- **Business Meaning**: Foreign exchange net open positions and hedge coverage by currency pair.\n- **Typical Use**: FX exposure monitoring,..."
+  },
+  {
+    "id": "alert_daa9b6",
+    "rule_id": "rule_2",
+    "metric": "LCR (Liquidity Coverage Ratio)",
+    "type": "Exception Rule Triggered",
+    "message": "The current LCR is 5.0%, which is below the alert threshold of 110%.",
+    "recommendation": "Immediate review of liquidity management strategies and increase liquidity buffers to meet regulatory requirements.",
+    "severity": "High",
+    "kms_grounding": "Grounded via KMS Policy [Table Metadata: liquidity_buffers]: # Table Metadata: liquidity_buffers\n- **Business Domain**: Treasury & Capital Management\n- **Team Scope**: Treasury\n- **Business Meaning**: Inventory of liquidity buffer assets and HQLA-style reserve instruments.\n- **Typical Use**: liquidity coverage..."
+  },
+  {
+    "id": "alert_27beef",
+    "rule_id": "rule_3",
+    "metric": "PSI",
+    "type": "Exception Rule Triggered",
+    "message": "The Population Stability Index (PSI) has exceeded the alert threshold of 0.2.",
+    "recommendation": "Review the factors contributing to the increase in PSI and assess potential risks to the bank's stability.",
+    "severity": "Medium",
+    "kms_grounding": "Grounded via KMS Policy [Basel III Liquidity Framework]: Standard liquidity buffer and interest rate yield thresholds...."
+  }
+]
