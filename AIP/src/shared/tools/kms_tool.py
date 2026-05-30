@@ -4,10 +4,7 @@ Generic KMS retrieval tool for AIP sub-agents.
 
 from typing import Dict, Any
 
-try:
-    from src.shared.intelligence import invoke_capability
-except ImportError:
-    from shared.intelligence import invoke_capability
+from shared.intelligence import invoke_capability
 
 
 async def retrieve_kms_knowledge(question: str) -> Dict[str, Any]:

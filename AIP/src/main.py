@@ -20,6 +20,12 @@ from fastapi.responses import JSONResponse, FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from src.shared.config import config
+import uuid
+import json
+from datetime import datetime, timezone
+from src.shared.infra.storage_client import StorageClient
+
+_storage_client = StorageClient()
 
 class NoCacheStaticFiles(StaticFiles):
     def is_not_modified(self, response_headers, request_headers) -> bool:
@@ -788,10 +794,118 @@ async def build_report_list():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/v1/workflows/reporting/conversational-bi/sessions")
+async def list_conversational_bi_sessions():
+    try:
+        chats_dir = _storage_client.get_chats_dir()
+        sessions = []
+        if os.path.exists(chats_dir):
+            for fname in os.listdir(chats_dir):
+                if fname.startswith("session_") and fname.endswith(".json"):
+                    fpath = os.path.join(chats_dir, fname)
+                    try:
+                        with open(fpath, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            sessions.append({
+                                "sessionId": data.get("sessionId"),
+                                "title": data.get("title", "BI Discussion"),
+                                "timestamp": data.get("timestamp", "")
+                            })
+                    except Exception:
+                        pass
+        # Sort sessions descending by timestamp
+        sessions.sort(key=lambda s: s.get("timestamp", ""), reverse=True)
+        return sessions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/workflows/reporting/conversational-bi/sessions/{sessionId}")
+async def get_conversational_bi_session(sessionId: str):
+    try:
+        chats_dir = _storage_client.get_chats_dir()
+        fpath = os.path.join(chats_dir, f"session_{sessionId}.json")
+        if not os.path.exists(fpath):
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        with open(fpath, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/v1/workflows/reporting/conversational-bi")
 async def conversational_bi(payload: Dict[str, Any]):
     question = payload.get('question', '')
-    return await run_conversational_bi_workflow(question)
+    session_id = payload.get('sessionId')
+    
+    # Run the standard visual decisioning conversational workflow
+    res = await run_conversational_bi_workflow(question)
+    
+    try:
+        chats_dir = _storage_client.get_chats_dir()
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            
+        fpath = os.path.join(chats_dir, f"session_{session_id}.json")
+        
+        session_data = {
+            "sessionId": session_id,
+            "title": "BI Discussion",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "messages": []
+        }
+        
+        if os.path.exists(fpath):
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                    if isinstance(loaded, dict):
+                        session_data = loaded
+            except Exception:
+                pass
+                
+        # Append User Message
+        user_msg = {
+            "role": "user",
+            "content": question,
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        }
+        
+        # Append Bot Message
+        bot_msg = {
+            "role": "bot",
+            "content": res.get("narrative", ""),
+            "renderedHtml": res.get("renderedHtml", ""),
+            "visualDecision": res.get("visualDecision"),
+            "vegaSpec": res.get("vegaSpec"),
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        }
+        
+        if "messages" not in session_data or not isinstance(session_data["messages"], list):
+            session_data["messages"] = []
+            
+        session_data["messages"].append(user_msg)
+        session_data["messages"].append(bot_msg)
+        
+        # Set title from first question if it was empty/default
+        if session_data.get("title") in (None, "BI Discussion", "") and session_data["messages"]:
+            first_q = session_data["messages"][0]["content"]
+            session_data["title"] = first_q[:45] + "..." if len(first_q) > 45 else first_q
+            
+        session_data["timestamp"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        
+        # Save session file
+        _storage_client.save_file(chats_dir, f"session_{session_id}.json", json.dumps(session_data, indent=2))
+        
+        # Add metadata to response for frontend client
+        res["sessionId"] = session_id
+        res["sessionTitle"] = session_data["title"]
+        
+    except Exception as exc:
+        print(f"[Gateway API] Error saving chat session: {str(exc)}")
+        
+    return res
 
 @app.get("/api/v1/workflows/reporting/proactive-insights")
 async def proactive_insights():

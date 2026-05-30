@@ -12,11 +12,12 @@ class StorageClient:
         self.artifact_path = config.ARTIFACT_PATH
         self.archive_path = config.ARCHIVE_PATH
         self.log_path = config.LOG_PATH
+        self.chats_path = getattr(config, "CHATS_PATH", os.path.join(config.STORAGE_ROOT, "chats"))
         self._ensure_paths()
 
     def _ensure_paths(self):
         """Ensures that all configured infrastructure storage directories exist physically on disk."""
-        for path in [self.report_path, self.artifact_path, self.archive_path, self.log_path]:
+        for path in [self.report_path, self.artifact_path, self.archive_path, self.log_path, self.chats_path]:
             if path:
                 os.makedirs(path, exist_ok=True)
 
@@ -31,6 +32,9 @@ class StorageClient:
 
     def get_logs_dir(self) -> str:
         return self.log_path
+
+    def get_chats_dir(self) -> str:
+        return self.chats_path
 
     def save_file(self, target_dir: str, filename: str, content: str) -> str:
         """Helper to physically write content to a target directory file."""

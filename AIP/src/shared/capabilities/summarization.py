@@ -4,7 +4,7 @@ Summarization Capability
 
 import re
 from typing import Dict, Any
-from src.shared.intelligence import call_llm
+from shared.intelligence import call_llm
 
 config = {
     'description': 'Compresses large paragraphs, logs, or analysis outputs into high-density bullet summaries.',
