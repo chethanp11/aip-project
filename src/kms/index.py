@@ -485,39 +485,6 @@ def get_postgres_db():
         );
         """)
 
-        # Create Dynamic UI Configurations metadata table
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS ui_configurations (
-            category TEXT PRIMARY KEY,
-            visible_suites TEXT,
-            visible_subproducts TEXT
-        );
-        """)
-
-        # Seed UI Configurations defaults
-        cursor.execute("SELECT COUNT(*) FROM ui_configurations;")
-        if cursor.fetchone()[0] == 0:
-            cursor.executemany("INSERT INTO ui_configurations VALUES (?, ?, ?);", [
-                ("Business User",
-                 "home,reporting,analytics",
-                 json.dumps({
-                     "reporting": ["bi", "proactive", "dashboards"],
-                     "analytics": ["discovery", "rca", "whatif", "narratives"]
-                 })),
-                ("Analytics Professional",
-                 "home,reporting,analytics",
-                 json.dumps({
-                     "reporting": ["prism", "builder", "dashboards"],
-                     "analytics": ["discovery", "rca", "whatif", "narratives"]
-                 })),
-                ("Business Admin",
-                 "home,reporting,analytics,kms,ui-config",
-                 json.dumps({
-                     "reporting": ["prism", "builder", "bi", "proactive", "dashboards"],
-                     "analytics": ["discovery", "rca", "whatif", "narratives"]
-                 }))
-            ])
-
         # Replicated Graph Nodes & Edges directly inside PostgreSQL for unified query support
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS graph_nodes (

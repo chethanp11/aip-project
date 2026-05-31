@@ -48,7 +48,6 @@ Primary shell pages:
 - Persona product pages rendered from the authenticated role
 - KMS Workspace
 - Database Explorer
-- UI Configuration Manager for Business Admin / SME users
 
 Business User navigation renders the five Business Suite products: Dashboards, Conversational BI, Proactive Alerts, Deep Insights, and Scenario Analysis.
 
@@ -56,7 +55,18 @@ Analytics Professional navigation renders six Analyst Actions: PRISM, Research, 
 
 Each product page embeds the relevant micro-frontend in an iframe. All same-origin iframes use local storage bearer token forwarding through either a global fetch interceptor or explicit `authedFetch` wrappers. Micro-frontends call APIs through relative `/api/v1` paths so authentication stays bound to the active host and port.
 
-## 3. KMS Workspace Flow
+All 11 product pages plus KMS Workspace use the same shell-level `platform-page-header` pattern: eyebrow, product title, one-line purpose, and status pill above the embedded workspace. Product iframes use explicit `index.html` URLs to avoid route fallback ambiguity. Embedded micro-frontends should not render their own product-level title headers below the shell header.
+
+## 3. Dashboards Flow
+
+The Dashboards product displays HTML reports from both shared sample reports and published Report Builder outputs.
+
+1. UI calls `GET /api/v1/dashboards/reports`.
+2. API scans `Infra/shared/*.html` and `Infra/storage/reports/report_*/index.html`.
+3. Published Report Builder folders are exposed as virtual `report_*.html` dashboard entries.
+4. Selecting a report calls `GET /api/v1/dashboards/reports/{filename}` and renders the returned HTML in the dashboard iframe.
+
+## 4. KMS Workspace Flow
 
 The KMS UI under `/ui/kms` supports search, governance, source connectors, candidates, and context package export.
 
@@ -95,7 +105,7 @@ The KMS UI under `/ui/kms` supports search, governance, source connectors, candi
 3. SME triggers sync via `POST /api/v1/kms/connectors/sync`.
 4. API stages simulated source content, updates connector history, and creates candidate knowledge for review.
 
-## 4. Database Explorer Flow
+## 5. Database Explorer Flow
 
 The Database Explorer under `/ui/db_explorer` is the direct data access UX for `analytics-source-db`.
 
@@ -128,7 +138,7 @@ The Database Explorer under `/ui/db_explorer` is the direct data access UX for `
 5. Server rejects unauthorized table references.
 6. UI renders returned records or displays a security/error message.
 
-## 5. Reporting Suite Flows
+## 6. Reporting Suite Flows
 
 ### PRISM
 
@@ -205,7 +215,7 @@ Flow:
 5. Surfaces and writes active exception alert objects to the storage path `/Users/chethan/GitHub/AIP-Project/Infra/storage/alerts`.
 6. UI renders exception cards complete with **📚 Grounded via KMS Regulation Context** badges and response procedures.
 
-## 6. Business Analytics Flows
+## 7. Business Analytics Flows
 
 ### Insight Discovery
 
@@ -231,7 +241,7 @@ Flow:
 2. UI posts to `/api/v1/workflows/analytics/business-narratives`.
 3. Workflow returns a channel-targeted narrative with LLM or deterministic fallback text.
 
-## 7. Workflow Automation Flows
+## 8. Workflow Automation Flows
 
 ### Workflow Design and Execution
 
@@ -258,7 +268,7 @@ Flow:
 - `GET /api/v1/workflows/automation/telemetry` returns run/step telemetry.
 - `GET /api/v1/workflows/automation/monitoring/lineage` returns Neo4j workflow lineage when graph infrastructure is available.
 
-## 8. Data Science and ML Flows
+## 9. Data Science and ML Flows
 
 ### Data Preparation
 
@@ -281,7 +291,7 @@ Flow:
 2. Workflow computes drift score, PSI-style output, latency summary, agent dialogue, and Vega-Lite spec.
 3. UI renders drift state and performance chart.
 
-## 9. Error Handling UX
+## 10. Error Handling UX
 
 Implemented UX patterns:
 
@@ -292,7 +302,7 @@ Implemented UX patterns:
 - Workflow validation returns structural errors before orchestration starts.
 - SQL Console surfaces permission errors for non-read-only or unauthorized table queries.
 
-## 10. UX Guardrails
+## 11. UX Guardrails
 
 - UI routes must call relative `/api/v1/*` paths and pass the current `AIP_API_KEY` bearer token.
 - Micro-frontends should not embed hardcoded secrets or direct database credentials.

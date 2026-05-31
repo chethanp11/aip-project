@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const key = localStorage.getItem('AIP_API_KEY') || '';
   if (key.startsWith('AIP-')) {
-    fetchAndApplyUIConfiguration();
+    applyPersonaVisibility();
   }
 });
 
@@ -252,12 +252,9 @@ function setupAuthHandler() {
       if (roleEl) roleEl.innerText = `${role} (${uname})`;
       
       renderPersonaProducts(localStorage.getItem('AIP_USER_CATEGORY') || getCurrentPersonaCategory());
+      applyPersonaVisibility();
       refreshPlatformTelemetry();
       reloadActiveIframes();
-
-      // Retrieve dynamic UI layouts
-      await fetchAndApplyUIConfiguration();
-      setupUIConfigManager();
     } else {
       if (loginScreen) loginScreen.classList.remove('hide');
       if (mainAppShell) mainAppShell.classList.add('hide');
@@ -310,256 +307,35 @@ function setupAuthHandler() {
 }
 
 // ==========================================================================
-// ⚙️ DYNAMIC CLIENT-SIDE UI CONFIGURATION APPLICATOR & SME CONSOLE HANDLER
-// ==========================================================================
-let currentUIConfigurations = {};
-
-async function fetchAndApplyUIConfiguration() {
-  const key = localStorage.getItem('AIP_API_KEY') || '';
-  if (!key.startsWith('AIP-')) return;
-
-  try {
-    const res = await fetch(`${API_BASE}/ui/config?_=${Date.now()}`);
-    if (res.ok) {
-      currentUIConfigurations = await res.json();
-      applyUIConfiguration();
-    }
-  } catch (err) {
-    console.error("Failed to fetch UI configurations:", err);
-  }
-}
-
-function applyUIConfiguration() {
-  const role = localStorage.getItem('AIP_USER_ROLE') || 'Analyst';
-  
-  // Resolve category strictly based on database role to ensure configuration matches authenticated persona
-  let category;
-  if (role === 'SME') {
-    category = 'Business Admin';
-  } else if (role === 'Analyst') {
-    category = 'Analytics Professional';
-  } else {
-    category = 'Business User';
-  }
-  
-  // Sync the category in local storage
+// 🧭 STATIC PERSONA VISIBILITY APPLICATOR
+// ===========================================================================
+function applyPersonaVisibility() {
+  const category = getCurrentPersonaCategory();
   localStorage.setItem('AIP_USER_CATEGORY', category);
-  
-  const config = currentUIConfigurations[category];
-  if (!config) return;
-  
-  const visibleSuites = [...(config.visible_suites || [])];
-  const visibleSubproducts = config.visible_subproducts || {};
-  const personaProductIds = getPersonaProductIds(category);
   renderPersonaProducts(category);
 
-  // Auto-enable parent suite if any of its subproducts are allowed
-  const suiteIds = ['reporting', 'analytics'];
-  suiteIds.forEach(suiteId => {
-    const allowedTabs = visibleSubproducts[suiteId] || [];
-    if (allowedTabs.length > 0 && !visibleSuites.includes(suiteId)) {
-      visibleSuites.push(suiteId);
-    }
-  });
+  const personaProductIds = getPersonaProductIds(category);
+  const visibleSystemPages = ['home'];
+  if (category === 'Business Admin') {
+    visibleSystemPages.push('kms');
+  }
 
-  // 1. Hide/Show Sidebar Nav Links
-  const navItems = document.querySelectorAll('.nav-item');
-  let firstVisiblePage = null;
-  let isCurrentPageVisible = false;
-  
-  // Find current active page
   const activeNav = document.querySelector('.nav-item.active');
   const currentPageId = activeNav ? activeNav.getAttribute('data-page') : 'home';
+  let currentPageVisible = false;
 
-  navItems.forEach(item => {
+  document.querySelectorAll('.nav-item').forEach(item => {
     const pageId = item.getAttribute('data-page');
     const isProductNav = item.getAttribute('data-product') === 'true';
-    const isDisabledSystemPage = pageId === 'db-explorer';
-    const isVisible = !isDisabledSystemPage && (isProductNav ? personaProductIds.includes(pageId) : visibleSuites.includes(pageId));
-    
-    if (isVisible) {
-      item.classList.remove('hide');
-      if (!firstVisiblePage) firstVisiblePage = pageId;
-      if (pageId === currentPageId) isCurrentPageVisible = true;
-    } else {
-      item.classList.add('hide');
-    }
+    const isVisible = isProductNav ? personaProductIds.includes(pageId) : visibleSystemPages.includes(pageId);
+
+    item.classList.toggle('hide', !isVisible);
+    if (isVisible && pageId === currentPageId) currentPageVisible = true;
   });
 
-  // 2. Hide/Show Subproduct Tabs inside sections
-  suiteIds.forEach(suiteId => {
-    const suiteSection = document.getElementById(`page-${suiteId}`);
-    if (!suiteSection) return;
-    
-    const allowedTabs = visibleSubproducts[suiteId] || [];
-    const tabsContainer = suiteSection.querySelector('.suite-tabs');
-    if (!tabsContainer) return;
-
-    const tabButtons = tabsContainer.querySelectorAll('.tab-btn');
-    let firstVisibleTab = null;
-    let isCurrentTabVisible = false;
-
-    // Find active tab in suite
-    const activeTabBtn = tabsContainer.querySelector('.tab-btn.active');
-    let currentTabId = null;
-    if (activeTabBtn) {
-      const onclickAttr = activeTabBtn.getAttribute('onclick') || '';
-      const match = onclickAttr.match(/switchSubProduct\(\s*'[^']+'\s*,\s*'([^']+)'\s*\)/);
-      if (match) currentTabId = match[1];
-    }
-
-    tabButtons.forEach(btn => {
-      const onclickAttr = btn.getAttribute('onclick') || '';
-      const match = onclickAttr.match(/switchSubProduct\(\s*'[^']+'\s*,\s*'([^']+)'\s*\)/);
-      if (!match) return;
-      const tabId = match[1];
-      const isVisible = allowedTabs.includes(tabId);
-      
-      const panel = document.getElementById(`subproduct-${suiteId}-${tabId}`);
-      if (isVisible) {
-        btn.classList.remove('hide');
-        if (!firstVisibleTab) firstVisibleTab = tabId;
-        if (tabId === currentTabId) isCurrentTabVisible = true;
-      } else {
-        btn.classList.add('hide');
-        if (panel) panel.classList.remove('active');
-      }
-    });
-
-    // Fallback if current active tab is hidden, switch to the first allowed visible tab
-    if (!isCurrentTabVisible && firstVisibleTab) {
-      switchSubProduct(suiteId, firstVisibleTab);
-    }
-  });
-
-  // Fallback if current active page is hidden, redirect to Dashboard Home (or first visible allowed page)
-  if (!isCurrentPageVisible) {
-    if (visibleSuites.includes('home')) {
-      switchPage('home');
-    } else if (personaProductIds.length > 0) {
-      switchPage(personaProductIds[0]);
-    } else if (firstVisiblePage) {
-      switchPage(firstVisiblePage);
-    }
+  if (!currentPageVisible) {
+    switchPage(visibleSystemPages.includes('home') ? 'home' : personaProductIds[0]);
   }
-}
-
-function setupUIConfigManager() {
-  const saveBtn = document.getElementById('uiconfig-save-btn');
-  const resetBtn = document.getElementById('uiconfig-reset-btn');
-  const selectCategory = document.getElementById('uiconfig-select-category');
-  const msgEl = document.getElementById('uiconfig-msg');
-
-  if (!selectCategory) return;
-
-  // Load selected category's configuration to form checkboxes
-  function loadCategoryConfigToForm() {
-    const category = selectCategory.value;
-    const config = currentUIConfigurations[category];
-    if (!config) return;
-
-    const visibleSuites = config.visible_suites || [];
-    const visibleSubproducts = config.visible_subproducts || {};
-
-    // Check/uncheck suites
-    document.querySelectorAll('.config-suite-checkbox').forEach(cb => {
-      cb.checked = visibleSuites.includes(cb.value);
-    });
-
-    // Check/uncheck tabs
-    const suitesList = ['reporting', 'analytics'];
-    suitesList.forEach(suiteId => {
-      const allowedTabs = visibleSubproducts[suiteId] || [];
-      const tabGroup = document.getElementById(`config-tabs-${suiteId}`);
-      if (!tabGroup) return;
-      
-      tabGroup.querySelectorAll('.config-tab-checkbox').forEach(cb => {
-        cb.checked = allowedTabs.includes(cb.value);
-      });
-    });
-  }
-
-  // Clear previous event listener checks by defining clean hooks
-  if (!selectCategory.dataset.listenerBound) {
-    selectCategory.dataset.listenerBound = 'true';
-    selectCategory.addEventListener('change', loadCategoryConfigToForm);
-  }
-
-  // Reset button
-  if (resetBtn && !resetBtn.dataset.listenerBound) {
-    resetBtn.dataset.listenerBound = 'true';
-    resetBtn.addEventListener('click', loadCategoryConfigToForm);
-  }
-
-  // Save button
-  if (saveBtn && !saveBtn.dataset.listenerBound) {
-    saveBtn.dataset.listenerBound = 'true';
-    saveBtn.addEventListener('click', async () => {
-      const category = selectCategory.value;
-      
-      // Collect visible suites
-      const suites = [];
-      document.querySelectorAll('.config-suite-checkbox').forEach(cb => {
-        if (cb.checked) suites.push(cb.value);
-      });
-
-      // Collect subproducts
-      const visible_subproducts = {};
-      const suitesList = ['reporting', 'analytics'];
-      suitesList.forEach(suiteId => {
-        const tabs = [];
-        const tabGroup = document.getElementById(`config-tabs-${suiteId}`);
-        if (tabGroup) {
-          tabGroup.querySelectorAll('.config-tab-checkbox').forEach(cb => {
-            if (cb.checked) tabs.push(cb.value);
-          });
-        }
-        visible_subproducts[suiteId] = tabs;
-        
-        // Auto-include parent suite if any subproducts are checked
-        if (tabs.length > 0 && !suites.includes(suiteId)) {
-          suites.push(suiteId);
-        }
-      });
-      const visible_suites = suites.join(',');
-
-      try {
-        const res = await fetch(`${API_BASE}/ui/config`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ category, visible_suites, visible_subproducts })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          msgEl.innerText = data.message || "UI configuration saved successfully!";
-          msgEl.style.background = "#d1fae5";
-          msgEl.style.color = "#065f46";
-          msgEl.classList.remove('hide');
-
-          // Refresh the configurations local state and apply them in real-time
-          await fetchAndApplyUIConfiguration();
-          
-          setTimeout(() => {
-            msgEl.classList.add('hide');
-          }, 3000);
-        } else {
-          msgEl.innerText = data.error || "Failed to save UI configuration.";
-          msgEl.style.background = "#fee2e2";
-          msgEl.style.color = "#991b1b";
-          msgEl.classList.remove('hide');
-        }
-      } catch (err) {
-        msgEl.innerText = `Save failed: ${err.message}`;
-        msgEl.style.background = "#fee2e2";
-        msgEl.style.color = "#991b1b";
-        msgEl.classList.remove('hide');
-      }
-    });
-  }
-
-  // Initial load
-  loadCategoryConfigToForm();
 }
 
 // Force reload of active iframes when key state transitions (to fetch successfully)

@@ -260,77 +260,6 @@ async def logout(request: Request):
     return {'success': False, 'error': 'No active session token provided.'}
 
 # ==========================================================================
-# ⚙️ DYNAMIC UI CONFIGURATION ENDPOINTS
-# ==========================================================================
-@app.get("/api/v1/ui/config")
-async def get_ui_config():
-    """Retrieves all persona-based UI configurations from PostgreSQL."""
-    try:
-        from src.kms.index import get_postgres_db
-        import json
-        conn = get_postgres_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT category, visible_suites, visible_subproducts FROM ui_configurations;")
-        rows = cursor.fetchall()
-        
-        configs = {}
-        for r in rows:
-            try:
-                subproducts = json.loads(r['visible_subproducts'])
-            except Exception:
-                subproducts = {}
-            configs[r['category']] = {
-                "visible_suites": [s.strip() for s in r['visible_suites'].split(',') if s.strip()],
-                "visible_subproducts": subproducts
-            }
-        return configs
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error reading UI config: {str(e)}")
-
-@app.post("/api/v1/ui/config")
-async def save_ui_config(payload: Dict[str, Any], request: Request):
-    """Saves/Updates persona UI configuration. Restricts access strictly to Business Admins (SME)."""
-    # Verify authentication and authorization
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        raise HTTPException(status_code=401, detail="Missing authorization header.")
-    
-    token = auth_header.split(' ', 1)[1]
-    from shared.session import active_sessions
-    if token not in active_sessions:
-        raise HTTPException(status_code=401, detail="Session expired or invalid.")
-        
-    session = active_sessions[token]
-    # Restrict to SME (Business Admin) role only!
-    if session.get('role') != 'SME':
-        raise HTTPException(status_code=403, detail="Forbidden: Only Business Admins (SME) can modify UI configurations.")
-
-    category = payload.get('category')
-    visible_suites = payload.get('visible_suites') # String, e.g., "home,reporting,analytics"
-    visible_subproducts = payload.get('visible_subproducts') # Dict/JSON, e.g. {"reporting": ["bi"]}
-
-    if not category or not isinstance(visible_suites, str) or not isinstance(visible_subproducts, dict):
-        raise HTTPException(status_code=400, detail="Invalid payload. category, visible_suites, and visible_subproducts are required.")
-
-    try:
-        from src.kms.index import get_postgres_db
-        import json
-        conn = get_postgres_db()
-        cursor = conn.cursor()
-        
-        # PostgreSQL UPSERT emulated/handled
-        cursor.execute("DELETE FROM ui_configurations WHERE category = %s;", (category,))
-        cursor.execute("""
-            INSERT INTO ui_configurations (category, visible_suites, visible_subproducts)
-            VALUES (%s, %s, %s);
-        """, (category, visible_suites, json.dumps(visible_subproducts)))
-        conn.commit()
-        print(f"[UI Config Update] SME {session.get('username')} updated UI config for category '{category}' successfully.")
-        return {"success": True, "message": f"UI Configuration for category '{category}' updated successfully."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error writing UI config: {str(e)}")
-
-# ==========================================================================
 # 📊 ENTERPRISE LEDGER DATABASE ROUTE
 # ==========================================================================
 @app.get("/api/v1/lms/query")
@@ -1038,6 +967,11 @@ async def get_dashboard_report(filename: str):
     file_path = os.path.join(config.SHARED_REPORT_PATH, filename)
     if not os.path.exists(file_path):
         file_path = os.path.join(config.REPORT_PATH, filename)
+
+    # Published Report Builder dashboards live as Infra/storage/reports/report_*/index.html.
+    if not os.path.exists(file_path) and filename.startswith("report_"):
+        report_dir = filename[:-5] if filename.endswith(".html") else filename
+        file_path = os.path.join(config.REPORT_PATH, report_dir, "index.html")
         
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Report not found")

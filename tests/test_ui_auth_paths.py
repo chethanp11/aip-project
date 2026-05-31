@@ -104,3 +104,84 @@ def test_research_micro_frontend_exists():
     assert (research_ui / "index.css").exists()
     assert (research_ui / "index.js").exists()
     assert "/workflows/analyst/research" in (research_ui / "index.js").read_text()
+
+
+
+def test_shell_product_and_system_pages_have_consistent_headers():
+    repo_root = Path(__file__).resolve().parents[1]
+    shell_html = (repo_root / "src" / "ui" / "index.html").read_text()
+
+    pages = [
+        "dashboards",
+        "conversational-bi",
+        "proactive-alerts",
+        "deep-insights",
+        "scenario-analysis",
+        "prism",
+        "research",
+        "explore-data",
+        "build-report",
+        "root-cause-analysis",
+        "recommend-actions",
+        "kms",
+    ]
+
+    for page in pages:
+        section_start = shell_html.index(f'id="page-{page}"')
+        section_end = shell_html.index("</section>", section_start)
+        section = shell_html[section_start:section_end]
+        assert 'class="platform-page-header"' in section, page
+        assert 'platform-page-eyebrow' in section, page
+        assert 'platform-page-status' in section, page
+
+    assert shell_html.count('class="platform-page-header"') >= len(pages)
+
+
+
+def test_micro_frontends_do_not_render_duplicate_product_headers():
+    repo_root = Path(__file__).resolve().parents[1]
+    src_root = repo_root / "src"
+    duplicate_header_text = [
+        "Proactive Alerts & Monitoring Console",
+        "Continuous background analysis of operational exception metrics",
+        "Insight Discovery Exploratory Canvas",
+        "What-If Scenario Sandbox",
+        "PRISM Catalog & Schema Rationalizer",
+        "Chief Communications narratives & Storytelling",
+        "RCA Diagnostics & Driver Deconstruction",
+        "Conversational BI Assistant</h2>",
+        "Reporting Workspace</h1>",
+        "<h1>Research</h1>",
+        "KMS Grounding Workspace</h2>",
+    ]
+
+    checked_files = [
+        path
+        for path in src_root.rglob("ui/index.html")
+        if path != src_root / "ui" / "index.html"
+    ]
+
+    for path in checked_files:
+        content = path.read_text()
+        for duplicate in duplicate_header_text:
+            assert duplicate not in content, f"{duplicate} still present in {path}"
+
+
+
+def test_ui_configuration_manager_removed():
+    repo_root = Path(__file__).resolve().parents[1]
+    shell_html = (repo_root / "src" / "ui" / "index.html").read_text()
+    shell_js = (repo_root / "src" / "ui" / "index.js").read_text()
+
+    removed_terms = [
+        "UI Configuration",
+        "UI Configuration Manager",
+        "ui-config",
+        "uiconfig",
+        "fetchAndApplyUIConfiguration",
+        "setupUIConfigManager",
+        "/api/v1/ui/config",
+    ]
+    for term in removed_terms:
+        assert term not in shell_html
+        assert term not in shell_js

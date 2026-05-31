@@ -107,6 +107,7 @@ Monitor business performance through curated KPI dashboards.
 - Operational dashboards
 - Dashboard catalog
 - Dashboard search
+- Published report display from `Infra/storage/reports/report_*/index.html`
 
 
 ---

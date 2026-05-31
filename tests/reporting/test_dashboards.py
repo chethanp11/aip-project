@@ -83,3 +83,35 @@ def test_api_get_dashboard_report_security():
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/html; charset=utf-8"
     assert "Corporate Treasury & Liquidity Sweep Analytics" in response.text
+
+def test_dashboard_reports_include_storage_report_builder_outputs():
+    """Dashboards must list reports published under Infra/storage/reports/report_*/index.html."""
+    reports = get_dashboard_reports()
+
+    storage_reports = [r for r in reports if r.get("source") == "storage"]
+    assert storage_reports
+    assert all(r["filename"].startswith("report_") and r["filename"].endswith(".html") for r in storage_reports)
+
+
+def test_api_get_storage_dashboard_report():
+    """Virtual report_*.html dashboard entries should resolve to report_*/index.html."""
+    reports = get_dashboard_reports()
+    storage_report = next((r for r in reports if r.get("source") == "storage"), None)
+    assert storage_report is not None
+
+    client = TestClient(app)
+    token = "AIP-TEST-DASHBOARD-STORAGE-REPORT"
+    set_session(token, {
+        'username': 'Treasury_Analyst',
+        'role': 'Analyst',
+        'clearance': 'Internal',
+        'display_name': 'Treasury Analyst'
+    })
+
+    response = client.get(
+        f"/api/v1/dashboards/reports/{storage_report['filename']}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/html; charset=utf-8"
+    assert "<html" in response.text.lower()

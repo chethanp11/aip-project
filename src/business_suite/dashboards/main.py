@@ -1,6 +1,6 @@
 """
 Business Suite Dashboard View Backend Logic
-Scans and registers shared analytical reports under Infra/shared.
+Scans and registers shared analytical reports plus published Report Builder outputs.
 """
 
 import os
@@ -9,50 +9,79 @@ from typing import List, Dict, Any
 from src.shared.config import config
 from src.shared.infra_client.storage_client import StorageClient
 
+def _infer_report_category(name: str) -> str:
+    lowered = name.lower()
+    if "liquidity" in lowered or "treasury" in lowered:
+        return "Treasury"
+    if "compliance" in lowered or "audit" in lowered:
+        return "Compliance"
+    if "wealth" in lowered or "portfolio" in lowered or "investment" in lowered:
+        return "Wealth"
+    if "credit" in lowered or "risk" in lowered:
+        return "Credit"
+    return "General"
+
+
+def _title_from_html(file_path: str, fallback: str) -> str:
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as handle:
+            snippet = handle.read(4096)
+        import re
+        match = re.search(r"<title>(.*?)</title>", snippet, re.IGNORECASE | re.DOTALL)
+        if match:
+            title = " ".join(match.group(1).split())
+            if title:
+                return title
+    except OSError:
+        pass
+    return fallback.replace('.html', '').replace('_', ' ').replace('-', ' ').title()
+
+
+def _report_metadata(file_path: str, filename: str, owner: str, source: str) -> Dict[str, Any]:
+    stat = os.stat(file_path)
+    size_kb = round(stat.st_size / 1024, 1)
+    modified_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat.st_mtime))
+    title = _title_from_html(file_path, filename)
+    return {
+        'filename': filename,
+        'title': title,
+        'sizeKb': size_kb,
+        'lastModified': modified_time,
+        'category': _infer_report_category(f"{filename} {title}"),
+        'owner': owner,
+        'source': source,
+    }
+
+
 def get_dashboard_reports() -> List[Dict[str, Any]]:
-    """Lists all HTML report files inside config.SHARED_REPORT_PATH with file metadata."""
+    """List dashboard HTML reports from Infra/shared and Infra/storage/reports."""
     reports = []
     shared_dir = config.SHARED_REPORT_PATH
-    
-    if not os.path.exists(shared_dir):
-        os.makedirs(shared_dir, exist_ok=True)
-        
+    storage_reports_dir = config.REPORT_PATH
+
+    for directory in [shared_dir, storage_reports_dir]:
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+
+    # Legacy/shared standalone reports under Infra/shared/*.html.
     for file in os.listdir(shared_dir):
         if file.endswith('.html'):
             file_path = os.path.join(shared_dir, file)
-            stat = os.stat(file_path)
-            size_kb = round(stat.st_size / 1024, 1)
-            modified_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(stat.st_mtime))
-            
-            # Formulate user-friendly titles based on filename
-            title = file.replace('.html', '').replace('_', ' ').replace('-', ' ').title()
-            
-            # Assign category LOB
-            category = "General"
-            if "liquidity" in file.lower() or "treasury" in file.lower():
-                category = "Treasury"
-            elif "compliance" in file.lower() or "audit" in file.lower():
-                category = "Compliance"
-            elif "wealth" in file.lower() or "portfolio" in file.lower() or "investment" in file.lower():
-                category = "Wealth"
-            elif "credit" in file.lower() or "risk" in file.lower():
-                category = "Credit"
-                
-            reports.append({
-                'filename': file,
-                'title': title,
-                'sizeKb': size_kb,
-                'lastModified': modified_time,
-                'category': category,
-                'owner': "Report Builder Agent"
-            })
-            
-    # Sort by modification time (newest first)
+            reports.append(_report_metadata(file_path, file, "Report Builder Agent", "shared"))
+
+    # Published Report Builder outputs under Infra/storage/reports/report_*/index.html.
+    for entry in os.listdir(storage_reports_dir):
+        entry_path = os.path.join(storage_reports_dir, entry)
+        index_path = os.path.join(entry_path, 'index.html')
+        if os.path.isdir(entry_path) and entry.startswith('report_') and os.path.exists(index_path):
+            virtual_filename = f"{entry}.html"
+            reports.append(_report_metadata(index_path, virtual_filename, "Report Builder Agent", "storage"))
+
     reports.sort(key=lambda x: x['lastModified'], reverse=True)
     return reports
 
 def seed_premium_reports_if_empty():
-    """Seeds three premium, highly styled, interactive HTML sample reports into shared folder if empty."""
+    """Seeds three premium, highly styled, interactive HTML sample reports into Infra/shared if empty."""
     shared_dir = config.SHARED_REPORT_PATH
     if not os.path.exists(shared_dir):
         os.makedirs(shared_dir, exist_ok=True)
