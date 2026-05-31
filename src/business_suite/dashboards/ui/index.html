@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIP Shared Dashboards Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css?v=2.0.0">
+</head>
+<body>
+  <div class="dashboard-workspace">
+    
+    <!-- Top Stats Board -->
+    <header class="stats-board">
+      <div class="stat-card">
+        <span class="stat-icon">📂</span>
+        <div class="stat-info">
+          <span class="stat-title">Total Reports</span>
+          <strong class="stat-value" id="stats-total-count">0</strong>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">📄</span>
+        <div class="stat-info">
+          <span class="stat-title">Active Report</span>
+          <strong class="stat-value" id="stats-active-title">None Selected</strong>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🏷️</span>
+        <div class="stat-info">
+          <span class="stat-title">LOB Domain</span>
+          <strong class="stat-value" id="stats-active-lob">N/A</strong>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🛡️</span>
+        <div class="stat-info">
+          <span class="stat-title">Author SME</span>
+          <strong class="stat-value" id="stats-active-owner">N/A</strong>
+        </div>
+      </div>
+    </header>
+
+    <div class="workspace-body">
+      <!-- Sidebar Reports Browser -->
+      <aside class="reports-browser">
+        <div class="browser-header">
+          <h3>Reports Catalog</h3>
+          <button id="refresh-reports-btn" class="refresh-btn" title="Refresh Catalog">🔄</button>
+        </div>
+        
+        <div class="search-box">
+          <input type="text" id="report-search-input" placeholder="Search reports by title or LOB..." />
+        </div>
+        
+        <div class="reports-list" id="reports-list-container">
+          <!-- Dynamically populated reports items -->
+          <div class="loading-state">Loading reports from shared infrastructure...</div>
+        </div>
+      </aside>
+
+      <!-- Central Report Frame -->
+      <main class="report-viewport" id="report-viewport-container">
+        <div class="empty-state" id="viewport-empty-state">
+          <span class="empty-icon">📊</span>
+          <h2>AIP Dashboards Viewer</h2>
+          <p>Select a verified HTML report from the catalog on the left to display its interactive analytics canvas in real-time.</p>
+        </div>
+        
+        <iframe id="report-display-frame" class="report-frame hide" title="Active Report Frame"></iframe>
+      </main>
+    </div>
+
+  </div>
+
+  <script src="index.js?v=2.0.0"></script>
+</body>
+</html>

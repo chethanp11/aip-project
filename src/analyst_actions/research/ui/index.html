@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIP Research Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <main class="research-shell">
+    <header class="workspace-header">
+      <div>
+        <span class="eyebrow">Analyst Action</span>
+        <h1>Research</h1>
+        <p>Discover business context, glossary definitions, historical work products, artifacts, outcomes, and governed KMS knowledge.</p>
+      </div>
+      <div class="status-pill"><span></span>KMS Grounded</div>
+    </header>
+
+    <section class="research-grid">
+      <div class="card query-card">
+        <h2>Research Query</h2>
+        <p class="muted">Ask about a metric, data element, report lineage, policy concept, prior analysis, or business outcome.</p>
+        <textarea id="research-query" placeholder="e.g. Find historical analysis and glossary context for Net Interest Margin compression"></textarea>
+        <div class="quick-prompts">
+          <button type="button" data-query="Find business glossary context for Net Interest Margin">NIM glossary</button>
+          <button type="button" data-query="Find prior analysis about liquidity coverage ratio exceptions">LCR exceptions</button>
+          <button type="button" data-query="Find artifacts related to deposit runoff scenarios">Deposit runoff</button>
+        </div>
+        <button id="run-research" class="primary-btn">Run Research</button>
+      </div>
+
+      <div class="card result-card">
+        <div class="result-header">
+          <h2>Research Output</h2>
+          <span id="match-count" class="match-pill">0 matches</span>
+        </div>
+        <div id="research-empty" class="empty-state">
+          <div class="empty-icon">📚</div>
+          <h3>Ready to research</h3>
+          <p>Run a query to retrieve governed context and reusable organizational intelligence.</p>
+        </div>
+        <div id="research-result" class="result-body hide">
+          <h3 id="result-query"></h3>
+          <p id="result-summary"></p>
+          <div class="sources-box">
+            <span>Primary source families</span>
+            <ul id="result-sources"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const API_BASE = '/api/v1';
+    const originalFetch = window.fetch;
+    async function resolveAipToken() {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        let token = localStorage.getItem('AIP_API_KEY') || '';
+        if (!token && window.parent && window.parent !== window) {
+          try { token = window.parent.localStorage.getItem('AIP_API_KEY') || ''; } catch (err) { token = ''; }
+        }
+        if (token) return token;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return '';
+    }
+    window.fetch = async function(url, options = {}) {
+      const isApiRequest = typeof url === 'string' && url.includes('/api/v1');
+      if (isApiRequest) {
+        const token = await resolveAipToken();
+        if (!token) {
+          return new Response(JSON.stringify({ error: 'Authentication token is not available yet.' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        options.headers = options.headers || {};
+        options.headers['Authorization'] = `Bearer ${token}`;
+      }
+      return originalFetch(url, options);
+    };
+  </script>
+  <script src="index.js"></script>
+</body>
+</html>

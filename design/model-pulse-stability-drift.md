@@ -6,7 +6,7 @@ Model Pulse audits prediction accuracy, Population Stability Index (PSI), and fe
 ## Architectural Changes
 
 ### Refactoring to PSI-based Alarm Checks
-Previously, Month-over-Month warning and critical drift alerts inside `AIP/src/data_science_ml/model_pulse/main.py` were calculated directly on raw accuracy shifts (`drift_score`) rather than Population Stability Index (`psi_score`) covariance shifts:
+Previously, Month-over-Month warning and critical drift alerts inside `src/data_science_ml/model_pulse/main.py` were calculated directly on raw accuracy shifts (`drift_score`) rather than Population Stability Index (`psi_score`) covariance shifts:
 - Alarm triggered if `drift_score >= 0.05`
 
 The module has been refactored to use standard data science thresholds defined on the calculated PSI metric:

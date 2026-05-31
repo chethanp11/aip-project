@@ -11,12 +11,12 @@ import pytest
 from unittest.mock import patch, AsyncMock
 
 # Ensure AIP/ and src/ are in path
-aip_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../AIP"))
+aip_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, aip_root)
 sys.path.insert(0, os.path.join(aip_root, "src"))
 
 from src.shared.config import config
-from src.shared.infra.storage_client import StorageClient
+from src.shared.infra_client.storage_client import StorageClient
 from src.main import app
 from fastapi.testclient import TestClient
 

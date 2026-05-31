@@ -7,10 +7,10 @@ import sys
 import pytest
 
 # Ensure AIP/ and src/ are in path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../AIP")))
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../AIP/src")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src")))
 
-from src.reporting.prism.main import (
+from src.analyst_actions.prism.main import (
     run_prism_workflow,
     parse_excel_report,
     parse_html_report

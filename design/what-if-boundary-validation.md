@@ -6,7 +6,7 @@ The What-If Scenario sandbox projects downstream net interest margins, projected
 ## Architectural Changes
 
 ### Financial Boundary Sanity Guards
-Previously, standard float inputs inside `AIP/src/business_analytics/what_if_analysis/main.py` were caught via a general `ValueError` try-catch block, but negative parameters (e.g. negative interest rates or assets) were not validated. This resulted in nonsensical negative interest calculations.
+Previously, standard float inputs inside `src/business_analytics/what_if_analysis/main.py` were caught via a general `ValueError` try-catch block, but negative parameters (e.g. negative interest rates or assets) were not validated. This resulted in nonsensical negative interest calculations.
 
 To ensure robustness, financial boundary guards have been introduced:
 1. **Safety Overrides**:

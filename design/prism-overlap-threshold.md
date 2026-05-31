@@ -10,7 +10,7 @@ This document outlines the architectural update that parameterizes the similarit
 ## Architectural Changes
 
 ### Parameterization of Jaccard Similarity Threshold
-Previously, the threshold in `AIP/src/reporting/prism/main.py` was hardcoded to `0.5`. This hardcoding has been replaced by a customizable architecture:
+Previously, the threshold in `src/reporting/prism/main.py` was hardcoded to `0.5`. This hardcoding has been replaced by a customizable architecture:
 1. **Module Constant**: `DEFAULT_JACCARD_THRESHOLD` is set to `0.5` to maintain perfect backward compatibility with existing tests and clients.
 2. **Custom Parameter**: `run_prism_workflow` signature is updated to accept a `threshold: float = DEFAULT_JACCARD_THRESHOLD` argument.
 3. **Flexible Evaluation**: The rationalization comparison conditional inside the main loop utilizes the parameterized threshold:

@@ -10,37 +10,30 @@ AIP is **NOT** a simple chatbot, a generic BI dashboard, a single workflow appli
 
 ---
 
-## 🏗️ Platform Suites & Products
+## 🏗️ Platform Products
 
-AIP organizes its user-facing products and workflows into four primary suites:
+AIP organizes user-facing workflows into persona-specific products in a unified shell.
 
-### 1. Reporting Suite
-*Modernize the reporting lifecycle across the enterprise.*
-*   **PRISM**: Report inventory intelligence, duplicate report detection, usage analysis, and overlap analysis.
-*   **Report Building**: Automated report generation, narrative assistance, standards enforcement, and report quality checks.
-*   **Conversational BI**: Natural language analytics, KPI explanation, analytical questioning, and insight retrieval.
-*   **Proactive Alerts**: Automatic anomaly detection, trend detection, recommendation generation, and proactive monitoring.
+### 1. Business Suite
+*Self-service intelligence consumption for business users.*
+*   **Dashboards**: Curated KPI monitoring, executive dashboards, operational dashboards, catalog search, and report access.
+*   **Conversational BI**: Natural language analytics, metric explanation, follow-up questioning, and business-friendly responses.
+*   **Proactive Alerts**: Threshold monitoring, anomaly detection, trend detection, alert subscriptions, and alert history.
+*   **Deep Insights**: Trend interpretation, driver analysis, risk and opportunity identification, and evidence-backed narratives.
+*   **Scenario Analysis**: What-if analysis, forecasting, impact analysis, scenario comparison, and sensitivity analysis.
 
-### 2. Business Analytics Suite
-*Accelerate analytical execution and exploratory insight discovery.*
-*   **Insight Discovery**: Automated analytical exploration, trend discovery, and material insight surfacing.
-*   **Root Cause Analysis (RCA)**: Driver identification, structural decomposition, and variance contributor analysis.
-*   **What-if Analysis**: Dynamic scenario analysis, Monte Carlo simulation, and parameter sensitivity analysis.
-*   **Business Narratives**: High-quality executive summaries, data-backed analytical storytelling, and tailored business communication.
+### 2. Analyst Actions
+*AI-assisted analytical workflows for analytics professionals.*
+*   **PRISM**: Report inventory rationalization, duplicate report detection, overlap analysis, usage interpretation, and consolidation planning.
+*   **Research**: Business glossary search, metric and data element discovery, KMS-backed knowledge retrieval, historical artifact discovery, and contextual research.
+*   **Explore Data**: Dataset understanding, schema exploration, query generation, data profiling, and data quality assessment.
+*   **Build Report**: Report creation, narrative assistance, standards enforcement, report quality checks, and publishing workflows.
+*   **Root Cause Analysis**: Driver identification, structural decomposition, variance contribution, and diagnostic evidence generation.
+*   **Recommend Actions**: Decision-support recommendations, rationale generation, expected impact, risks, and follow-up options.
 
-### 3. Workflow Automation Suite
-*Operationalize analytics execution and automate repeated workflows.*
-*   **Workflow Design**: Visual and code-based creation and configuration of analytical execution DAGs.
-*   **Workflow Orchestration**: Multi-step task coordination, dynamic variables routing, and execution management.
-*   **Task Automation**: Repetitive task scheduling, automated alert processing, and Human-in-the-Loop (HITL) approval routing.
-*   **Monitoring**: Real-time pipeline visibility, execution tracking (duration, cost, tokens), and notification dispatches.
-
-### 4. Data Science & ML Suite
-*Support model lifecycle activities in a governed, knowledge-integrated environment.*
-*   **Data Preparation**: KMS-aligned profiling, transformation, feature engineering, and value validation.
-*   **Model Development**: Hyperparameter experimentation, model training pipelines, and statistical evaluation.
-*   **Model Documentation**: Metadata logging, automated compliance/governance artifact generation.
-*   **Model Pulse**: Periodic validation of predictions against ground truth, feature drift detection, and health monitoring.
+### 3. Shared Foundation
+*Reusable governed capabilities used by Business Suite and Analyst Actions.*
+*   **KMS Administration & Governance**: Knowledge review, approval, publishing, source connectors, context packages, and platform configuration.
 
 ---
 
@@ -107,7 +100,7 @@ Provides secure analytical data access to enterprise datasets, files, operationa
 
 AIP is split into two repository-level responsibilities:
 
-- **`AIP/`** contains the application runtime: FastAPI gateway, static UI shells, workflow modules, shared intelligence capabilities, KMS orchestration code, and reusable infrastructure clients.
+- **`src/`** contains the application runtime: FastAPI gateway, static UI shells, workflow modules, shared intelligence capabilities, KMS orchestration code, and reusable infrastructure clients.
 - **`AIP-Infra/`** contains the infrastructure and data surfaces used by the application: Docker Compose services, PostgreSQL/pgvector storage, Neo4j storage, Redis storage, logs, reports, artifacts, archives, and team KMS runtime/context data.
 
 The application must not keep institutional knowledge or demo/reference datasets inside application code. AIP code reads those assets from AIP-Infra through centralized configuration.
@@ -182,7 +175,7 @@ It provides:
 Start and validate infrastructure with:
 
 ```bash
-cd /Users/chethan/GitHub/AIP-Project/AIP
+cd /Users/chethan/GitHub/AIP-Project
 ./check.sh
 ```
 
@@ -193,7 +186,7 @@ cd /Users/chethan/GitHub/AIP-Project/AIP
 All runtime infrastructure and storage paths are centralized in:
 
 ```text
-AIP/src/shared/config/config.py
+src/shared/config/config.py
 ```
 
 The `.env` file controls the active endpoints and storage roots:
@@ -237,14 +230,14 @@ AIP code never talks to Docker volumes or seed files directly from product workf
 
 | AIP code path | AIP-Infra dependency | Interaction |
 | --- | --- | --- |
-| `AIP/src/shared/config/config.py` | `.env`, `AIP-Infra/storage`, `AIP-Infra/logs` | Loads all hostnames, ports, credentials, and storage paths. Creates expected infra folders when missing. |
-| `AIP/src/shared/infra/postgres_client.py` | `analytics-source-db` / PostgreSQL on `POSTGRES_*` | Opens PostgreSQL connections for LMS data, KMS metadata, vector chunks, governance tables, and workflow reads. |
-| `AIP/src/shared/infra/neo4j_client.py` | `aip-neo4j` on `NEO4J_URI` | Reads/writes KMS graph nodes and relationships. |
-| `AIP/src/shared/infra/redis_client.py` | `aip-redis` on `REDIS_HOST:REDIS_PORT` | Provides Redis connectivity for cache/session-style infrastructure. |
-| `AIP/src/shared/infra/storage_client.py` | `AIP-Infra/storage/{reports,artifacts,archives}` and `AIP-Infra/logs` | Writes generated files outside the application tree. |
-| `AIP/src/shared/infra/retrieval_client.py` | PostgreSQL + Neo4j through KMS | Keeps retrieval consumers decoupled from physical database details. |
-| `AIP/src/kms/index.py` | `AIP-Infra/kms/<Team>/runtime`, PostgreSQL, Neo4j, logs | Creates/updates KMS tables, writes graph data, stages ingested documents, and records audit/ingestion logs.` |
-| `AIP/src/main.py` | `REPORT_PATH` and static AIP UI folders | Mounts generated report output from AIP-Infra at `/reports` and serves app UIs/API routes. |
+| `src/shared/config/config.py` | `.env`, `AIP-Infra/storage`, `AIP-Infra/logs` | Loads all hostnames, ports, credentials, and storage paths. Creates expected infra folders when missing. |
+| `src/shared/infra/postgres_client.py` | `analytics-source-db` / PostgreSQL on `POSTGRES_*` | Opens PostgreSQL connections for LMS data, KMS metadata, vector chunks, governance tables, and workflow reads. |
+| `src/shared/infra/neo4j_client.py` | `aip-neo4j` on `NEO4J_URI` | Reads/writes KMS graph nodes and relationships. |
+| `src/shared/infra/redis_client.py` | `aip-redis` on `REDIS_HOST:REDIS_PORT` | Provides Redis connectivity for cache/session-style infrastructure. |
+| `src/shared/infra/storage_client.py` | `AIP-Infra/storage/{reports,artifacts,archives}` and `AIP-Infra/logs` | Writes generated files outside the application tree. |
+| `src/shared/infra/retrieval_client.py` | PostgreSQL + Neo4j through KMS | Keeps retrieval consumers decoupled from physical database details. |
+| `src/kms/index.py` | `AIP-Infra/kms/<Team>/runtime`, PostgreSQL, Neo4j, logs | Creates/updates KMS tables, writes graph data, stages ingested documents, and records audit/ingestion logs.` |
+| `src/main.py` | `REPORT_PATH` and static AIP UI folders | Mounts generated report output from AIP-Infra at `/reports` and serves app UIs/API routes. |
 
 The intended dependency direction is:
 
@@ -260,7 +253,7 @@ Examples:
 - A knowledge retrieval workflow calls the `knowledge_retrieval` capability; that capability uses `RetrievalClient`, which delegates to KMS, PostgreSQL, and Neo4j.
 - A report publishing workflow writes output through configured report/storage paths; generated files are served from AIP-Infra rather than committed into app code.
 
-Do not bypass this route by adding direct file reads from `AIP/src/kms`, local SQLite databases, hardcoded absolute output folders, or embedded knowledge arrays in suite workflows.
+Do not bypass this route by adding direct file reads from `src/kms`, local SQLite databases, hardcoded absolute output folders, or embedded knowledge arrays in suite workflows.
 
 ### AIP-Infra Runtime Data
 
@@ -295,7 +288,7 @@ Important boundary rules:
 KMS is implemented in:
 
 ```text
-AIP/src/kms/index.py
+src/kms/index.py
 ```
 
 On first access, KMS:
@@ -318,7 +311,7 @@ Retrieval flow:
 Analytical data access is implemented through:
 
 ```text
-AIP/src/shared/infra/analytics_client.py
+src/shared/infra/analytics_client.py
 ```
 
 The implementation is PostgreSQL-backed. Product workflows use `AnalyticsClient.get_table_rows(...)` and `AnalyticsClient.run_compatible_read_query(...)` for read-only access. Legacy `?` placeholders are translated to PostgreSQL `%s` placeholders, but no application seed files are loaded.
@@ -434,10 +427,10 @@ The development of AIP is governed by this precise 10-step build sequence:
 2.  **KMS Integration**: Implement semantic metrics compilation, lineage evaluation, and search APIs.
 3.  **Intelligence Layer**: Build reasoning engines, session tracking, routing pipelines, and prompt structures.
 4.  **Capability Framework**: Implement the 8 core capabilities (`knowledge_retrieval`, `context_management`, etc.).
-5.  **Reporting Suite**: Implement stateful workflows for PRISM, Report Builder, Conversational BI, and Proactive Alerts.
-6.  **Business Analytics Suite**: Implement exploratory canvas, RCA drivers, and simulation pipelines.
-7.  **Data Science & ML Suite**: Implement profiling, experiment trackers, and Model Pulse drift monitors.
-8.  **Workflow Automation Suite**: Implement workflow builders, execution schedulers, and incident alert systems.
+5.  **Business Suite**: Implement dashboards, Conversational BI, Proactive Alerts, Deep Insights, and Scenario Analysis.
+6.  **Analyst Actions**: Implement PRISM, Research, Explore Data, Build Report, Root Cause Analysis, and Recommend Actions.
+7.  **Shared Foundation**: Implement KMS administration, governance, context packages, and platform configuration.
+8.  **Operational Hardening**: Implement workflow reliability, telemetry, and incident alerting.
 9.  **Hardening**: Implement row-level tenant security, audit logs, and hallucination-preventing validation gates.
 10.  **Platformization**: Finalize the unified visual `/ui` shell, auth layers, deployment manifests, and documentation.
 

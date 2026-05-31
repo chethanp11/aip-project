@@ -9,11 +9,11 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 # Ensure AIP/ and src/ are in path
-aip_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../AIP"))
+aip_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.insert(0, aip_root)
 sys.path.insert(0, os.path.join(aip_root, "src"))
 
-from src.reporting.conversational_bi.main import (
+from src.business_suite.conversational_bi.main import (
     run_conversational_bi_workflow,
     _repair_sql_query,
     _plan_visualizations,
@@ -25,10 +25,10 @@ from src.shared.tools.analytics_tool import calculate_trend_diagnostics
 from src.shared.tools.graph_tool import retrieve_graph_lineage
 
 
-@patch("src.reporting.conversational_bi.main.call_llm")
-@patch("src.reporting.conversational_bi.main._safe_invoke_capability")
-@patch("src.reporting.conversational_bi.main.run_custom_query")
-@patch("src.reporting.conversational_bi.main._schema_catalog")
+@patch("src.business_suite.conversational_bi.main.call_llm")
+@patch("src.business_suite.conversational_bi.main._safe_invoke_capability")
+@patch("src.business_suite.conversational_bi.main.run_custom_query")
+@patch("src.business_suite.conversational_bi.main._schema_catalog")
 def test_conv_bi_successful_flow(
     mock_schema, mock_run_query, mock_invoke_cap, mock_call_llm
 ):
@@ -75,10 +75,10 @@ def test_conv_bi_successful_flow(
     assert "#10b981" in res["renderedHtml"]
 
 
-@patch("src.reporting.conversational_bi.main.call_llm")
-@patch("src.reporting.conversational_bi.main._safe_invoke_capability")
-@patch("src.reporting.conversational_bi.main.run_custom_query")
-@patch("src.reporting.conversational_bi.main._schema_catalog")
+@patch("src.business_suite.conversational_bi.main.call_llm")
+@patch("src.business_suite.conversational_bi.main._safe_invoke_capability")
+@patch("src.business_suite.conversational_bi.main.run_custom_query")
+@patch("src.business_suite.conversational_bi.main._schema_catalog")
 def test_conv_bi_sql_self_healing_loop(
     mock_schema, mock_run_query, mock_invoke_cap, mock_call_llm
 ):
@@ -120,10 +120,10 @@ def test_conv_bi_sql_self_healing_loop(
     assert mock_run_query.call_count == 3
 
 
-@patch("src.reporting.conversational_bi.main.call_llm")
-@patch("src.reporting.conversational_bi.main._safe_invoke_capability")
-@patch("src.reporting.conversational_bi.main.run_custom_query")
-@patch("src.reporting.conversational_bi.main._schema_catalog")
+@patch("src.business_suite.conversational_bi.main.call_llm")
+@patch("src.business_suite.conversational_bi.main._safe_invoke_capability")
+@patch("src.business_suite.conversational_bi.main.run_custom_query")
+@patch("src.business_suite.conversational_bi.main._schema_catalog")
 def test_conv_bi_qc_grounding_revision_loop(
     mock_schema, mock_run_query, mock_invoke_cap, mock_call_llm
 ):
@@ -221,15 +221,15 @@ def test_graph_tool_retrieve_lineage_mocked(mock_neo4j):
     assert lineage['connections'][0]['neighbor_id'] == 'transactions'
 
 
-@patch("src.reporting.conversational_bi.main.call_llm")
-@patch("src.reporting.conversational_bi.main._safe_invoke_capability")
-@patch("src.reporting.conversational_bi.main.retrieve_graph_lineage")
+@patch("src.business_suite.conversational_bi.main.call_llm")
+@patch("src.business_suite.conversational_bi.main._safe_invoke_capability")
+@patch("src.business_suite.conversational_bi.main.retrieve_graph_lineage")
 def test_conv_bi_semantic_bypassing_intent_classification(
     mock_lineage, mock_invoke_cap, mock_call_llm
 ):
     """Verifies that queries with semantic intent bypass SQL planners and query directly from KMS metadata."""
     # Under real execution, intent classifier would return semantic. In test, we patch it
-    with patch("src.reporting.conversational_bi.main._run_intent_classifier", new_callable=AsyncMock) as mock_intent:
+    with patch("src.business_suite.conversational_bi.main._run_intent_classifier", new_callable=AsyncMock) as mock_intent:
         mock_intent.return_value = {'intent': 'semantic', 'route': 'semantic'}
         mock_invoke_cap.return_value = {'context': ['Glossary: NPL stands for Non-Performing Loans.']}
         mock_lineage.return_value = {'lineage_found': False, 'connections': []}
@@ -243,10 +243,10 @@ def test_conv_bi_semantic_bypassing_intent_classification(
         assert res["visualHtml"] == ""
 
 
-@patch("src.reporting.conversational_bi.main.call_llm")
+@patch("src.business_suite.conversational_bi.main.call_llm")
 def test_conv_bi_langgraph_agent_execution(mock_call_llm):
     """Verifies that the LangGraphAgent compiles and executes correctly via StateGraph."""
-    from src.reporting.conversational_bi.main import LangGraphAgent
+    from src.business_suite.conversational_bi.main import LangGraphAgent
     
     mock_call_llm.return_value = "LangGraph response output."
     

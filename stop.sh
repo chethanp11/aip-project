@@ -5,7 +5,7 @@ fi
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INFRA_DIR="$REPO_ROOT/AIP-Infra/docker"
+INFRA_DIR="$REPO_ROOT/Infra/docker"
 PORT="${PORT:-8000}"
 
 echo "==================================="

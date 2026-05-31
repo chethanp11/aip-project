@@ -7,7 +7,7 @@ import sys
 import pytest
 
 # Ensure AIP/ is current working directory so relative operations resolve correctly
-aip_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../AIP"))
+aip_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 original_cwd = os.getcwd()
 os.chdir(aip_root)
 
@@ -29,28 +29,22 @@ def test_get_ui_config():
     cursor.execute("DELETE FROM ui_configurations;")
     cursor.executemany("INSERT INTO ui_configurations VALUES (?, ?, ?);", [
         ("Business User",
-         "home,reporting,analytics,db-explorer",
+         "home,reporting,analytics",
          json.dumps({
              "reporting": ["bi", "proactive"],
-             "analytics": ["discovery", "rca", "whatif", "narratives"],
-             "automation": [],
-             "data-science": []
+             "analytics": ["discovery", "rca", "whatif", "narratives"]
          })),
         ("Analytics Professional",
-         "home,reporting,data-science,db-explorer",
+         "home,reporting,analytics",
          json.dumps({
              "reporting": ["prism", "builder"],
-             "analytics": [],
-             "automation": [],
-             "data-science": ["prep", "develop", "document", "pulse"]
+             "analytics": ["discovery", "rca", "whatif", "narratives"]
          })),
         ("Business Admin",
-         "home,reporting,analytics,automation,data-science,kms,db-explorer,ui-config",
+         "home,reporting,analytics,kms,ui-config",
          json.dumps({
              "reporting": ["prism", "builder", "bi", "proactive"],
-             "analytics": ["discovery", "rca", "whatif", "narratives"],
-             "automation": ["design", "orchestration", "approvals", "monitor"],
-             "data-science": ["prep", "develop", "document", "pulse"]
+             "analytics": ["discovery", "rca", "whatif", "narratives"]
          }))
     ])
     conn.commit()
@@ -98,7 +92,7 @@ def test_post_ui_config_admin_success():
     
     payload = {
         "category": "Test Persona",
-        "visible_suites": "home,reporting,analytics,db-explorer,kms",
+        "visible_suites": "home,reporting,analytics,kms",
         "visible_subproducts": {
             "reporting": ["bi", "proactive", "prism"],
             "analytics": ["discovery", "rca"]

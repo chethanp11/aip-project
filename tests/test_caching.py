@@ -7,7 +7,7 @@ import sys
 import pytest
 
 # Ensure AIP/ is current working directory so that relative static directories mount correctly
-aip_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../AIP"))
+aip_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 original_cwd = os.getcwd()
 os.chdir(aip_root)
 

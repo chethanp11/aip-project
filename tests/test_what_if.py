@@ -8,13 +8,13 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 # Ensure AIP/ and src/ are in path
-aip_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../AIP"))
+aip_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, aip_root)
 sys.path.insert(0, os.path.join(aip_root, "src"))
 
-from src.business_analytics.what_if_analysis.main import run_whatif_workflow
+from src.business_suite.scenario_analysis.main import run_whatif_workflow
 
-@patch("src.business_analytics.what_if_analysis.main.get_lms_table")
+@patch("src.business_suite.scenario_analysis.main.get_lms_table")
 def test_run_whatif_workflow_standard(mock_get_table):
     """
     Verifies that the What-If sandbox computes correct projections with standard valid inputs.
@@ -39,7 +39,7 @@ def test_run_whatif_workflow_standard(mock_get_table):
     assert results['netSpreadProfit'] == 251000000.0
     assert results['netInterestMargin'] == 3.28
 
-@patch("src.business_analytics.what_if_analysis.main.get_lms_table")
+@patch("src.business_suite.scenario_analysis.main.get_lms_table")
 def test_run_whatif_workflow_value_error_fallback(mock_get_table):
     """
     Verifies that formatting errors cleanly fall back to baselines.
@@ -52,7 +52,7 @@ def test_run_whatif_workflow_value_error_fallback(mock_get_table):
     assert results['projectedInterestRevenue'] == 552500000.0
     assert results['netInterestMargin'] == 3.28
 
-@patch("src.business_analytics.what_if_analysis.main.get_lms_table")
+@patch("src.business_suite.scenario_analysis.main.get_lms_table")
 def test_run_whatif_workflow_boundary_negative_fallback(mock_get_table):
     """
     Verifies that negative values are overridden to standard baseline parameters.

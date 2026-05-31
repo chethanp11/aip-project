@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proactive Alerts Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+    <div class="container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div>
+                <div class="app-title-group">
+                    <span class="app-logo">▲</span>
+                    <h1>Proactive Alerts & Monitoring Console</h1>
+                </div>
+                <p class="app-desc">Continuous background analysis of operational exception metrics and data model stability parameters.</p>
+            </div>
+            
+            <div class="radar-pulse-container">
+                <div class="radar-dot">
+                    <div class="radar-ring"></div>
+                </div>
+                <span>Scanner Active</span>
+            </div>
+        </header>
+
+        <!-- Two-Column Workspace Layout -->
+        <div class="workspace-grid">
+            <!-- Left Column: Configure Rules -->
+            <div class="card rules-card">
+                <h3 class="card-title">⚙️ Configure Alert Scanners</h3>
+                <p class="section-subtitle">Set up active, continuous rule scanners in free-flow natural language. Grounded in KMS compliance context.</p>
+                
+                <div class="rules-form">
+                    <div class="input-group">
+                        <label for="rule-input">Rule Description (Free Flow)</label>
+                        <textarea id="rule-input" placeholder="e.g. Alert if Net Interest Margin (NIM) drops below 3.6% or LCR is below 110%"></textarea>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="add-rule-btn" style="width: 100%; margin-top: 10px;">⚡ Save & Activate Scanner</button>
+                </div>
+                
+                <div class="rule-templates">
+                    <span class="templates-label">Quick Seed Templates:</span>
+                    <div class="template-chips">
+                        <button class="chip" onclick="seedTemplate('Notify if Net Interest Margin (NIM) drops below 3.6%')">NIM Breach</button>
+                        <button class="chip" onclick="seedTemplate('Alert if liquidity coverage ratio (LCR) falls below 110%')">LCR Target</button>
+                        <button class="chip" onclick="seedTemplate('Alert if Population Stability Index (PSI) exceeds 0.2')">PSI Stability</button>
+                    </div>
+                </div>
+
+                <div class="active-rules-container">
+                    <h4 class="sub-section-title">📡 Active Alert Scanners (<span id="rules-count">0</span>)</h4>
+                    <div class="active-rules-list" id="active-rules-list">
+                        <!-- Dynamic active rules list -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Surfaced Alerts -->
+            <div class="card alerts-card" style="min-height: 400px; display: flex; flex-direction: column;">
+                <div class="card-header-actions">
+                    <h3 class="card-title" style="margin-bottom: 0;">🔔 Surfaced Performance Drift Alerts</h3>
+                    <button class="btn" id="refresh-alerts">🔍 Scan Active Ledgers</button>
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="results-empty" style="margin: auto 0;">
+                    <div class="empty-icon">🔔</div>
+                    <h4>Active Monitor Idle</h4>
+                    <p class="app-desc" style="font-size: 12px; margin-top: 4px;">Click 'Scan Active Ledgers' to invoke the proactive monitor and trace ledger drifts.</p>
+                </div>
+
+                <!-- Alert Feed list -->
+                <div class="alerts-feed-grid hide" id="alerts-feed">
+                    <!-- Dynamic Alert Cards -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+    
+    <script>
+        const API_BASE = '/api/v1';
+        
+        // Authed Fetch Interceptor matching parent origin session storage
+        const originalFetch = window.fetch;
+        async function resolveAipToken() {
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+                let token = localStorage.getItem('AIP_API_KEY') || '';
+                if (!token && window.parent && window.parent !== window) {
+                    try {
+                        token = window.parent.localStorage.getItem('AIP_API_KEY') || '';
+                    } catch (err) {
+                        token = '';
+                    }
+                }
+                if (token) return token;
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            return '';
+        }
+        window.fetch = async function(url, options = {}) {
+            const isApiRequest = typeof url === 'string' && url.includes('/api/v1');
+            if (isApiRequest) {
+                const token = await resolveAipToken();
+                if (!token) {
+                    return new Response(JSON.stringify({ error: 'Authentication token is not available yet.' }), {
+                        status: 401,
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                options.headers = options.headers || {};
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+            return originalFetch(url, options);
+        };
+    </script>
+    <script src="index.js"></script>
+</body>
+</html>

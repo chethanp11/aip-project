@@ -5,8 +5,8 @@ fi
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_DIR="$REPO_ROOT/AIP"
-INFRA_DIR="$REPO_ROOT/AIP-Infra/docker"
+APP_DIR="$REPO_ROOT"
+INFRA_DIR="$REPO_ROOT/Infra/docker"
 
 if [ ! -d "$APP_DIR" ]; then
   echo "AIP application directory not found: $APP_DIR" >&2
@@ -16,9 +16,9 @@ fi
 cd "$REPO_ROOT"
 
 # Load environment variables if they exist in the secrets directory
-if [ -f "$REPO_ROOT/AIP-Infra/secrets/.env" ]; then
+if [ -f "$REPO_ROOT/Infra/secrets/.env" ]; then
   # Export non-comment lines
-  export $(grep -v '^#' "$REPO_ROOT/AIP-Infra/secrets/.env" | xargs)
+  export $(grep -v '^#' "$REPO_ROOT/Infra/secrets/.env" | xargs)
 fi
 
 PYTHON_BIN="${PYTHON_BIN:-python3}"

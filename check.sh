@@ -5,7 +5,7 @@ fi
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INFRA_ROOT="$PROJECT_ROOT/AIP-Infra"
+INFRA_ROOT="$PROJECT_ROOT/Infra"
 
 cd "$PROJECT_ROOT" || exit 1
 
@@ -122,13 +122,13 @@ import sys
 import psycopg2
 
 # Ensure workspace root and src/ are in python path
-sys.path.insert(0, os.path.join(os.getcwd(), "AIP"))
-sys.path.insert(0, os.path.join(os.getcwd(), "AIP", "src"))
+sys.path.insert(0, os.getcwd())
+sys.path.insert(0, os.path.join(os.getcwd(), "src"))
 
 from src.shared.config import config
-from src.shared.infra.postgres_client import PostgresClient
-from src.shared.infra.redis_client import RedisClient
-from src.shared.infra.neo4j_client import Neo4jClient
+from src.shared.infra_client.postgres_client import PostgresClient
+from src.shared.infra_client.redis_client import RedisClient
+from src.shared.infra_client.neo4j_client import Neo4jClient
 
 print("POSTGRES")
 pg = PostgresClient()

@@ -10,7 +10,7 @@ This document establishes the official coding practices and structural conventio
   - Function, variable, and file names: snake_case (e.g. `advanced_retrieval_orchestration`).
   - Constants: UPPER_SNAKE_CASE (e.g. `AIP_DEV_TOKEN`).
 - **Module Imports**:
-  - Keep absolute path imports based on workspace root (`AIP/`).
+  - Keep absolute path imports based on workspace root (e.g. `src/`).
   - Avoid cyclic dependencies. Shared logic must live under `src/shared` and be shared by all suites.
 - **Comments and Documentation**:
   - Maintain all existing docstrings and inline comments.
