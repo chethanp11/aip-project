@@ -191,9 +191,23 @@ newChatBtn.addEventListener('click', startNewChat);
     await new Promise(r => setTimeout(r, 100));
     await loadSessions();
     
-    // Auto-select most recent session if available
-    const firstItem = sessionList.querySelector('.session-item');
-    if (firstItem) {
-        firstItem.click();
+    // Check if new chat is forced via localStorage
+    if (localStorage.getItem('AIP_FORCE_NEW_CHAT') === 'true') {
+        localStorage.removeItem('AIP_FORCE_NEW_CHAT');
+        startNewChat();
+        
+        // Handle prefill if any
+        const prefill = localStorage.getItem('AIP_NEW_CHAT_PREFILL');
+        if (prefill) {
+            localStorage.removeItem('AIP_NEW_CHAT_PREFILL');
+            chatIn.value = prefill;
+            chatIn.focus();
+        }
+    } else {
+        // Auto-select most recent session if available
+        const firstItem = sessionList.querySelector('.session-item');
+        if (firstItem) {
+            firstItem.click();
+        }
     }
 })();

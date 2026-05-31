@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Proactive Alerts Console</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css" />
 </head>
 <body>
@@ -28,14 +25,7 @@
                     <button class="btn btn-primary" id="add-rule-btn" style="width: 100%; margin-top: 10px;">⚡ Save & Activate Scanner</button>
                 </div>
                 
-                <div class="rule-templates">
-                    <span class="templates-label">Quick Seed Templates:</span>
-                    <div class="template-chips">
-                        <button class="chip" onclick="seedTemplate('Notify if Net Interest Margin (NIM) drops below 3.6%')">NIM Breach</button>
-                        <button class="chip" onclick="seedTemplate('Alert if liquidity coverage ratio (LCR) falls below 110%')">LCR Target</button>
-                        <button class="chip" onclick="seedTemplate('Alert if Population Stability Index (PSI) exceeds 0.2')">PSI Stability</button>
-                    </div>
-                </div>
+
 
                 <div class="active-rules-container">
                     <h4 class="sub-section-title">📡 Active Alert Scanners (<span id="rules-count">0</span>)</h4>

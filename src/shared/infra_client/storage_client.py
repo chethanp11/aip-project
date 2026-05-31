@@ -1,6 +1,6 @@
 """
 Storage Reusable Infrastructure Client
-Handles physical file writes and directory management externalized to the AIP-Infra storage directories.
+Handles physical file writes and directory management externalized to the Infra storage directories.
 """
 
 import os

@@ -101,9 +101,9 @@ Provides secure analytical data access to enterprise datasets, files, operationa
 AIP is split into two repository-level responsibilities:
 
 - **`src/`** contains the application runtime: FastAPI gateway, static UI shells, workflow modules, shared intelligence capabilities, KMS orchestration code, and reusable infrastructure clients.
-- **`AIP-Infra/`** contains the infrastructure and data surfaces used by the application: Docker Compose services, PostgreSQL/pgvector storage, Neo4j storage, Redis storage, logs, reports, artifacts, archives, and team KMS runtime/context data.
+- **`Infra/`** contains the infrastructure and data surfaces used by the application: Docker Compose services, PostgreSQL/pgvector storage, Neo4j storage, Redis storage, logs, reports, artifacts, archives, and team KMS runtime/context data.
 
-The application must not keep institutional knowledge or demo/reference datasets inside application code. AIP code reads those assets from AIP-Infra through centralized configuration.
+The application must not keep institutional knowledge or demo/reference datasets inside application code. AIP code reads those assets from Infra through centralized configuration.
 
 ### Runtime Flow
 
@@ -114,9 +114,9 @@ sequenceDiagram
     participant INT as Intelligence Registry
     participant CAP as Shared Capability
     participant KMS as KMS Orchestrator
-    participant PG as AIP-Infra PostgreSQL
-    participant N4J as AIP-Infra Neo4j
-    participant FS as AIP-Infra Storage
+    participant PG as Infra PostgreSQL
+    participant N4J as Infra Neo4j
+    participant FS as Infra Storage
 
     UI->>API: HTTP request /api/v1/*
     API->>API: Auth middleware sets request agent context
@@ -137,7 +137,7 @@ sequenceDiagram
 The platform starts from:
 
 ```bash
-cd /Users/chethan/GitHub/AIP-Project/AIP
+cd /Users/chethan/GitHub/AIP-Project
 ./start.sh
 ```
 
@@ -160,7 +160,7 @@ PYTHON_BIN=/path/to/python3 ./start.sh
 Infrastructure is defined in:
 
 ```text
-AIP-Infra/docker/docker-compose.yml
+Infra/docker/docker-compose.yml
 ```
 
 It provides:
@@ -181,7 +181,7 @@ cd /Users/chethan/GitHub/AIP-Project
 
 `check.sh` starts Docker Compose, verifies package imports, checks container health, validates Redis/PostgreSQL/Neo4j connectivity, and runs `test_infra.py`.
 
-### Configuration and AIP-Infra Boundaries
+### Configuration and Infra Boundaries
 
 All runtime infrastructure and storage paths are centralized in:
 
@@ -211,56 +211,56 @@ NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=password123
 
-AIP_INFRA_ROOT=/Users/chethan/GitHub/AIP-Project/AIP-Infra
-STORAGE_ROOT=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage
-REPORT_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/reports
-ARTIFACT_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/artifacts
-ARCHIVE_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/storage/archives
-LOG_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/logs
-KMS_ROOT=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms
-KMS_TEAM_ROOT=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms/<Team>
-KMS_TEAM_RUNTIME_PATH=/Users/chethan/GitHub/AIP-Project/AIP-Infra/kms/<Team>/runtime
+AIP_INFRA_ROOT=/Users/chethan/GitHub/AIP-Project/Infra
+STORAGE_ROOT=/Users/chethan/GitHub/AIP-Project/Infra/storage
+REPORT_PATH=/Users/chethan/GitHub/AIP-Project/Infra/storage/reports
+ARTIFACT_PATH=/Users/chethan/GitHub/AIP-Project/Infra/storage/artifacts
+ARCHIVE_PATH=/Users/chethan/GitHub/AIP-Project/Infra/storage/archives
+LOG_PATH=/Users/chethan/GitHub/AIP-Project/Infra/logs
+KMS_ROOT=/Users/chethan/GitHub/AIP-Project/Infra/kms
+KMS_TEAM_ROOT=/Users/chethan/GitHub/AIP-Project/Infra/kms/<Team>
+KMS_TEAM_RUNTIME_PATH=/Users/chethan/GitHub/AIP-Project/Infra/kms/<Team>/runtime
 ```
 
 Application code should use `src.shared.config.config` instead of hardcoded filesystem paths.
 
-### How AIP Code Interacts with AIP-Infra
+### How AIP Code Interacts with Infra
 
 AIP code never talks to Docker volumes or seed files directly from product workflows. The interaction is routed through shared configuration and reusable infrastructure clients:
 
-| AIP code path | AIP-Infra dependency | Interaction |
+| AIP code path | Infra dependency | Interaction |
 | --- | --- | --- |
-| `src/shared/config/config.py` | `.env`, `AIP-Infra/storage`, `AIP-Infra/logs` | Loads all hostnames, ports, credentials, and storage paths. Creates expected infra folders when missing. |
+| `src/shared/config/config.py` | `.env`, `Infra/storage`, `Infra/logs` | Loads all hostnames, ports, credentials, and storage paths. Creates expected infra folders when missing. |
 | `src/shared/infra/postgres_client.py` | `analytics-source-db` / PostgreSQL on `POSTGRES_*` | Opens PostgreSQL connections for LMS data, KMS metadata, vector chunks, governance tables, and workflow reads. |
 | `src/shared/infra/neo4j_client.py` | `aip-neo4j` on `NEO4J_URI` | Reads/writes KMS graph nodes and relationships. |
 | `src/shared/infra/redis_client.py` | `aip-redis` on `REDIS_HOST:REDIS_PORT` | Provides Redis connectivity for cache/session-style infrastructure. |
-| `src/shared/infra/storage_client.py` | `AIP-Infra/storage/{reports,artifacts,archives}` and `AIP-Infra/logs` | Writes generated files outside the application tree. |
+| `src/shared/infra/storage_client.py` | `Infra/storage/{reports,artifacts,archives}` and `Infra/logs` | Writes generated files outside the application tree. |
 | `src/shared/infra/retrieval_client.py` | PostgreSQL + Neo4j through KMS | Keeps retrieval consumers decoupled from physical database details. |
-| `src/kms/index.py` | `AIP-Infra/kms/<Team>/runtime`, PostgreSQL, Neo4j, logs | Creates/updates KMS tables, writes graph data, stages ingested documents, and records audit/ingestion logs.` |
-| `src/main.py` | `REPORT_PATH` and static AIP UI folders | Mounts generated report output from AIP-Infra at `/reports` and serves app UIs/API routes. |
+| `src/kms/index.py` | `Infra/kms/<Team>/runtime`, PostgreSQL, Neo4j, logs | Creates/updates KMS tables, writes graph data, stages ingested documents, and records audit/ingestion logs.` |
+| `src/main.py` | `REPORT_PATH` and static AIP UI folders | Mounts generated report output from Infra at `/reports` and serves app UIs/API routes. |
 
 The intended dependency direction is:
 
 ```text
-Suite workflow -> shared capability -> shared infra client -> AIP-Infra service/storage
+Suite workflow -> shared capability -> shared infra client -> Infra service/storage
 ```
 
-Code should cross the AIP/AIP-Infra boundary only through `src.shared.config` and `src.shared.infra` clients. Product workflows should depend on capabilities and workflow inputs, not on physical Docker volume paths, physical runtime layouts or database driver details.
+Code should cross the AIP/Infra boundary only through `src.shared.config` and `src.shared.infra` clients. Product workflows should depend on capabilities and workflow inputs, not on physical Docker volume paths, physical runtime layouts or database driver details.
 
 Examples:
 
 - A reporting workflow that needs corporate ledger data calls `AnalyticsClient`; it does not read local JSON/SQLite files.
 - A knowledge retrieval workflow calls the `knowledge_retrieval` capability; that capability uses `RetrievalClient`, which delegates to KMS, PostgreSQL, and Neo4j.
-- A report publishing workflow writes output through configured report/storage paths; generated files are served from AIP-Infra rather than committed into app code.
+- A report publishing workflow writes output through configured report/storage paths; generated files are served from Infra rather than committed into app code.
 
 Do not bypass this route by adding direct file reads from `src/kms`, local SQLite databases, hardcoded absolute output folders, or embedded knowledge arrays in suite workflows.
 
-### AIP-Infra Runtime Data
+### Infra Runtime Data
 
-KMS runtime/context data lives under team folders in AIP-Infra:
+KMS runtime/context data lives under team folders in Infra:
 
 ```text
-AIP-Infra/kms/
+Infra/kms/
 ├── Treasury/
 │   ├── context/
 │   └── runtime/
@@ -278,8 +278,8 @@ AIP-Infra/kms/
 Important boundary rules:
 
 - Application code must not load seed files.
-- Team context is loaded from `AIP-Infra/kms/<Team>/context`.
-- Runtime KMS ingestion staging and logs are written to `AIP-Infra/kms/<Team>/runtime`.
+- Team context is loaded from `Infra/kms/<Team>/context`.
+- Runtime KMS ingestion staging and logs are written to `Infra/kms/<Team>/runtime`.
 - Published reports are written to `REPORT_PATH` and served at `/reports`.
 - AIP code should not reintroduce local files such as `src/kms/*.json`, `src/kms/data/*`, local SQLite databases, or seed-driven bootstrap data.
 
@@ -295,7 +295,7 @@ On first access, KMS:
 
 1. Connects to PostgreSQL through `PostgresClient`.
 2. Creates KMS tables such as `vector_chunks`, `canonical_knowledge`, `candidate_knowledge`, `business_terms`, `metrics_glossary`, `analytical_templates`, `knowledge_articles`, audit logs, approvals, connectors, and domains.
-3. Stores team-specific KMS context under `AIP-Infra/kms/<Team>/context` and attaches the authenticated team folder to the active Analyst or SME login session.
+3. Stores team-specific KMS context under `Infra/kms/<Team>/context` and attaches the authenticated team folder to the active Analyst or SME login session.
 4. Writes graph nodes and relationships through `Neo4jClient` and PostgreSQL tables.
 5. Tokenizes approved or ingested knowledge into `vector_chunks` for retrieval.
 
@@ -321,8 +321,8 @@ The implementation is PostgreSQL-backed. Product workflows use `AnalyticsClient.
 The intelligence layer is implemented in:
 
 ```text
-AIP/src/shared/intelligence.py
-AIP/src/shared/capabilities/
+src/shared/intelligence.py
+src/shared/capabilities/
 ```
 
 At startup, `src/main.py` registers shared stateless capabilities:
@@ -343,10 +343,8 @@ The FastAPI middleware maps each request to an agent persona and stores request-
 Each product suite has a backend workflow module and a static micro-frontend:
 
 ```text
-AIP/src/reporting/*
-AIP/src/business_analytics/*
-AIP/src/workflow_automation/*
-AIP/src/data_science_ml/*
+src/analyst_actions/*
+src/business_suite/*
 ```
 
 `src/main.py` mounts:
@@ -386,8 +384,6 @@ The default KMS bootstrap users are created in PostgreSQL if missing:
 | Audit logs | `/api/v1/execution-logs` |
 | Reporting | `/api/v1/workflows/reporting/*` |
 | Business analytics | `/api/v1/workflows/analytics/*` |
-| Workflow automation | `/api/v1/workflows/automation/*` |
-| Data science/ML | `/api/v1/workflows/ds/*` |
 
 Example authenticated call:
 
@@ -398,10 +394,10 @@ curl -H "Authorization: Bearer AIP-DEV-TOKEN" \
 
 ### Development Guardrails
 
-- Keep application logic in `AIP/src`.
-- Keep infrastructure state, report outputs, artifacts, archives, and logs in `AIP-Infra`.
-- Add new reusable platform integrations under `AIP/src/shared/infra`.
-- Add new stateless capabilities under `AIP/src/shared/capabilities`.
+- Keep application logic in `src`.
+- Keep infrastructure state, report outputs, artifacts, archives, and logs in `Infra`.
+- Add new reusable platform integrations under `src/shared/infra_client`.
+- Add new stateless capabilities under `src/shared/capabilities`.
 - Add suite-specific workflows under the relevant suite folder.
 - Do not hardcode institutional knowledge, KMS data, LMS data, local database paths, or report output paths inside workflow code.
 - Prefer config-driven paths from `src.shared.config.config`.
@@ -440,26 +436,23 @@ The development of AIP is governed by this precise 10-step build sequence:
 
 ```text
 /Users/chethan/GitHub/AIP-Project/
-├── AIP/
-│   ├── .env.example                  # Environment template for AIP runtime
-│   ├── check.sh                      # Infra and app health check
-│   ├── start.sh                      # Local FastAPI launcher
-│   ├── requirements.txt              # Python dependencies
-│   ├── src/
-│   │   ├── main.py                   # FastAPI API gateway and static UI mounts
-│   │   ├── shared/
-│   │   │   ├── config/config.py      # Central config and AIP-Infra path mappings
-│   │   │   ├── infra/                # PostgreSQL, Redis, Neo4j, retrieval, storage clients
-│   │   │   ├── capabilities/         # Stateless reusable intelligence capabilities
-│   │   │   ├── intelligence.py       # Capability registry, agent context, audit traces
-│   │   ├── kms/                      # KMS orchestration and KMS UI only
-│   │   ├── reporting/                # Reporting workflows and static UIs
-│   │   ├── business_analytics/       # Analytics workflows and static UIs
-│   │   ├── workflow_automation/      # Workflow automation modules and static UIs
-│   │   ├── data_science_ml/          # DS/ML modules and static UIs
-│   │   └── ui/                       # Master platform shell
-│   └── test_infra.py                 # Connectivity smoke checks
-└── AIP-Infra/
+├── .env.example                      # Environment template for AIP runtime
+├── check.sh                          # Infra and app health check
+├── start.sh                          # Local FastAPI launcher
+├── requirements.txt                  # Python dependencies
+├── src/
+│   ├── main.py                       # FastAPI API gateway and static UI mounts
+│   ├── shared/
+│   │   ├── config/config.py          # Central config and Infra path mappings
+│   │   ├── infra_client/             # PostgreSQL, Redis, Neo4j, retrieval, storage clients
+│   │   ├── capabilities/             # Stateless reusable intelligence capabilities
+│   │   ├── intelligence.py           # Capability registry, agent context, audit traces
+│   ├── kms/                          # KMS orchestration and KMS UI
+│   ├── analyst_actions/              # Analyst actions (prism, build_report, root_cause_analysis, recommend_actions, research, explore_data)
+│   ├── business_suite/               # Business suite (conversational_bi, dashboards, deep_insights, proactive_alerts, scenario_analysis)
+│   └── ui/                           # Master platform shell
+├── test_infra.py                     # Connectivity smoke checks
+└── Infra/
     ├── docker/docker-compose.yml     # PostgreSQL, Neo4j, Redis, analytics PostgreSQL
     ├── logs/                         # Runtime logs
     ├── backups/                      # Backup output root

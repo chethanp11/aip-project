@@ -177,7 +177,10 @@ async def call_llm(system_prompt: str, user_prompt: str, json_mode: bool = False
 
     try:
         start_time = time.time()
-        url = 'https://api.openai.com/v1/chat/completions'
+        url = os.environ.get('OPENAI_CHAT_COMPLETIONS_URL')
+        if not url:
+            print('[Intelligence AI] OPENAI_CHAT_COMPLETIONS_URL is not configured, using mock heuristics.')
+            return None
         
         headers = {
             'Content-Type': 'application/json',

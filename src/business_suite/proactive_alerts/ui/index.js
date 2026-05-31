@@ -122,14 +122,6 @@ async function refreshAlertsStream() {
                     icon = 'ℹ️';
                 }
                 
-                // KMS Context details block
-                const kmsBlock = alertItem.kms_grounding ? `
-                    <div class="alert-kms-box">
-                        <span class="kms-header">📚 Grounded via KMS Regulation Context</span>
-                        <p class="kms-text">${alertItem.kms_grounding}</p>
-                    </div>
-                ` : '';
-                
                 return `
                     <div class="alert-item-card severity-${sev}">
                         <div class="alert-card-header">
@@ -139,17 +131,8 @@ async function refreshAlertsStream() {
                         <div class="alert-body">
                             <p class="alert-message-text">${alertItem.message}</p>
                             
-                            ${kmsBlock}
-                            
-                            <div class="alert-recommendation-box">
-                                <span class="recom-header">Recommended Standard Response Procedure</span>
-                                <p class="recom-text">${alertItem.recommendation}</p>
-                                
-                                <div class="alert-shortcuts-row">
-                                    <a class="shortcut-link" onclick="deepLinkToPage('scenario-analysis')">🎲 Run What-If Simulation</a>
-                                    <span style="color:#cbd5e1;">|</span>
-                                    <a class="shortcut-link" onclick="deepLinkToPage('kms')">📚 Search KMS Glossary</a>
-                                </div>
+                            <div class="alert-shortcuts-row" style="margin-top: 10px;">
+                                <a class="shortcut-link" onclick="openConversationalBIChat('${alertItem.metric}')">💬 Chat to Know More</a>
                             </div>
                         </div>
                     </div>
@@ -175,6 +158,18 @@ async function refreshAlertsStream() {
     }
 }
 
+function openConversationalBIChat(metricName) {
+    localStorage.setItem('AIP_FORCE_NEW_CHAT', 'true');
+    if (metricName) {
+        localStorage.setItem('AIP_NEW_CHAT_PREFILL', `Why is the metric ${metricName} breaching its alert thresholds? Please run a diagnostic evaluation.`);
+    }
+    if (window.parent && typeof window.parent.switchPage === 'function') {
+        window.parent.switchPage('conversational-bi');
+    } else {
+        console.log(`Conversational BI navigation requested for: ${metricName}`);
+    }
+}
+
 // Bind event listeners
 addRuleBtn.addEventListener('click', () => {
     addAlertRule(ruleInput.value);
@@ -183,7 +178,7 @@ addRuleBtn.addEventListener('click', () => {
 refreshBtn.addEventListener('click', refreshAlertsStream);
 
 // Make globals for inline onclick calls in iframe context
-window.seedTemplate = seedTemplate;
+window.openConversationalBIChat = openConversationalBIChat;
 window.deleteAlertRule = deleteAlertRule;
 
 // Initialize on startup

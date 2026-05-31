@@ -33,7 +33,6 @@ def handler(input_params: Dict[str, Any]) -> Dict[str, Any]:
         })
         
     vega_spec = {
-        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
         "description": "AIP Auto Generated Spec",
         "width": "container",
         "height": 220,

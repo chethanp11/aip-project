@@ -185,3 +185,22 @@ def test_ui_configuration_manager_removed():
     for term in removed_terms:
         assert term not in shell_html
         assert term not in shell_js
+
+
+
+def test_src_runtime_code_has_no_external_weblinks():
+    repo_root = Path(__file__).resolve().parents[1]
+    src_root = repo_root / "src"
+    forbidden = ["http://", "https://", "fonts.googleapis", "fonts.gstatic", "cdn.", "unpkg", "jsdelivr"]
+
+    checked_files = [
+        path
+        for path in src_root.rglob("*")
+        if path.is_file() and path.suffix in {".html", ".js", ".css", ".py"}
+    ]
+    assert checked_files
+
+    for path in checked_files:
+        content = path.read_text(errors="ignore")
+        for term in forbidden:
+            assert term not in content, f"{term} found in {path}"

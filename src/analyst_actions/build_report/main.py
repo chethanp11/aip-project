@@ -161,7 +161,7 @@ Please generate the relevant agent decisions list."""
                 },
                 {
                     'agent': "Data Engineer Agent",
-                    'decision': "Ingested ledger transaction entries from the AIP-Infra PostgreSQL source.",
+                    'decision': "Ingested ledger transaction entries from the Infra PostgreSQL source.",
                     'rationale': f"Calculated total resource balance averages across accounts for KPIs: {', '.join(kpis)}.",
                     'status': "Completed"
                 }
@@ -613,7 +613,6 @@ async def advance_workflow_step(session_id: str, approved_step: int, approved: b
 <head>
     <meta charset="UTF-8">
     <title>{session['reportName']}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
         body {{
             font-family: 'Inter', sans-serif;

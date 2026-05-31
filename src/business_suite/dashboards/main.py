@@ -63,7 +63,7 @@ def get_dashboard_reports() -> List[Dict[str, Any]]:
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
 
-    # Legacy/shared standalone reports under Infra/shared/*.html.
+    # Standalone reports under Infra/shared/*.html.
     for file in os.listdir(shared_dir):
         if file.endswith('.html'):
             file_path = os.path.join(shared_dir, file)
@@ -80,6 +80,7 @@ def get_dashboard_reports() -> List[Dict[str, Any]]:
     reports.sort(key=lambda x: x['lastModified'], reverse=True)
     return reports
 
+
 def seed_premium_reports_if_empty():
     """Seeds three premium, highly styled, interactive HTML sample reports into Infra/shared if empty."""
     shared_dir = config.SHARED_REPORT_PATH
@@ -91,7 +92,7 @@ def seed_premium_reports_if_empty():
     if len(html_files) > 0:
         return
         
-    print("[Dashboard Seeder] Seeding premium sample reports into Infra/shared...")
+    print("[Dashboard Seeder] Seeding premium light-themed sample reports into Infra/shared...")
     
     # 1. Treasury Liquidity Report
     treasury_html = """<!DOCTYPE html>
@@ -100,17 +101,16 @@ def seed_premium_reports_if_empty():
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Treasury Liquidity & Sweep Performance Report</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-      --card-bg: rgba(30, 41, 59, 0.7);
-      --border-color: rgba(255, 255, 255, 0.08);
-      --text-main: #f8fafc;
-      --text-sub: #94a3b8;
-      --primary: #3b82f6;
-      --primary-glow: rgba(59, 130, 246, 0.35);
-      --success: #10b981;
+      --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      --card-bg: #ffffff;
+      --border-color: #e2e8f0;
+      --text-main: #0f172a;
+      --text-sub: #475569;
+      --primary: #2563eb;
+      --primary-glow: rgba(37, 99, 235, 0.05);
+      --success: #059669;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -129,7 +129,7 @@ def seed_premium_reports_if_empty():
       font-family: 'Outfit', sans-serif;
       font-size: 28px;
       font-weight: 700;
-      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 6px;
@@ -146,8 +146,7 @@ def seed_premium_reports_if_empty():
       border: 1px solid var(--border-color);
       border-radius: 12px;
       padding: 20px;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
     }
     .metric-value {
       font-family: 'Outfit', sans-serif;
@@ -155,7 +154,6 @@ def seed_premium_reports_if_empty():
       font-weight: 700;
       color: var(--primary);
       margin: 10px 0 5px 0;
-      text-shadow: 0 0 10px var(--primary-glow);
     }
     .metric-title { font-size: 12px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; }
     .metric-change { font-size: 13px; color: var(--success); display: flex; align-items: center; gap: 4px; }
@@ -165,21 +163,22 @@ def seed_premium_reports_if_empty():
       border-radius: 12px;
       padding: 24px;
       margin-bottom: 30px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
     }
-    h2 { font-family: 'Outfit', sans-serif; font-size: 20px; margin-bottom: 20px; color: #93c5fd; }
+    h2 { font-family: 'Outfit', sans-serif; font-size: 20px; margin-bottom: 20px; color: #1e3a8a; }
     .table-container { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
-    th { padding: 12px 16px; border-bottom: 2px solid var(--border-color); color: var(--text-sub); font-size: 12px; text-transform: uppercase; font-weight: 600; }
+    th { padding: 12px 16px; border-bottom: 2px solid var(--border-color); color: var(--text-sub); font-size: 12px; text-transform: uppercase; font-weight: 600; background: #f8fafc; }
     td { padding: 16px; border-bottom: 1px solid var(--border-color); font-size: 14px; }
-    tr:hover { background: rgba(255, 255, 255, 0.02); }
+    tr:hover { background: #f8fafc; }
     .badge {
       display: inline-block;
       padding: 4px 8px;
       font-size: 11px;
       font-weight: 600;
       border-radius: 6px;
-      background: rgba(16, 185, 129, 0.15);
-      color: var(--success);
+      background: #d1fae5;
+      color: #065f46;
     }
   </style>
 </head>
@@ -197,12 +196,12 @@ def seed_premium_reports_if_empty():
     </div>
     <div class="card">
       <div class="metric-title">Net Liquidity Optimized</div>
-      <div class="metric-value" style="color: #10b981; text-shadow: 0 0 10px rgba(16,185,129,0.3)">$1.42 Billion</div>
+      <div class="metric-value" style="color: #059669">$1.42 Billion</div>
       <div class="metric-change">⬆ +8.1% target exceeded</div>
     </div>
     <div class="card">
       <div class="metric-title">ZBA Efficiency Rate</div>
-      <div class="metric-value" style="color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,0.3)">99.85%</div>
+      <div class="metric-value" style="color: #d97706">99.85%</div>
       <div class="metric-change">Stable baseline verified</div>
     </div>
   </div>
@@ -211,19 +210,19 @@ def seed_premium_reports_if_empty():
     <h2>📈 Cash Inflows vs Sweeps Outflows (Millions $)</h2>
     <div style="height: 120px; display: flex; align-items: flex-end; gap: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color);">
       <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-        <div style="width: 100%; height: 60px; background: var(--primary); border-radius: 4px; box-shadow: 0 0 12px var(--primary-glow);"></div>
+        <div style="width: 100%; height: 60px; background: #3b82f6; border-radius: 4px; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1);"></div>
         <span style="font-size: 11px; color: var(--text-sub);">Q1</span>
       </div>
       <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-        <div style="width: 100%; height: 80px; background: var(--primary); border-radius: 4px; box-shadow: 0 0 12px var(--primary-glow);"></div>
+        <div style="width: 100%; height: 80px; background: #3b82f6; border-radius: 4px; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1);"></div>
         <span style="font-size: 11px; color: var(--text-sub);">Q2</span>
       </div>
       <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-        <div style="width: 100%; height: 95px; background: var(--primary); border-radius: 4px; box-shadow: 0 0 12px var(--primary-glow);"></div>
+        <div style="width: 100%; height: 95px; background: #3b82f6; border-radius: 4px; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1);"></div>
         <span style="font-size: 11px; color: var(--text-sub);">Q3</span>
       </div>
       <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-        <div style="width: 100%; height: 110px; background: var(--success); border-radius: 4px; box-shadow: 0 0 12px rgba(16,185,129,0.35);"></div>
+        <div style="width: 100%; height: 110px; background: #10b981; border-radius: 4px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.15);"></div>
         <span style="font-size: 11px; color: var(--text-sub);">Q4</span>
       </div>
     </div>
@@ -274,17 +273,16 @@ def seed_premium_reports_if_empty():
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Regulatory Compliance Audit Summary</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-gradient: linear-gradient(135deg, #090d16 0%, #111827 100%);
-      --card-bg: rgba(17, 24, 39, 0.75);
-      --border-color: rgba(255, 255, 255, 0.08);
-      --text-main: #f3f4f6;
-      --text-sub: #9ca3af;
-      --danger: #ef4444;
-      --success: #10b981;
-      --warning: #f59e0b;
+      --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      --card-bg: #ffffff;
+      --border-color: #e2e8f0;
+      --text-main: #0f172a;
+      --text-sub: #475569;
+      --danger: #dc2626;
+      --success: #059669;
+      --warning: #d97706;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -303,19 +301,19 @@ def seed_premium_reports_if_empty():
       font-family: 'Outfit', sans-serif;
       font-size: 28px;
       font-weight: 700;
-      background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+      background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 6px;
     }
     .subtitle { color: var(--text-sub); font-size: 14px; }
     .alert-banner {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
       border-radius: 8px;
       padding: 16px;
       margin-bottom: 30px;
-      color: #fca5a5;
+      color: #991b1b;
       font-size: 14px;
       font-weight: 500;
       display: flex;
@@ -333,7 +331,7 @@ def seed_premium_reports_if_empty():
       border: 1px solid var(--border-color);
       border-radius: 12px;
       padding: 20px;
-      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
     }
     .metric-value {
       font-family: 'Outfit', sans-serif;
@@ -341,24 +339,23 @@ def seed_premium_reports_if_empty():
       font-weight: 700;
       color: var(--danger);
       margin: 10px 0 5px 0;
-      text-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
     }
     .metric-title { font-size: 12px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; }
     .table-container { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
-    th { padding: 12px 16px; border-bottom: 2px solid var(--border-color); color: var(--text-sub); font-size: 12px; text-transform: uppercase; }
+    th { padding: 12px 16px; border-bottom: 2px solid var(--border-color); color: var(--text-sub); font-size: 12px; text-transform: uppercase; background: #f8fafc; }
     td { padding: 16px; border-bottom: 1px solid var(--border-color); font-size: 14px; }
     .badge-error {
-      background: rgba(239, 68, 68, 0.15);
-      color: var(--danger);
+      background: #fee2e2;
+      color: #991b1b;
       padding: 4px 8px;
       font-size: 11px;
       font-weight: 600;
       border-radius: 6px;
     }
     .badge-ok {
-      background: rgba(16, 185, 129, 0.15);
-      color: var(--success);
+      background: #fef3c7;
+      color: #92400e;
       padding: 4px 8px;
       font-size: 11px;
       font-weight: 600;
@@ -379,8 +376,8 @@ def seed_premium_reports_if_empty():
   <div class="grid">
     <div class="card">
       <div class="metric-title">Compliance Rating</div>
-      <div class="metric-value" style="color: #10b981; text-shadow: 0 0 10px rgba(16,185,129,0.2)">98.4%</div>
-      <span style="font-size: 12px; color: var(--text-sub)">Target threshold: >99.0%</span>
+      <div class="metric-value" style="color: #059669">98.4%</div>
+      <span style="font-size: 12px; color: var(--text-sub)">Target threshold: &gt;99.0%</span>
     </div>
     <div class="card">
       <div class="metric-title">Open Risk Exceptions</div>
@@ -389,13 +386,13 @@ def seed_premium_reports_if_empty():
     </div>
     <div class="card">
       <div class="metric-title">Last Audit Date</div>
-      <div class="metric-value" style="color: #60a5fa; text-shadow: 0 0 10px rgba(96,165,250,0.2)">2026-05-28</div>
+      <div class="metric-value" style="color: #2563eb">2026-05-28</div>
       <span style="font-size: 12px; color: var(--text-sub)">Cycle status: Completed</span>
     </div>
   </div>
 
   <div class="card">
-    <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px; margin-bottom: 20px; color: #fca5a5;">🔍 Audit Exceptions Ledger Details</h2>
+    <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px; margin-bottom: 20px; color: #991b1b;">🔍 Audit Exceptions Ledger Details</h2>
     <div class="table-container">
       <table>
         <thead>
@@ -419,7 +416,7 @@ def seed_premium_reports_if_empty():
             <td>CTRL-901</td>
             <td>KYC Document Expiry Audit Failure</td>
             <td>2026-05-18</td>
-            <td><span class="badge-ok" style="background: rgba(245,158,11,0.15); color: var(--warning)">Medium</span></td>
+            <td><span class="badge-ok">Medium</span></td>
             <td>Remediation In Progress</td>
           </tr>
           <tr>
@@ -443,16 +440,15 @@ def seed_premium_reports_if_empty():
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Wealth Management Investment Outlook</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-gradient: linear-gradient(135deg, #022c22 0%, #064e3b 100%);
-      --card-bg: rgba(6, 78, 59, 0.45);
-      --border-color: rgba(255, 255, 255, 0.08);
-      --text-main: #f0fdf4;
-      --text-sub: #a7f3d0;
-      --primary: #10b981;
-      --primary-glow: rgba(16, 185, 129, 0.35);
+      --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      --card-bg: #ffffff;
+      --border-color: #e2e8f0;
+      --text-main: #0f172a;
+      --text-sub: #475569;
+      --primary: #059669;
+      --primary-glow: rgba(5, 150, 105, 0.05);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -471,7 +467,7 @@ def seed_premium_reports_if_empty():
       font-family: 'Outfit', sans-serif;
       font-size: 28px;
       font-weight: 700;
-      background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+      background: linear-gradient(135deg, #064e3b 0%, #10b981 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 6px;
@@ -488,15 +484,14 @@ def seed_premium_reports_if_empty():
       border: 1px solid var(--border-color);
       border-radius: 12px;
       padding: 20px;
-      backdrop-filter: blur(12px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
     }
     .metric-value {
       font-family: 'Outfit', sans-serif;
       font-size: 32px;
       font-weight: 700;
-      color: #34d399;
+      color: #059669;
       margin: 10px 0 5px 0;
-      text-shadow: 0 0 10px var(--primary-glow);
     }
     .metric-title { font-size: 12px; font-weight: 600; color: var(--text-sub); text-transform: uppercase; }
   </style>
@@ -515,18 +510,18 @@ def seed_premium_reports_if_empty():
     </div>
     <div class="card">
       <div class="metric-title">Equities Allocation</div>
-      <div class="metric-value" style="color: #60a5fa; text-shadow: 0 0 10px rgba(96,165,250,0.3)">60%</div>
+      <div class="metric-value" style="color: #2563eb">60%</div>
       <span style="font-size: 12px; color: var(--text-sub)">Aggressive strategic growth</span>
     </div>
     <div class="card">
       <div class="metric-title">Fixed Income Target</div>
-      <div class="metric-value" style="color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,0.3)">40%</div>
+      <div class="metric-value" style="color: #d97706">40%</div>
       <span style="font-size: 12px; color: var(--text-sub)">Treasuries & AAA Corporate</span>
     </div>
   </div>
 
   <div class="card">
-    <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px; margin-bottom: 16px; color: #6ee7b7;">📋 Executive Summary Takeaways</h2>
+    <h2 style="font-family: 'Outfit', sans-serif; font-size: 20px; margin-bottom: 16px; color: #064e3b;">📋 Executive Summary Takeaways</h2>
     <p style="font-size: 14px; line-height: 1.6; color: var(--text-sub); margin-bottom: 12px;">
       1. Strategic overweight stance in enterprise technology sectors with a strong baseline in cybersecurity and generative AI ledgers.
     </p>
