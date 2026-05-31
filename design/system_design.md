@@ -44,7 +44,7 @@ AIP uses Infra through configuration and client abstractions only.
 | Team KMS contexts | `Infra/kms/<Team>/context` | Login session context, retrieval context attachment |
 | Logs | `Infra/logs` | KMS ingestion logging and infra checks |
 
-Configuration is centralized in `src/shared/config/config.py`. It loads `.env`, sets database credentials, sets storage paths, and creates expected directories.
+Configuration is centralized in `src/shared/config/config.py`. It loads `.env` if present, falls back to container-matched default database credentials when `.env` is absent, sets storage paths, and creates expected directories.
 
 ## 3. FastAPI Gateway
 

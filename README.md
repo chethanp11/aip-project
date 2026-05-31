@@ -143,7 +143,7 @@ cd /Users/chethan/GitHub/AIP-Project
 
 `start.sh`:
 
-1. Creates/activates `.venv` if needed.
+1. Detects Python executable and checks for dependencies.
 2. Installs Python dependencies from `requirements.txt` when core packages are missing.
 3. Starts `src.main:app` with Uvicorn on `127.0.0.1:8000` by default.
 

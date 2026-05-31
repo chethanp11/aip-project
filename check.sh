@@ -6,6 +6,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INFRA_ROOT="$PROJECT_ROOT/Infra"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 cd "$PROJECT_ROOT" || exit 1
 
@@ -13,12 +14,6 @@ cd "$PROJECT_ROOT" || exit 1
 if [ -f "$INFRA_ROOT/secrets/.env" ]; then
   # Export non-comment lines
   export $(grep -v '^#' "$INFRA_ROOT/secrets/.env" | xargs)
-fi
-
-if [ -z "${VIRTUAL_ENV:-}" ]; then
-  echo ""
-  echo "Activating .venv..."
-  source .venv/bin/activate
 fi
 
 echo ""
@@ -34,16 +29,16 @@ pwd
 echo ""
 echo "===== PYTHON ====="
 
-which python
+which "$PYTHON_BIN"
 
-python --version
+"$PYTHON_BIN" --version
 
-which pip
+which pip3 || which pip || true
 
 echo ""
 echo "===== PYTHON PACKAGES ====="
 
-python -c "
+"$PYTHON_BIN" -c "
 import psycopg2
 import redis
 import neo4j
@@ -116,7 +111,7 @@ echo "===== INFRA CONNECTIVITY ====="
 
 cd "$PROJECT_ROOT"
 
-python - << 'EOF'
+"$PYTHON_BIN" - << 'EOF'
 import os
 import sys
 import psycopg2

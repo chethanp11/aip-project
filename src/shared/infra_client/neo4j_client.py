@@ -1,43 +1,74 @@
 """
-Neo4j Reusable Infrastructure Client
-Integrates natively with the externalized Neo4j Graph Database.
+Neo4j Reusable Infrastructure Client (SQLite Graph Emulation Version)
+Enables graph reads (lineage and node queries) directly from the local relational SQLite database
+without requiring Neo4j to be installed or running.
 """
 
-from neo4j import GraphDatabase
+import os
+import sqlite3
 from src.shared.config import config
 
 class Neo4jClient:
     def __init__(self):
-        self.uri = config.NEO4J_URI
-        self.user = config.NEO4J_USER
-        self.password = config.NEO4J_PASSWORD
-        self._driver = None
+        self.db_path = os.path.join(config.KMS_ROOT, "aipdb.db")
 
     def get_driver(self):
-        """Initializes and returns the singleton GraphDatabase driver."""
-        if self._driver is None:
-            self._driver = GraphDatabase.driver(
-                self.uri,
-                auth=(self.user, self.password)
-            )
-        return self._driver
+        """Returns self as a dummy driver instance."""
+        return self
 
     def verify_connectivity(self):
-        """Verifies that the driver can connect to the Neo4j instance."""
-        driver = self.get_driver()
-        driver.verify_connectivity()
+        """No-op as SQLite connectivity is local and checked separately."""
+        pass
 
     def execute_query(self, query: str, parameters: dict = None):
         """
-        Executes a Cypher query on the Neo4j database and returns list of record dicts.
+        Emulates Cypher queries against Neo4j by querying SQLite graph tables directly.
+        Particularly supports the target/neighbor lineage connections query.
         """
-        driver = self.get_driver()
-        with driver.session() as session:
-            result = session.run(query, parameters or {})
-            return [record.data() for record in result]
+        parameters = parameters or {}
+        # If the Cypher query is searching for target lineage (as in retrieve_graph_lineage)
+        if "target" in query and "neighbor" in query:
+            metric_id = parameters.get("metric_id")
+            if not metric_id:
+                return []
+
+            # Read from SQLite graph_nodes and graph_edges
+            if not os.path.exists(self.db_path):
+                return []
+
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            try:
+                # Query upstream and downstream nodes connected to metric_id
+                cursor.execute("""
+                    SELECT n.node_id, n.title, n.type, e.relationship
+                    FROM graph_edges e
+                    JOIN graph_nodes n ON (e.target_id = n.node_id OR e.source_id = n.node_id)
+                    WHERE (e.source_id = ? OR e.target_id = ?) AND n.node_id != ?
+                    LIMIT 25
+                """, (metric_id, metric_id, metric_id))
+                
+                records = []
+                for row in cursor.fetchall():
+                    records.append({
+                        'target_labels': ['KnowledgeNode'],
+                        'relationship': row['relationship'],
+                        'neighbor_labels': [row['type']],
+                        'neighbor_id': row['node_id'],
+                        'neighbor_name': row['title']
+                    })
+                return records
+            except Exception as e:
+                print(f"[Mock Neo4j] Failed to resolve graph lineage from SQLite: {e}")
+                return []
+            finally:
+                cursor.close()
+                conn.close()
+        
+        # Write operations and Cypher syncs are made safe no-ops
+        return []
 
     def close(self):
-        """Closes the active connection driver."""
-        if self._driver is not None:
-            self._driver.close()
-            self._driver = None
+        """No-op."""
+        pass

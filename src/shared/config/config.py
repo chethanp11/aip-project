@@ -23,15 +23,15 @@ else:
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", 5433))
 POSTGRES_DB = os.getenv("POSTGRES_DB", "treasurydb")
-POSTGRES_USER = os.getenv("POSTGRES_USER")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "analytics")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "analytics123")
 
 # Central Repository PostgreSQL Credentials
 AIP_POSTGRES_HOST = os.getenv("AIP_POSTGRES_HOST", "localhost")
 AIP_POSTGRES_PORT = int(os.getenv("AIP_POSTGRES_PORT", 5432))
 AIP_POSTGRES_DB = os.getenv("AIP_POSTGRES_DB", "aipdb")
-AIP_POSTGRES_USER = os.getenv("AIP_POSTGRES_USER")
-AIP_POSTGRES_PASSWORD = os.getenv("AIP_POSTGRES_PASSWORD")
+AIP_POSTGRES_USER = os.getenv("AIP_POSTGRES_USER", "aip")
+AIP_POSTGRES_PASSWORD = os.getenv("AIP_POSTGRES_PASSWORD", "aip123")
 
 # Redis Configuration
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
@@ -39,8 +39,8 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
 # Neo4j Configuration
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-NEO4J_USER = os.getenv("NEO4J_USER")
-NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "password123")
 
 # External Infra storage and logging mappings.
 INFRA_ROOT = os.path.abspath(os.path.join(base_dir, "Infra"))

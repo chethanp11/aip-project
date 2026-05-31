@@ -10,13 +10,90 @@ import json
 import math
 import uuid
 import time
-import psycopg2
-import psycopg2.extras
+import sqlite3
+import urllib.request
+import urllib.error
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from shared.intelligence import call_llm
 from src.shared.infra_client.postgres_client import PostgresClient
 from src.shared.infra_client.neo4j_client import Neo4jClient
+
+# ==========================================================
+# 🧠 OPTIONAL FAISS & EMBEDDING SUPPORT FOR GROUNDING
+# ==========================================================
+try:
+    import faiss
+    import numpy as np
+    HAS_FAISS = True
+except ImportError:
+    HAS_FAISS = False
+
+def get_openai_embedding(text: str) -> Optional[List[float]]:
+    """Helper to generate dense embeddings natively using urllib."""
+    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key or api_key.strip() == '' or api_key.startswith('your_') or len(api_key.strip()) < 10:
+        return None
+    
+    url = "https://api.openai.com/v1/embeddings"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    data = {
+        "input": text,
+        "model": "text-embedding-3-small"
+    }
+    
+    try:
+        req = urllib.request.Request(
+            url, 
+            data=json.dumps(data).encode('utf-8'), 
+            headers=headers, 
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res = json.loads(response.read().decode('utf-8'))
+            return res['data'][0]['embedding']
+    except Exception as e:
+        print(f"[OpenAI Embeddings] Embedding generation bypassed: {e}")
+        return None
+
+def get_faiss_paths(team: str):
+    runtime_dir = config.get_kms_team_runtime_path(team)
+    vector_db_dir = os.path.join(runtime_dir, 'vector_db')
+    os.makedirs(vector_db_dir, exist_ok=True)
+    return {
+        'index': os.path.join(vector_db_dir, 'index.faiss'),
+        'chunks': os.path.join(vector_db_dir, 'chunks.json')
+    }
+
+def load_faiss_index(team: str):
+    if not HAS_FAISS:
+        return None, []
+    paths = get_faiss_paths(team)
+    if not os.path.exists(paths['index']) or not os.path.exists(paths['chunks']):
+        return None, []
+    try:
+        index = faiss.read_index(paths['index'])
+        with open(paths['chunks'], 'r', encoding='utf-8') as f:
+            chunks = json.load(f)
+        return index, chunks
+    except Exception as e:
+        print(f"[FAISS Load] Index load bypassed: {e}")
+        return None, []
+
+def save_faiss_index(team: str, index, chunks: list):
+    if not HAS_FAISS:
+        return
+    paths = get_faiss_paths(team)
+    try:
+        faiss.write_index(index, paths['index'])
+        with open(paths['chunks'], 'w', encoding='utf-8') as f:
+            json.dump(chunks, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[FAISS Save] Failed to serialize FAISS index: {e}")
+
 
 # ==========================================================
 # 📋 PYDANTIC SCHEMAS FOR KMS SCHEMA INTERACTIONS
@@ -54,50 +131,13 @@ class PostgresCursorWrapper:
 
     def execute(self, query: str, params: tuple = ()):
         try:
-            # Translate SQLite parameter binding '?' to PostgreSQL '%s'
-            query_pg = query.replace('?', '%s')
-
-            # Emulate SQLite "INSERT OR REPLACE" via PostgreSQL DELETE-then-INSERT
-            if "INSERT OR REPLACE INTO graph_nodes" in query_pg:
-                self._cursor.execute("DELETE FROM graph_nodes WHERE node_id = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO graph_edges" in query_pg:
-                self._cursor.execute("DELETE FROM graph_edges WHERE edge_id = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO canonical_knowledge" in query_pg:
-                self._cursor.execute("DELETE FROM canonical_knowledge WHERE knowledge_id = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO security_audit_logs" in query_pg:
-                self._cursor.execute("DELETE FROM security_audit_logs WHERE log_id = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO governance_approvals" in query_pg:
-                self._cursor.execute("DELETE FROM governance_approvals WHERE approval_id = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO source_connectors" in query_pg:
-                self._cursor.execute("DELETE FROM source_connectors WHERE connector_id = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO candidate_knowledge" in query_pg:
-                self._cursor.execute("DELETE FROM candidate_knowledge WHERE candidate_id = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO business_domains" in query_pg:
-                self._cursor.execute("DELETE FROM business_domains WHERE domain_id = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO business_terms" in query_pg:
-                self._cursor.execute("DELETE FROM business_terms WHERE term = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO metrics_glossary" in query_pg:
-                self._cursor.execute("DELETE FROM metrics_glossary WHERE id = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO analytical_templates" in query_pg:
-                self._cursor.execute("DELETE FROM analytical_templates WHERE id = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO knowledge_articles" in query_pg:
-                self._cursor.execute("DELETE FROM knowledge_articles WHERE title = %s;", (params[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO observability_metrics" in query_pg:
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT") # standard serial inserts, no replacements
-
-            self._cursor.execute(query_pg, params)
+            # Map %s back to ? for SQLite compatibility
+            query_sqlite = query.replace('%s', '?')
+            # Handle PostgreSQL TRUNCATE CASCADE statements gracefully in SQLite
+            if "TRUNCATE TABLE" in query_sqlite:
+                table_to_delete = query_sqlite.split("TRUNCATE TABLE")[1].split()[0]
+                query_sqlite = f'DELETE FROM "{table_to_delete}";'
+            self._cursor.execute(query_sqlite, params)
         except Exception as e:
             try:
                 self._cursor.connection.rollback()
@@ -107,35 +147,11 @@ class PostgresCursorWrapper:
 
     def executemany(self, query: str, params_list: list):
         try:
-            query_pg = query.replace('?', '%s')
-
-            # Emulate SQLite "INSERT OR REPLACE" bulk actions in PostgreSQL
-            if "INSERT OR REPLACE INTO graph_edges" in query_pg:
-                for p in params_list:
-                    self._cursor.execute("DELETE FROM graph_edges WHERE edge_id = %s;", (p[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO candidate_knowledge" in query_pg:
-                for p in params_list:
-                    self._cursor.execute("DELETE FROM candidate_knowledge WHERE candidate_id = %s;", (p[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT OR REPLACE INTO source_connectors" in query_pg:
-                for p in params_list:
-                    self._cursor.execute("DELETE FROM source_connectors WHERE connector_id = %s;", (p[0],))
-                query_pg = query_pg.replace("INSERT OR REPLACE", "INSERT")
-            elif "INSERT INTO business_domains" in query_pg:
-                # delete existing before insert
-                for p in params_list:
-                    self._cursor.execute("DELETE FROM business_domains WHERE domain_id = %s;", (p[0],))
-            elif "INSERT INTO business_terms" in query_pg:
-                self._cursor.execute("TRUNCATE TABLE business_terms CASCADE;")
-            elif "INSERT INTO metrics_glossary" in query_pg:
-                self._cursor.execute("TRUNCATE TABLE metrics_glossary CASCADE;")
-            elif "INSERT INTO analytical_templates" in query_pg:
-                self._cursor.execute("TRUNCATE TABLE analytical_templates CASCADE;")
-            elif "INSERT INTO knowledge_articles" in query_pg:
-                self._cursor.execute("TRUNCATE TABLE knowledge_articles CASCADE;")
-
-            self._cursor.executemany(query_pg, params_list)
+            query_sqlite = query.replace('%s', '?')
+            if "TRUNCATE TABLE" in query_sqlite:
+                table_to_delete = query_sqlite.split("TRUNCATE TABLE")[1].split()[0]
+                query_sqlite = f'DELETE FROM "{table_to_delete}";'
+            self._cursor.executemany(query_sqlite, params_list)
         except Exception as e:
             try:
                 self._cursor.connection.rollback()
@@ -147,11 +163,11 @@ class PostgresCursorWrapper:
         row = self._cursor.fetchone()
         if row is None:
             return None
-        return PostgresRow(row)
+        return PostgresRow(dict(row))
 
     def fetchall(self):
         rows = self._cursor.fetchall()
-        return [PostgresRow(row) for row in rows]
+        return [PostgresRow(dict(row)) for row in rows]
 
     def close(self):
         self._cursor.close()
@@ -165,7 +181,7 @@ class PostgresConnectionWrapper:
         self._conn = raw_conn
 
     def cursor(self):
-        cursor = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor = self._conn.cursor()
         return PostgresCursorWrapper(cursor)
 
     def commit(self):
@@ -595,13 +611,14 @@ def tokenize(text: str) -> List[str]:
     return [t.strip() for t in cleaned.split() if len(t.strip()) > 2]
 
 def tokenize_and_store_vector_chunk(node_id: str, text: str, team: Optional[str] = None):
-    """Chunks text, tokenizes, and saves into vector table."""
+    """Chunks text, tokenizes, and saves into vector table. Also adds to FAISS index if active."""
     conn = get_kms_db()
     cursor = conn.cursor()
     active_team = team or require_active_kms_team()
 
     # Split text into sentences or chunks of ~150 characters
     sentences = text.split('. ')
+    new_chunks = []
     for s in sentences:
         s_clean = s.strip()
         if len(s_clean) < 15:
@@ -609,7 +626,31 @@ def tokenize_and_store_vector_chunk(node_id: str, text: str, team: Optional[str]
         tokens_str = " ".join(tokenize(s_clean))
         cursor.execute("INSERT INTO vector_chunks (team, node_id, chunk_text, tokens) VALUES (?, ?, ?, ?);",
                        (active_team, node_id, s_clean, tokens_str))
+        new_chunks.append(s_clean)
     conn.commit()
+
+    # Save to optional FAISS index
+    if HAS_FAISS and new_chunks:
+        embeddings = []
+        valid_chunks = []
+        for chunk_text in new_chunks:
+            emb = get_openai_embedding(chunk_text)
+            if emb:
+                embeddings.append(emb)
+                valid_chunks.append({
+                    'node_id': node_id,
+                    'text': chunk_text
+                })
+        
+        if embeddings:
+            index, chunks = load_faiss_index(active_team)
+            emb_matrix = np.array(embeddings, dtype='float32')
+            if index is None:
+                dim = emb_matrix.shape[1]
+                index = faiss.IndexFlatL2(dim)
+            index.add(emb_matrix)
+            chunks.extend(valid_chunks)
+            save_faiss_index(active_team, index, chunks)
 
 # ==========================================================
 # 🔍 VECTOR AND GRAPH DB RAG SEARCH ENGINE (Analyst vs SME)
@@ -663,25 +704,51 @@ def advanced_retrieval_orchestration(
     log_agent_action("Retrieval Planner Agent", "PLAN_RETRIEVAL", f"Received query: '{query_str}' using Search Mode: {search_mode}.")
     active_team = require_active_kms_team()
 
-    # Fetch chunks
-    cursor.execute("SELECT * FROM vector_chunks WHERE team = ?;", (active_team,))
-    all_chunks = cursor.fetchall()
-
     scored_chunks = []
-    for chunk in all_chunks:
-        chunk_tokens = chunk['tokens'].split()
-        if not chunk_tokens:
-            continue
+    
+    # Try FAISS search first if available
+    faiss_succeeded = False
+    if HAS_FAISS:
+        index, chunks = load_faiss_index(active_team)
+        if index is not None and chunks:
+            q_emb = get_openai_embedding(query_str)
+            if q_emb is not None:
+                q_emb_matrix = np.array([q_emb], dtype='float32')
+                # Search top limit*2 items
+                distances, indices = index.search(q_emb_matrix, limit * 2)
+                for dist, idx in zip(distances[0], indices[0]):
+                    if idx != -1 and idx < len(chunks):
+                        chunk_info = chunks[idx]
+                        score = 1.0 / (1.0 + float(dist))
+                        scored_chunks.append({
+                            'node_id': chunk_info['node_id'],
+                            'text': chunk_info['text'],
+                            'score': score
+                        })
+                faiss_succeeded = True
+                log_agent_action("Retrieval Planner Agent", "FAISS_SEARCH", f"Executed FAISS dense semantic search. Found {len(scored_chunks)} matches.")
 
-        match_count = sum(1 for t in query_tokens if t in chunk_tokens)
-        score = match_count / math.sqrt(len(query_tokens) * len(chunk_tokens))
+    # Fallback to local token search if FAISS not available or fails
+    if not faiss_succeeded:
+        # Fetch chunks
+        cursor.execute("SELECT * FROM vector_chunks WHERE team = ?;", (active_team,))
+        all_chunks = cursor.fetchall()
 
-        if score > 0:
-            scored_chunks.append({
-                'node_id': chunk['node_id'],
-                'text': chunk['chunk_text'],
-                'score': score
-            })
+        for chunk in all_chunks:
+            chunk_tokens = chunk['tokens'].split()
+            if not chunk_tokens:
+                continue
+
+            match_count = sum(1 for t in query_tokens if t in chunk_tokens)
+            score = match_count / math.sqrt(len(query_tokens) * len(chunk_tokens))
+
+            if score > 0:
+                scored_chunks.append({
+                    'node_id': chunk['node_id'],
+                    'text': chunk['chunk_text'],
+                    'score': score
+                })
+        log_agent_action("Retrieval Planner Agent", "TOKEN_SEARCH", f"Executed keyword-matching search. Found {len(scored_chunks)} matches.")
 
     scored_chunks.sort(key=lambda x: x['score'], reverse=True)
 

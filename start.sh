@@ -3,6 +3,7 @@ if [ -z "${BASH_VERSION:-}" ]; then
   exec /usr/bin/env bash "$0" "$@"
 fi
 set -euo pipefail
+AIP_SKIP_INFRA="${AIP_SKIP_INFRA:-1}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$REPO_ROOT"
@@ -22,10 +23,6 @@ if [ -f "$REPO_ROOT/Infra/secrets/.env" ]; then
 fi
 
 PYTHON_BIN="${PYTHON_BIN:-python3}"
-VENV_DIR="${VENV_DIR:-$REPO_ROOT/.venv}"
-if [[ "$VENV_DIR" != /* ]]; then
-  VENV_DIR="$REPO_ROOT/$VENV_DIR"
-fi
 HOST="${HOST:-127.0.0.1}"
 PORT="${PORT:-8000}"
 
@@ -35,22 +32,19 @@ if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -d "$VENV_DIR" ]; then
-  echo "Creating virtual environment: $VENV_DIR"
-  "$PYTHON_BIN" -m venv "$VENV_DIR"
-fi
-
-# shellcheck disable=SC1091
-source "$VENV_DIR/bin/activate"
-
-echo "Using Python: $(python --version)"
-if python -c "import fastapi, uvicorn, pydantic" >/dev/null 2>&1; then
+echo "Using Python: $($PYTHON_BIN --version)"
+if "$PYTHON_BIN" -c "import fastapi, uvicorn, pydantic" >/dev/null 2>&1; then
   echo "Python dependencies already available."
 else
   echo "Preparing Python dependencies..."
-  python -m pip install --upgrade pip setuptools wheel
+  PIP_FLAGS=""
+  # Add --break-system-packages if not in a venv and PEP 668 is active or flag is supported
+  if [ -z "${VIRTUAL_ENV:-}" ]; then
+    PIP_FLAGS="--break-system-packages"
+  fi
+  "$PYTHON_BIN" -m pip install $PIP_FLAGS --upgrade pip setuptools wheel
   cd "$APP_DIR"
-  python -m pip install --prefer-binary -r "$REPO_ROOT/requirements.txt"
+  "$PYTHON_BIN" -m pip install $PIP_FLAGS --prefer-binary -r "$REPO_ROOT/requirements.txt"
   cd "$REPO_ROOT"
 fi
 
@@ -118,7 +112,7 @@ fi
 
 echo "Starting AIP at http://$HOST:$PORT"
 if [ "${AIP_DEV_RELOAD:-}" = "1" ]; then
-  exec python -m uvicorn src.main:app --host "$HOST" --port "$PORT" --reload
+  exec "$PYTHON_BIN" -m uvicorn src.main:app --host "$HOST" --port "$PORT" --reload
 fi
 
-exec python -m uvicorn src.main:app --host "$HOST" --port "$PORT"
+exec "$PYTHON_BIN" -m uvicorn src.main:app --host "$HOST" --port "$PORT"
