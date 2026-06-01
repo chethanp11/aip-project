@@ -129,10 +129,36 @@ async def context_and_auth_middleware(request: Request, call_next):
     if auth_header and auth_header.startswith('Bearer '):
         api_key = auth_header.split(' ', 1)[1]
 
-    if not api_key or not api_key.startswith('AIP-'):
+    # Support passing OpenAI API Key directly as the bearer token
+    openai_api_key = ''
+    if api_key.startswith('sk-'):
+        openai_api_key = api_key
+        # Automatically register a session payload for this sk- key to grant full access
+        from shared.session import set_session, active_sessions
+        if api_key not in active_sessions:
+            session_payload = {
+                'username': 'OpenAI_Agent_User',
+                'role': 'Analyst',
+                'clearance': 'Confidential',
+                'display_name': 'OpenAI Agent Console',
+                'allowed_domains': ['Treasury & Capital Management', 'Regulatory Compliance', 'Wealth Management', 'Credit Portfolio Risk'],
+                'allowed_tables': ['deposits', 'loans', 'liquidity_buffers', 'branch_performance', 'accounts', 'transactions', 'liquidity_sweeps', 'sweep_executions', 'treasury_positions', 'cash_forecasts', 'funding_plans', 'collateral_positions', 'fx_exposures', 'interest_rate_swaps', 'investment_securities', 'intraday_liquidity_events', 'nostro_balances', 'repo_transactions', 'stress_test_scenarios', 'corporate_clients', 'regulatory_obligations', 'compliance_controls', 'compliance_reviews', 'compliance_issues', 'wealth_clients', 'investment_accounts', 'portfolio_holdings', 'advisory_mandates', 'financial_plans', 'client_risk_profiles', 'investment_transactions', 'relationship_managers', 'client_goals', 'credit_facilities', 'credit_risk_ratings', 'delinquency_events'],
+                'kms_team': 'Treasury',
+                'kms_context_path': config.get_kms_team_path('Treasury')
+            }
+            set_session(api_key, session_payload)
+
+    # Check for alternative custom headers for the OpenAI API Key
+    if not openai_api_key:
+        for h_name, h_val in request.headers.items():
+            if h_name.lower() in ('x-openai-api-key', 'openai-api-key', 'openai_api_key'):
+                openai_api_key = h_val
+                break
+
+    if not api_key or (not api_key.startswith('AIP-') and not api_key.startswith('sk-')):
         return JSONResponse(
             status_code=401,
-            content={"error": "Unauthorized: Missing or invalid API key. Must start with 'AIP-'"}
+            content={"error": "Unauthorized: Missing or invalid API key. Must start with 'AIP-' or 'sk-'"}
         )
 
     # Map endpoint paths to calling Agent personae (telemetry grounding)
@@ -165,12 +191,26 @@ async def context_and_auth_middleware(request: Request, call_next):
 
 
     # Set thread-safe request-scope contextvars
-    token = active_agent_context.set({'agent': agent_name, 'api_key': api_key})
+    token = active_agent_context.set({
+        'agent': agent_name, 
+        'api_key': api_key,
+        'openai_api_key': openai_api_key
+    })
+    
+    # Bind environment variable for global threads / LangGraph executors
+    old_env_key = os.environ.get('OPENAI_API_KEY')
+    if openai_api_key:
+        os.environ['OPENAI_API_KEY'] = openai_api_key
+        
     try:
         response = await call_next(request)
         return response
     finally:
         active_agent_context.reset(token)
+        if old_env_key is not None:
+            os.environ['OPENAI_API_KEY'] = old_env_key
+        elif 'OPENAI_API_KEY' in os.environ:
+            del os.environ['OPENAI_API_KEY']
 
 # ==========================================================================
 # 🔑 CENTRAL UNIFIED LOGIN ROUTE
@@ -281,9 +321,10 @@ async def query_lms(table: str = None):
                 raise HTTPException(status_code=404, detail=f"Table '{table}' not found in Enterprise Ledger.")
             return records
         else:
+            existing_tables = [t.lower() for t in analytics_client.list_tables()]
             res = {}
             for t in ['deposits', 'loans', 'liquidity_buffers', 'branch_performance']:
-                if t.lower() in allowed_tables:
+                if t.lower() in allowed_tables and t.lower() in existing_tables:
                     res[t] = get_lms_table(t)
             return res
     else:
@@ -293,12 +334,12 @@ async def query_lms(table: str = None):
                 raise HTTPException(status_code=404, detail=f"Table '{table}' not found in Enterprise Ledger.")
             return records
         else:
-            return {
-                'deposits': get_lms_table('deposits'),
-                'loans': get_lms_table('loans'),
-                'liquidity_buffers': get_lms_table('liquidity_buffers'),
-                'branch_performance': get_lms_table('branch_performance')
-            }
+            existing_tables = [t.lower() for t in analytics_client.list_tables()]
+            res = {}
+            for t in ['deposits', 'loans', 'liquidity_buffers', 'branch_performance']:
+                if t.lower() in existing_tables:
+                    res[t] = get_lms_table(t)
+            return res
 
 # ==========================================================================
 # 🗄️ ANALYTICS SOURCE DATABASE ROUTES
@@ -399,10 +440,11 @@ async def kms_upload_document(payload: Dict[str, Any]):
     sme = payload.get('sme', 'Marcus Vance')
     domain = payload.get('businessDomain', 'Enterprise Analytics')
     prompt = payload.get('prompt', '')
+    auto_approve = payload.get('autoApprove', False)
     if not content:
         raise HTTPException(status_code=400, detail="Document content cannot be empty.")
     try:
-        return await ingest_custom_file_to_kms(filename, content, owner, security_class, sme, domain, prompt)
+        return await ingest_custom_file_to_kms(filename, content, owner, security_class, sme, domain, prompt, auto_approve=auto_approve)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -9,9 +9,31 @@ import sqlite3
 import re
 from src.shared.config import config
 
+def left_func(s, n):
+    if s is None:
+        return None
+    try:
+        return str(s)[:int(n)]
+    except Exception:
+        return str(s)
+
+def right_func(s, n):
+    if s is None:
+        return None
+    try:
+        n = int(n)
+        if n <= 0:
+            return ""
+        return str(s)[-n:]
+    except Exception:
+        return str(s)
+
+def concat_func(*args):
+    return "".join(str(a) for a in args if a is not None)
+
 class AnalyticsClient:
     def __init__(self):
-        self.database = config.POSTGRES_DB  # default is treasurydb
+        self.database = config.SQLITE_DB  # default is treasurydb
         self.data_dir = os.path.join(config.INFRA_ROOT, "analytics-data")
 
     def get_connection(self):
@@ -37,6 +59,15 @@ class AnalyticsClient:
         
         conn = sqlite3.connect(db_file)
         conn.row_factory = sqlite3.Row
+        
+        # Register SQL compatibility functions
+        conn.create_function("LEFT", 2, left_func)
+        conn.create_function("left", 2, left_func)
+        conn.create_function("RIGHT", 2, right_func)
+        conn.create_function("right", 2, right_func)
+        conn.create_function("CONCAT", -1, concat_func)
+        conn.create_function("concat", -1, concat_func)
+        
         return conn
 
     def database_for_team(self, team: str) -> str:

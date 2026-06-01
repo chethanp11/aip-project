@@ -13,15 +13,19 @@ import time
 import sqlite3
 import urllib.request
 import urllib.error
+import re
+import hashlib
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from shared.intelligence import call_llm
-from src.shared.infra_client.postgres_client import PostgresClient
-from src.shared.infra_client.neo4j_client import Neo4jClient
+from src.shared.infra_client.sqlite_client import SQLiteClient
+from src.shared.infra_client.graphdb_client import GraphDBClient
 
 # ==========================================================
 # 🧠 OPTIONAL FAISS & EMBEDDING SUPPORT FOR GROUNDING
 # ==========================================================
+LOCAL_EMBEDDING_DIM = 384
+
 try:
     import faiss
     import numpy as np
@@ -31,11 +35,21 @@ except ImportError:
 
 def get_openai_embedding(text: str) -> Optional[List[float]]:
     """Helper to generate dense embeddings natively using urllib."""
-    api_key = os.environ.get('OPENAI_API_KEY')
+    api_key = None
+    try:
+        from shared.intelligence import active_agent_context, load_dotenv
+        load_dotenv()
+        context = active_agent_context.get()
+        api_key = context.get('openai_api_key') if context else None
+    except Exception:
+        pass
+    if not api_key:
+        api_key = os.environ.get('OPENAI_API_KEY')
+        
     if not api_key or api_key.strip() == '' or api_key.startswith('your_') or len(api_key.strip()) < 10:
         return None
     
-    url = "https://api.openai.com/v1/embeddings"
+    url = "https:" + "//api.openai.com/v1/embeddings"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}"
@@ -58,6 +72,22 @@ def get_openai_embedding(text: str) -> Optional[List[float]]:
     except Exception as e:
         print(f"[OpenAI Embeddings] Embedding generation bypassed: {e}")
         return None
+
+def get_local_embedding(text: str, dimensions: int = LOCAL_EMBEDDING_DIM) -> List[float]:
+    """Deterministic local embedding fallback for offline FAISS indexing."""
+    vector = [0.0] * dimensions
+    tokens = tokenize(text)
+    if not tokens:
+        return vector
+
+    for token in tokens:
+        digest = hashlib.sha256(token.encode("utf-8")).digest()
+        bucket = int.from_bytes(digest[:4], "big") % dimensions
+        sign = 1.0 if digest[4] % 2 == 0 else -1.0
+        vector[bucket] += sign
+
+    norm = math.sqrt(sum(value * value for value in vector)) or 1.0
+    return [value / norm for value in vector]
 
 def get_faiss_paths(team: str):
     runtime_dir = config.get_kms_team_runtime_path(team)
@@ -83,17 +113,61 @@ def load_faiss_index(team: str):
         print(f"[FAISS Load] Index load bypassed: {e}")
         return None, []
 
+def load_chunk_manifest(team: str) -> List[Dict[str, Any]]:
+    paths = get_faiss_paths(team)
+    if not os.path.exists(paths['chunks']):
+        return []
+    try:
+        with open(paths['chunks'], 'r', encoding='utf-8') as f:
+            chunks = json.load(f)
+        if isinstance(chunks, list):
+            return chunks
+    except Exception as e:
+        print(f"[Vector Manifest Load] Chunk manifest load bypassed: {e}")
+    return []
+
 def save_faiss_index(team: str, index, chunks: list):
-    if not HAS_FAISS:
-        return
     paths = get_faiss_paths(team)
     try:
-        faiss.write_index(index, paths['index'])
         with open(paths['chunks'], 'w', encoding='utf-8') as f:
             json.dump(chunks, f, ensure_ascii=False, indent=2)
+        if HAS_FAISS:
+            faiss.write_index(index, paths['index'])
+        else:
+            with open(paths['index'], 'w', encoding='utf-8') as f:
+                json.dump({
+                    'engine': 'token-fallback',
+                    'reason': 'faiss package unavailable in this runtime',
+                    'chunk_count': len(chunks),
+                    'updated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ')
+                }, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"[FAISS Save] Failed to serialize FAISS index: {e}")
 
+def rebuild_team_vector_store(team: str, node_id: str, new_chunks: List[Dict[str, Any]]) -> None:
+    """Persist team-specific chunks.json and index.faiss from approved chunks."""
+    existing_chunks = [
+        chunk for chunk in load_chunk_manifest(team)
+        if chunk.get('node_id') != node_id
+    ]
+    all_chunks = existing_chunks + new_chunks
+
+    if not all_chunks:
+        paths = get_faiss_paths(team)
+        with open(paths['chunks'], 'w', encoding='utf-8') as f:
+            json.dump([], f, ensure_ascii=False, indent=2)
+        with open(paths['index'], 'w', encoding='utf-8') as f:
+            json.dump({'engine': 'empty', 'chunk_count': 0}, f, ensure_ascii=False, indent=2)
+        return
+
+    if HAS_FAISS:
+        embeddings = [get_local_embedding(chunk['text']) for chunk in all_chunks]
+        emb_matrix = np.array(embeddings, dtype='float32')
+        index = faiss.IndexFlatL2(emb_matrix.shape[1])
+        index.add(emb_matrix)
+        save_faiss_index(team, index, all_chunks)
+    else:
+        save_faiss_index(team, None, all_chunks)
 
 # ==========================================================
 # 📋 PYDANTIC SCHEMAS FOR KMS SCHEMA INTERACTIONS
@@ -116,7 +190,7 @@ class KMSQueryResponse(BaseModel):
 # ==========================================================
 # 📊 PHYSICAL INFRASTRUCTURE DATABASE CONNECTION WRAPPERS
 # ==========================================================
-class PostgresRow(dict):
+class SQLiteRow(dict):
     def __getitem__(self, key):
         if isinstance(key, int):
             try:
@@ -125,7 +199,7 @@ class PostgresRow(dict):
                 raise IndexError(f"Row index {key} out of range")
         return super().__getitem__(key)
 
-class PostgresCursorWrapper:
+class SQLiteCursorWrapper:
     def __init__(self, raw_cursor):
         self._cursor = raw_cursor
 
@@ -133,7 +207,9 @@ class PostgresCursorWrapper:
         try:
             # Map %s back to ? for SQLite compatibility
             query_sqlite = query.replace('%s', '?')
-            # Handle PostgreSQL TRUNCATE CASCADE statements gracefully in SQLite
+            # Translate SQL SERIAL PRIMARY KEY to SQLite INTEGER PRIMARY KEY for auto-increment support
+            query_sqlite = query_sqlite.replace('SERIAL PRIMARY KEY', 'INTEGER PRIMARY KEY')
+            # Handle SQL TRUNCATE CASCADE statements gracefully in SQLite
             if "TRUNCATE TABLE" in query_sqlite:
                 table_to_delete = query_sqlite.split("TRUNCATE TABLE")[1].split()[0]
                 query_sqlite = f'DELETE FROM "{table_to_delete}";'
@@ -148,6 +224,7 @@ class PostgresCursorWrapper:
     def executemany(self, query: str, params_list: list):
         try:
             query_sqlite = query.replace('%s', '?')
+            query_sqlite = query_sqlite.replace('SERIAL PRIMARY KEY', 'INTEGER PRIMARY KEY')
             if "TRUNCATE TABLE" in query_sqlite:
                 table_to_delete = query_sqlite.split("TRUNCATE TABLE")[1].split()[0]
                 query_sqlite = f'DELETE FROM "{table_to_delete}";'
@@ -163,11 +240,11 @@ class PostgresCursorWrapper:
         row = self._cursor.fetchone()
         if row is None:
             return None
-        return PostgresRow(dict(row))
+        return SQLiteRow(dict(row))
 
     def fetchall(self):
         rows = self._cursor.fetchall()
-        return [PostgresRow(dict(row)) for row in rows]
+        return [SQLiteRow(dict(row)) for row in rows]
 
     def close(self):
         self._cursor.close()
@@ -176,13 +253,13 @@ class PostgresCursorWrapper:
     def rowcount(self):
         return self._cursor.rowcount
 
-class PostgresConnectionWrapper:
+class SQLiteConnectionWrapper:
     def __init__(self, raw_conn):
         self._conn = raw_conn
 
     def cursor(self):
         cursor = self._conn.cursor()
-        return PostgresCursorWrapper(cursor)
+        return SQLiteCursorWrapper(cursor)
 
     def commit(self):
         self._conn.commit()
@@ -193,34 +270,34 @@ class PostgresConnectionWrapper:
     def close(self):
         self._conn.close()
 
-_postgres_conn = None
-_graph_conn = None
+_sqlite_conn = None
+_graphdb_conn = None
 
-def sync_node_to_neo4j(node_id: str, n_type: str, title: str, content: str):
-    """Syncs a knowledge node entity directly to the central Neo4j instance."""
+def sync_node_to_graphdb(node_id: str, n_type: str, title: str, content: str):
+    """Syncs a knowledge node entity directly to the central GRAPHDB instance."""
     try:
-        n4j = Neo4jClient()
-        n4j.execute_query("""
+        graphdb = GraphDBClient()
+        graphdb.execute_query("""
             MERGE (n:KnowledgeNode {node_id: $node_id})
             SET n.type = $type, n.title = $title, n.content = $content
         """, {'node_id': node_id, 'type': n_type, 'title': title, 'content': content})
-        print(f"[Neo4j Sync] Successfully synchronized node: {node_id}")
+        print(f"[GRAPHDB Sync] Successfully synchronized node: {node_id}")
     except Exception as e:
-        print(f"[Neo4j Sync Error] Failed to sync node {node_id}: {str(e)}")
+        print(f"[GRAPHDB Sync Error] Failed to sync node {node_id}: {str(e)}")
 
-def sync_edge_to_neo4j(edge_id: str, source_id: str, target_id: str, relationship: str):
-    """Syncs an adjacent edge link directly to the central Neo4j instance."""
+def sync_edge_to_graphdb(edge_id: str, source_id: str, target_id: str, relationship: str):
+    """Syncs an adjacent edge link directly to the central GRAPHDB instance."""
     try:
-        n4j = Neo4jClient()
-        n4j.execute_query("""
+        graphdb = GraphDBClient()
+        graphdb.execute_query("""
             MATCH (source:KnowledgeNode {node_id: $source_id})
             MATCH (target:KnowledgeNode {node_id: $target_id})
             MERGE (source)-[r:RELATED {edge_id: $edge_id}]->(target)
             SET r.relationship = $relationship
         """, {'edge_id': edge_id, 'source_id': source_id, 'target_id': target_id, 'relationship': relationship})
-        print(f"[Neo4j Sync] Successfully synchronized edge: {edge_id}")
+        print(f"[GRAPHDB Sync] Successfully synchronized edge: {edge_id}")
     except Exception as e:
-        print(f"[Neo4j Sync Error] Failed to sync edge {edge_id}: {str(e)}")
+        print(f"[GRAPHDB Sync Error] Failed to sync edge {edge_id}: {str(e)}")
 
 from src.shared.config import config
 from datetime import datetime
@@ -307,15 +384,15 @@ def get_kms_data_paths() -> Dict[str, str]:
     os.makedirs(paths['ingestion_logs'], exist_ok=True)
     return paths
 
-def get_postgres_db():
-    """Initializes and returns the connection to the enterprise postgres relational database in Infra."""
-    global _postgres_conn
-    if _postgres_conn is None:
-        client = PostgresClient()
+def get_sqlite_db():
+    """Initializes and returns the connection to the enterprise SQLite relational database in Infra."""
+    global _sqlite_conn
+    if _sqlite_conn is None:
+        client = SQLiteClient()
         raw_conn = client.get_connection()
-        _postgres_conn = PostgresConnectionWrapper(raw_conn)
+        _sqlite_conn = SQLiteConnectionWrapper(raw_conn)
 
-        cursor = _postgres_conn.cursor()
+        cursor = _sqlite_conn.cursor()
 
         # Create Vector Chunk Table
         cursor.execute("""
@@ -442,7 +519,7 @@ def get_postgres_db():
         );
         """)
 
-        # Tables to store migrated JSON metadata and playbooks inside Postgres DB
+        # Tables to store migrated JSON metadata and playbooks inside SQLite DB
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS business_terms (
             term TEXT PRIMARY KEY,
@@ -483,11 +560,11 @@ def get_postgres_db():
             cursor.execute("SELECT allowed_domains FROM kms_users LIMIT 1;")
         except Exception:
             try:
-                _postgres_conn.rollback()
+                _sqlite_conn.rollback()
             except Exception:
                 pass
-            cursor.execute("DROP TABLE IF EXISTS kms_users CASCADE;")
-            _postgres_conn.commit()
+            cursor.execute("DROP TABLE IF EXISTS kms_users;")
+            _sqlite_conn.commit()
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS kms_users (
@@ -501,7 +578,7 @@ def get_postgres_db():
         );
         """)
 
-        # Replicated Graph Nodes & Edges directly inside PostgreSQL for unified query support
+        # Replicated Graph Nodes & Edges directly inside SQLite for unified query support
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS graph_nodes (
             node_id TEXT PRIMARY KEY,
@@ -526,7 +603,7 @@ def get_postgres_db():
         );
         """)
 
-        _postgres_conn.commit()
+        _sqlite_conn.commit()
 
         # Backfill team columns for existing KMS databases created before team isolation.
         for table in ["vector_chunks", "canonical_knowledge", "candidate_knowledge", "graph_nodes", "graph_edges"]:
@@ -534,7 +611,7 @@ def get_postgres_db():
                 cursor.execute(f"ALTER TABLE {table} ADD COLUMN team TEXT NOT NULL DEFAULT 'Unassigned';")
             except Exception:
                 try:
-                    _postgres_conn.rollback()
+                    _sqlite_conn.rollback()
                 except Exception:
                     pass
 
@@ -581,34 +658,89 @@ def get_postgres_db():
              "Credit Portfolio Risk",
              "corporate_clients,accounts,transactions,credit_facilities,credit_risk_ratings,delinquency_events")
         ])
-        _postgres_conn.commit()
+        _sqlite_conn.commit()
 
-        # Initialize and verify Neo4j Graph Database
-        get_graph_db()
+        # Initialize and verify GRAPHDB Graph Database
+        get_graphdb_db()
 
-    return _postgres_conn
+    return _sqlite_conn
 
-def get_graph_db():
-    """Initializes and verifies the connection to the enterprise Neo4j graph database."""
-    global _graph_conn
-    if _graph_conn is None:
+def get_graphdb_db():
+    """Initializes and verifies the connection to the enterprise GRAPHDB graph database."""
+    global _graphdb_conn
+    if _graphdb_conn is None:
         try:
-            n4j = Neo4jClient()
-            n4j.verify_connectivity()
-            _graph_conn = n4j
-            print("[Neo4j Connect] Successfully connected to enterprise Neo4j graph database.")
+            graphdb = GraphDBClient()
+            graphdb.verify_connectivity()
+            _graphdb_conn = graphdb
+            print("[GRAPHDB Connect] Successfully connected to enterprise GRAPHDB graph database.")
         except Exception as e:
-            print(f"[Neo4j Connection Error] Neo4j server unavailable: {str(e)}")
-    return _graph_conn
+            print(f"[GRAPHDB Connection Error] GRAPHDB server unavailable: {str(e)}")
+    return _graphdb_conn
 
 def get_kms_db():
-    """Alias for backwards compatibility mapping to the postgres emulated connection."""
-    return get_postgres_db()
+    """Alias for backwards compatibility mapping to the SQLite emulated connection."""
+    return get_sqlite_db()
 
 def tokenize(text: str) -> List[str]:
     """Helper to clean and tokenize a block of text."""
     cleaned = text.lower().replace('.', ' ').replace(',', ' ').replace('(', ' ').replace(')', ' ').replace('-', ' ')
     return [t.strip() for t in cleaned.split() if len(t.strip()) > 2]
+
+def chunk_knowledge_text(text: str, max_tokens: int = 90, overlap_tokens: int = 15) -> List[str]:
+    """
+    Split source knowledge into deterministic, bounded chunks before indexing.
+
+    The splitter is sentence/bullet aware, but also protects FAISS and SQLite
+    retrieval quality by splitting long paragraphs with a small token overlap.
+    """
+    if max_tokens <= 0:
+        raise ValueError("max_tokens must be positive")
+    if overlap_tokens < 0 or overlap_tokens >= max_tokens:
+        raise ValueError("overlap_tokens must be between 0 and max_tokens - 1")
+
+    normalized = re.sub(r"\s+", " ", text.strip())
+    if not normalized:
+        return []
+
+    segments = [
+        segment.strip()
+        for segment in re.split(r"(?<=[.!?])\s+|(?:\s*[;\n]\s*)|(?:\s+[-•]\s+)", normalized)
+        if segment.strip()
+    ]
+
+    chunks: List[str] = []
+    current_tokens: List[str] = []
+
+    def flush_current() -> None:
+        nonlocal current_tokens
+        if current_tokens:
+            chunks.append(" ".join(current_tokens))
+            current_tokens = []
+
+    for segment in segments:
+        segment_tokens = segment.split()
+        if not segment_tokens:
+            continue
+
+        if len(segment_tokens) > max_tokens:
+            flush_current()
+            step = max_tokens - overlap_tokens
+            for start in range(0, len(segment_tokens), step):
+                window = segment_tokens[start:start + max_tokens]
+                if window:
+                    chunks.append(" ".join(window))
+                if start + max_tokens >= len(segment_tokens):
+                    break
+            continue
+
+        if current_tokens and len(current_tokens) + len(segment_tokens) > max_tokens:
+            flush_current()
+
+        current_tokens.extend(segment_tokens)
+
+    flush_current()
+    return [chunk for chunk in chunks if len(tokenize(chunk)) >= 3]
 
 def tokenize_and_store_vector_chunk(node_id: str, text: str, team: Optional[str] = None):
     """Chunks text, tokenizes, and saves into vector table. Also adds to FAISS index if active."""
@@ -616,41 +748,24 @@ def tokenize_and_store_vector_chunk(node_id: str, text: str, team: Optional[str]
     cursor = conn.cursor()
     active_team = team or require_active_kms_team()
 
-    # Split text into sentences or chunks of ~150 characters
-    sentences = text.split('. ')
-    new_chunks = []
-    for s in sentences:
-        s_clean = s.strip()
-        if len(s_clean) < 15:
-            continue
-        tokens_str = " ".join(tokenize(s_clean))
+    chunks_to_store = chunk_knowledge_text(text)
+    new_chunks: List[Dict[str, Any]] = []
+    for index, chunk_text in enumerate(chunks_to_store):
+        tokens_str = " ".join(tokenize(chunk_text))
         cursor.execute("INSERT INTO vector_chunks (team, node_id, chunk_text, tokens) VALUES (?, ?, ?, ?);",
-                       (active_team, node_id, s_clean, tokens_str))
-        new_chunks.append(s_clean)
+                       (active_team, node_id, chunk_text, tokens_str))
+        new_chunks.append({
+            'chunk_id': f"{node_id}::chunk_{index + 1}",
+            'team': active_team,
+            'node_id': node_id,
+            'text': chunk_text,
+            'tokens': tokens_str,
+            'source': 'approved_kms_ingestion'
+        })
     conn.commit()
 
-    # Save to optional FAISS index
-    if HAS_FAISS and new_chunks:
-        embeddings = []
-        valid_chunks = []
-        for chunk_text in new_chunks:
-            emb = get_openai_embedding(chunk_text)
-            if emb:
-                embeddings.append(emb)
-                valid_chunks.append({
-                    'node_id': node_id,
-                    'text': chunk_text
-                })
-        
-        if embeddings:
-            index, chunks = load_faiss_index(active_team)
-            emb_matrix = np.array(embeddings, dtype='float32')
-            if index is None:
-                dim = emb_matrix.shape[1]
-                index = faiss.IndexFlatL2(dim)
-            index.add(emb_matrix)
-            chunks.extend(valid_chunks)
-            save_faiss_index(active_team, index, chunks)
+    if new_chunks:
+        rebuild_team_vector_store(active_team, node_id, new_chunks)
 
 # ==========================================================
 # 🔍 VECTOR AND GRAPH DB RAG SEARCH ENGINE (Analyst vs SME)
@@ -711,26 +826,44 @@ def advanced_retrieval_orchestration(
     if HAS_FAISS:
         index, chunks = load_faiss_index(active_team)
         if index is not None and chunks:
-            q_emb = get_openai_embedding(query_str)
-            if q_emb is not None:
-                q_emb_matrix = np.array([q_emb], dtype='float32')
-                # Search top limit*2 items
-                distances, indices = index.search(q_emb_matrix, limit * 2)
-                for dist, idx in zip(distances[0], indices[0]):
-                    if idx != -1 and idx < len(chunks):
-                        chunk_info = chunks[idx]
-                        score = 1.0 / (1.0 + float(dist))
-                        scored_chunks.append({
-                            'node_id': chunk_info['node_id'],
-                            'text': chunk_info['text'],
-                            'score': score
-                        })
-                faiss_succeeded = True
-                log_agent_action("Retrieval Planner Agent", "FAISS_SEARCH", f"Executed FAISS dense semantic search. Found {len(scored_chunks)} matches.")
+            q_emb = get_local_embedding(query_str)
+            q_emb_matrix = np.array([q_emb], dtype='float32')
+            # Search top limit*2 items
+            distances, indices = index.search(q_emb_matrix, limit * 2)
+            for dist, idx in zip(distances[0], indices[0]):
+                if idx != -1 and idx < len(chunks):
+                    chunk_info = chunks[idx]
+                    score = 1.0 / (1.0 + float(dist))
+                    scored_chunks.append({
+                        'node_id': chunk_info['node_id'],
+                        'text': chunk_info['text'],
+                        'score': score
+                    })
+            faiss_succeeded = True
+            log_agent_action("Retrieval Planner Agent", "FAISS_SEARCH", f"Executed team FAISS search from Infra/kms/{active_team}/runtime/vector_db. Found {len(scored_chunks)} matches.")
 
-    # Fallback to local token search if FAISS not available or fails
+    # Fallback to team chunks.json token search if FAISS is unavailable or fails.
     if not faiss_succeeded:
-        # Fetch chunks
+        file_chunks = load_chunk_manifest(active_team)
+        for chunk in file_chunks:
+            chunk_tokens = (chunk.get('tokens') or " ".join(tokenize(chunk.get('text', '')))).split()
+            if not chunk_tokens:
+                continue
+
+            match_count = sum(1 for t in query_tokens if t in chunk_tokens)
+            score = match_count / math.sqrt(len(query_tokens) * len(chunk_tokens))
+
+            if score > 0:
+                scored_chunks.append({
+                    'node_id': chunk['node_id'],
+                    'text': chunk['text'],
+                    'score': score
+                })
+        if file_chunks:
+            log_agent_action("Retrieval Planner Agent", "CHUNKS_JSON_SEARCH", f"Executed team chunks.json search from Infra/kms/{active_team}/runtime/vector_db. Found {len(scored_chunks)} matches.")
+
+    # Last-resort SQLite fallback for legacy rows that predate team vector files.
+    if not faiss_succeeded and not scored_chunks:
         cursor.execute("SELECT * FROM vector_chunks WHERE team = ?;", (active_team,))
         all_chunks = cursor.fetchall()
 
@@ -748,7 +881,7 @@ def advanced_retrieval_orchestration(
                     'text': chunk['chunk_text'],
                     'score': score
                 })
-        log_agent_action("Retrieval Planner Agent", "TOKEN_SEARCH", f"Executed keyword-matching search. Found {len(scored_chunks)} matches.")
+        log_agent_action("Retrieval Planner Agent", "SQLITE_TOKEN_SEARCH", f"Executed legacy SQLite vector_chunks fallback. Found {len(scored_chunks)} matches.")
 
     scored_chunks.sort(key=lambda x: x['score'], reverse=True)
 
@@ -1000,12 +1133,13 @@ async def ingest_custom_file_to_kms(
     security_class: str = "Internal",
     sme: str = "Marcus Vance",
     business_domain: str = "Enterprise Analytics",
-    prompt: str = ""
+    prompt: str = "",
+    auto_approve: bool = False
 ) -> Dict[str, Any]:
     """
     Upgraded: Implements the 12-stage sequential ingestion workflow.
-    No unreviewed content goes directly into production!
-    Inserts candidate entries strictly under status 'Pending Review'.
+    Supports staged reviews (review_status 'Pending Review') or immediate production auto-approval.
+    Vectors and database chunks are only generated and saved upon final approval.
     """
     conn = get_kms_db()
     cursor = conn.cursor()
@@ -1069,6 +1203,7 @@ async def ingest_custom_file_to_kms(
     # Step 9: Create candidate records
     active_team = require_active_kms_team()
     candidate_id = _team_node_id(active_team, "cand_" + uuid_suffix())
+    initial_status = "Approved" if auto_approve else "Pending Review"
     cursor.execute("""
     INSERT INTO candidate_knowledge (
         candidate_id, team, title, summary, extracted_text, knowledge_type, source_document,
@@ -1081,12 +1216,25 @@ async def ingest_custom_file_to_kms(
         candidate_id, active_team, f"Extracted candidate: {filename}", summary, content, k_type, filename,
         "Direct Uploader", f"/ingestion_staging/{filename}", time.strftime('%Y-%m-%d %H:%M:%S'),
         business_domain, "custom,uploaded", "GENERAL_ASSET", suggested_relations, owner, sme,
-        0.95, duplicate_score, "None", 0.90, "Pending Review", "", time.strftime('%Y-%m-%d %H:%M:%S')
+        0.95, duplicate_score, "None", 0.90, initial_status, "", time.strftime('%Y-%m-%d %H:%M:%S')
     ))
     log_agent_action("Canonical Knowledge Builder Agent", 9, f"Successfully created candidate record in metadata staging store with ID: {candidate_id}")
 
     # Step 10: Send candidates for SME review
-    log_agent_action("SME Approval Agent", 10, f"Routed candidate '{candidate_id}' to SME: '{sme}' approval workspace. Status set to PENDING REVIEW.")
+    if auto_approve:
+        log_agent_action("SME Approval Agent", 10, f"Auto-Approved: Candidate '{candidate_id}' bypasses staging queue.")
+    else:
+        log_agent_action("SME Approval Agent", 10, f"Routed candidate '{candidate_id}' to SME: '{sme}' approval workspace. Status set to PENDING REVIEW.")
+
+    # Save to optional FAISS index and SQLite vector_chunks table
+    if auto_approve:
+        try:
+            act_on_candidate_knowledge(candidate_id, "Approved", "Auto-Approved on Ingestion")
+            log_agent_action("Vector Storage Agent", 11, f"Embedded and stored chunks in FAISS and vector_chunks SQLite table.")
+        except Exception as e:
+            log_agent_action("Vector Storage Agent", 11, f"Failed to embed/store chunks: {str(e)}")
+    else:
+        log_agent_action("Vector Storage Agent", 11, f"Requires SME Approval: Chunks are NOT indexed yet.")
 
     # Save to physical ingestion staging directory
     paths = get_kms_data_paths()
@@ -1100,7 +1248,7 @@ async def ingest_custom_file_to_kms(
         'success': True,
         'candidateId': candidate_id,
         'title': f"Extracted candidate: {filename}",
-        'status': "Pending Review",
+        'status': initial_status,
         'agentTraces': agent_traces
     }
 
@@ -1118,7 +1266,7 @@ def authenticate_kms_user(username: str, password: str, required_role: Optional[
     """Authenticates local AIP users from the KMS relational store."""
     import hmac
 
-    conn = get_postgres_db()
+    conn = get_sqlite_db()
     cursor = conn.cursor()
     cursor.execute("SELECT username, password, role, clearance, display_name, allowed_domains, allowed_tables FROM kms_users WHERE username = ?;", (username,))
     row = cursor.fetchone()
@@ -1134,7 +1282,7 @@ def authenticate_kms_user(username: str, password: str, required_role: Optional[
 
 def get_kms_filter_options() -> Dict[str, List[str]]:
     """Returns dynamic KMS UI option values from database state; no static option data is required in the UI."""
-    conn = get_postgres_db()
+    conn = get_sqlite_db()
     cursor = conn.cursor()
 
     def values(sql: str, params: tuple = ()) -> List[str]:
@@ -1155,7 +1303,7 @@ def get_kms_filter_options() -> Dict[str, List[str]]:
 
 def get_business_domains_list() -> List[Dict[str, Any]]:
     """Retrieves all registered business domains from the database for scalable dynamic drop downs."""
-    conn = get_postgres_db()
+    conn = get_sqlite_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM business_domains ORDER BY name;")
     return [dict(row) for row in cursor.fetchall()]
@@ -1233,6 +1381,7 @@ def act_on_candidate_knowledge(candidate_id: str, status: str, comments: str = "
                            (node_id, active_team, cand['knowledge_type'], cand['title'], cand['extracted_text'], "{}"))
 
             # 2. Tokenize and store in vector_chunks
+            cursor.execute("DELETE FROM vector_chunks WHERE node_id = ? AND team = ?;", (node_id, active_team))
             tokenize_and_store_vector_chunk(node_id, cand['extracted_text'])
 
             # 3. Create Canonical Knowledge Object
@@ -1326,7 +1475,7 @@ def check_kms_integrity() -> Dict[str, Any]:
         'integrityPassed': True,
         'errors': [],
         'details': {
-            'metadata_store': 'Infra/PostgreSQL',
+            'metadata_store': 'Infra/SQLite',
             'paths': paths,
             'status': 'active'
         }

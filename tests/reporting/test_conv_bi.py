@@ -199,9 +199,9 @@ def test_analytics_tool_trend_regression():
     assert metrics['anomalies'][0]['date'] == '2026-05'
 
 
-@patch("src.shared.tools.graph_tool.Neo4jClient")
-def test_graph_tool_retrieve_lineage_mocked(mock_neo4j):
-    """Verifies that retrieval graph lineage calls Neo4j bolts correctly."""
+@patch("src.shared.tools.graph_tool.GraphDBClient")
+def test_graph_tool_retrieve_lineage_mocked(mock_graphdb):
+    """Verifies that retrieval graph lineage calls GraphDBClient correctly."""
     mock_instance = MagicMock()
     mock_instance.execute_query.return_value = [
         {
@@ -212,7 +212,7 @@ def test_graph_tool_retrieve_lineage_mocked(mock_neo4j):
             'neighbor_name': 'Operational Ledger Ledger'
         }
     ]
-    mock_neo4j.return_value = mock_instance
+    mock_graphdb.return_value = mock_instance
     
     lineage = retrieve_graph_lineage("npl_rate")
     

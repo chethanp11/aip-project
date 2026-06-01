@@ -310,3 +310,24 @@ input[type="range"]::-webkit-slider-thumb:hover {
     display: inline-block;
     box-shadow: 0 0 8px var(--accent-color);
 }
+
+/* Global click and busy feedback for all interactive buttons */
+button, .btn, .tab-btn, .nav-item, .product-card, .suggestion-chip, [role="button"] {
+    transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1), filter 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+button:active, .btn:active, .tab-btn:active, .nav-item:active, .product-card:active, .suggestion-chip:active, [role="button"]:active,
+button.is-clicked, .btn.is-clicked, .tab-btn.is-clicked, .nav-item.is-clicked, .product-card.is-clicked, .suggestion-chip.is-clicked, [role="button"].is-clicked {
+    transform: scale(0.97);
+    filter: brightness(0.92);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+button.is-busy, .btn.is-busy,
+button[aria-busy="true"], .btn[aria-busy="true"] {
+    cursor: wait !important;
+    opacity: 0.78;
+}
+button:disabled, .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+

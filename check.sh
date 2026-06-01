@@ -6,164 +6,146 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INFRA_ROOT="$PROJECT_ROOT/Infra"
-PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 cd "$PROJECT_ROOT" || exit 1
 
-# Load environment variables if they exist in the secrets directory
-if [ -f "$INFRA_ROOT/secrets/.env" ]; then
-  # Export non-comment lines
-  export $(grep -v '^#' "$INFRA_ROOT/secrets/.env" | xargs)
+if [ -z "${VIRTUAL_ENV:-}" ]; then
+  echo ""
+  echo "Activating .venv..."
+  if [ -f .venv/bin/activate ]; then
+    source .venv/bin/activate
+  fi
 fi
 
 echo ""
 echo "==================================="
-echo "AIP PLATFORM HEALTH CHECK"
+echo "AIP PLATFORM DIAGNOSTICS & HEALTH CHECK"
 echo "==================================="
 
 echo ""
 echo "===== LOCATION ====="
-
 pwd
 
 echo ""
-echo "===== PYTHON ====="
-
-which "$PYTHON_BIN"
-
-"$PYTHON_BIN" --version
-
-which pip3 || which pip || true
+echo "===== PYTHON & PIP ====="
+which python3 || true
+python3 --version
+which pip || true
 
 echo ""
-echo "===== PYTHON PACKAGES ====="
-
-"$PYTHON_BIN" -c "
-import psycopg2
-import redis
-import neo4j
+echo "===== VERIFYING DEPENDENCIES ====="
+python3 -c "
+import sqlite3
+import uvicorn
+import fastapi
+import pydantic
 import openai
 import langgraph
-print('CORE_PACKAGES_OK')
+print('CORE PYTHON LIBRARIES: OK')
 "
 
-if [ $? -ne 0 ]; then
-  echo "PACKAGE ISSUE"
-  exit 1
-fi
+# Optional FAISS check
+python3 -c "
+try:
+    import faiss
+    import numpy as np
+    print('FAISS SEMANTIC VECTOR SEARCH: AVAILABLE')
+except ImportError:
+    print('FAISS SEMANTIC VECTOR SEARCH: OPTIONAL (Token Heuristics Fallback Active)')
+"
 
 echo ""
-echo "===== STARTING INFRA ====="
-
-if ! command -v docker >/dev/null 2>&1; then
-  echo "Docker is not installed or not on PATH." >&2
-  echo "Install/start Docker Desktop, then rerun: sh check.sh" >&2
-  exit 1
-fi
-
-if ! docker info >/dev/null 2>&1; then
-  echo "Docker daemon is not running or is not reachable." >&2
-  echo "Start Docker Desktop, wait until it is ready, then rerun: sh check.sh" >&2
-  exit 1
-fi
-
-cd "$INFRA_ROOT/docker" || exit 1
-
-docker compose up -d
-
-echo ""
-echo "===== CONTAINERS ====="
-
-docker ps \
---format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
-echo ""
-echo "===== POSTGRES ====="
-
-docker exec aip-postgres pg_isready
-
-echo ""
-echo "===== REDIS ====="
-
-docker exec aip-redis redis-cli ping
-
-echo ""
-echo "===== VECTOR ====="
-
-docker exec -i aip-postgres \
-psql \
--U "${AIP_POSTGRES_USER:-aip}" \
--d "${AIP_POSTGRES_DB:-aipdb}" \
--c "\dx" \
-| grep vector
-
-echo ""
-echo "===== NEO4J ====="
-
-docker exec aip-neo4j \
-cypher-shell \
--u "${NEO4J_USER:-neo4j}" \
--p "${NEO4J_PASSWORD:-password123}" \
-"RETURN 'CONNECTED';"
-
-echo ""
-echo "===== INFRA CONNECTIVITY ====="
-
-cd "$PROJECT_ROOT"
-
-"$PYTHON_BIN" - << 'EOF'
+echo "===== VERIFYING PORTABLE SQLITE DATABASES ====="
+python3 - << 'EOF'
 import os
 import sys
-import psycopg2
+import sqlite3
 
-# Ensure workspace root and src/ are in python path
 sys.path.insert(0, os.getcwd())
 sys.path.insert(0, os.path.join(os.getcwd(), "src"))
 
 from src.shared.config import config
-from src.shared.infra_client.postgres_client import PostgresClient
-from src.shared.infra_client.redis_client import RedisClient
-from src.shared.infra_client.neo4j_client import Neo4jClient
 
-print("POSTGRES")
-pg = PostgresClient()
-conn = pg.get_connection()
-print("CONNECTED")
-conn.close()
+# 1. Central database check
+aipdb_file = os.path.join(config.KMS_ROOT, "aipdb.db")
+if not os.path.exists(aipdb_file):
+    print(f"ERROR: Central database {aipdb_file} does not exist!")
+    sys.exit(1)
 
-print("REDIS")
-r = RedisClient()
-print(r.ping())
+conn = sqlite3.connect(aipdb_file)
+cursor = conn.cursor()
+try:
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    tables = [row[0] for row in cursor.fetchall()]
+    print(f"Central Database OK: Found {len(tables)} tables in aipdb.db")
+    if 'kms_users' not in tables:
+        print("ERROR: kms_users table missing!")
+        sys.exit(1)
+finally:
+    conn.close()
 
-print("NEO4J")
-n4j = Neo4jClient()
-n4j.verify_connectivity()
-print("CONNECTED")
-n4j.close()
-
-print("BUSINESS DB")
-conn = psycopg2.connect(
-    host=config.POSTGRES_HOST,
-    database=config.POSTGRES_DB,
-    user=config.POSTGRES_USER,
-    password=config.POSTGRES_PASSWORD,
-    port=config.POSTGRES_PORT
-)
-print("CONNECTED")
-conn.close()
+# 2. Business analytics databases checks
+business_dbs = ["treasurydb", "compliancedb", "wealthdb", "creditdb"]
+for db in business_dbs:
+    db_file = os.path.join(config.INFRA_ROOT, "analytics-data", f"{db}.db")
+    if not os.path.exists(db_file):
+        print(f"WARNING: Business database {db_file} not found!")
+        continue
+    
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [row[0] for row in cursor.fetchall() if not row[0].startswith('sqlite_')]
+        print(f"Business Database '{db}' OK: Found {len(tables)} tables")
+    finally:
+        conn.close()
 EOF
 
 echo ""
-echo "===== STORAGE ====="
+echo "===== EMULATION LAYERS INTEGRITY ====="
+python3 - << 'EOF'
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+sys.path.insert(0, os.path.join(os.getcwd(), "src"))
 
+try:
+    from src.shared.infra_client.sqlite_client import SQLiteClient
+    from src.shared.infra_client.graphdb_client import GraphDBClient
+    from src.shared.infra_client.analytics_client import AnalyticsClient
+    
+    # Test SQLiteClient
+    sqlite = SQLiteClient()
+    conn = sqlite.get_connection()
+    conn.close()
+    print("SQLiteClient (KMS Storage Engine): CONNECTED")
+    
+    # Test GraphDBClient
+    graphdb = GraphDBClient()
+    graphdb.verify_connectivity()
+    graphdb.execute_query("MATCH (n) RETURN n LIMIT 1;")
+    print("GraphDBClient (GRAPHDB Emulation): CONNECTED")
+    
+    # Test AnalyticsClient
+    ac = AnalyticsClient()
+    tables = ac.list_tables()
+    print(f"AnalyticsClient (SQLite Business Data): CONNECTED (Visible Tables: {tables})")
+except Exception as e:
+    print(f"INTEGRITY EXCEPTION: {e}")
+    sys.exit(1)
+EOF
+
+echo ""
+echo "===== PHYSICAL STORAGE STRUCTURE ====="
 cd "$INFRA_ROOT"
-
-du -sh postgres neo4j redis
-
-tree storage -L 2
-
+if [ -d storage ]; then
+  du -sh storage/* || true
+else
+  echo "storage/ directory missing!"
+fi
 
 echo ""
 echo "==================================="
-echo "AIP READY"
+echo "AIP SYSTEM IS HEALTHY & PORTABLE (Zero-Docker Mode)"
 echo "==================================="

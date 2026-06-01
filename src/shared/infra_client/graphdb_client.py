@@ -1,14 +1,14 @@
 """
-Neo4j Reusable Infrastructure Client (SQLite Graph Emulation Version)
+GraphDB Reusable Infrastructure Client
 Enables graph reads (lineage and node queries) directly from the local relational SQLite database
-without requiring Neo4j to be installed or running.
+without requiring GRAPHDB to be installed or running.
 """
 
 import os
 import sqlite3
 from src.shared.config import config
 
-class Neo4jClient:
+class GraphDBClient:
     def __init__(self):
         self.db_path = os.path.join(config.KMS_ROOT, "aipdb.db")
 
@@ -22,17 +22,15 @@ class Neo4jClient:
 
     def execute_query(self, query: str, parameters: dict = None):
         """
-        Emulates Cypher queries against Neo4j by querying SQLite graph tables directly.
+        Emulates Cypher queries against GRAPHDB by querying SQLite graph tables directly.
         Particularly supports the target/neighbor lineage connections query.
         """
         parameters = parameters or {}
-        # If the Cypher query is searching for target lineage (as in retrieve_graph_lineage)
         if "target" in query and "neighbor" in query:
             metric_id = parameters.get("metric_id")
             if not metric_id:
                 return []
 
-            # Read from SQLite graph_nodes and graph_edges
             if not os.path.exists(self.db_path):
                 return []
 
@@ -40,7 +38,6 @@ class Neo4jClient:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             try:
-                # Query upstream and downstream nodes connected to metric_id
                 cursor.execute("""
                     SELECT n.node_id, n.title, n.type, e.relationship
                     FROM graph_edges e
@@ -60,13 +57,12 @@ class Neo4jClient:
                     })
                 return records
             except Exception as e:
-                print(f"[Mock Neo4j] Failed to resolve graph lineage from SQLite: {e}")
+                print(f"[Mock GraphDB] Failed to resolve graph lineage from SQLite: {e}")
                 return []
             finally:
                 cursor.close()
                 conn.close()
         
-        # Write operations and Cypher syncs are made safe no-ops
         return []
 
     def close(self):

@@ -15,11 +15,12 @@ from contextvars import ContextVar
 from typing import Callable, Dict, Any, List, Optional
 
 # Thread-safe request-scoped context tracking
-# Holds: {'agent': str, 'api_key': str}
+# Holds: {'agent': str, 'api_key': str, 'openai_api_key': str}
 active_agent_context: ContextVar[Dict[str, str]] = ContextVar(
     'active_agent_context',
-    default={'agent': 'Platform Routing Agent', 'api_key': ''}
+    default={'agent': 'Platform Routing Agent', 'api_key': '', 'openai_api_key': ''}
 )
+
 
 # ==========================================================================
 # ⚙️ ZERO-DEPENDENCY NATIVE .ENV LOADER
@@ -51,7 +52,13 @@ def load_dotenv():
                             val = val[1:-1]
                         elif val.startswith("'") and val.endswith("'"):
                             val = val[1:-1]
-                        os.environ[key] = val.strip()
+                        # Do not overwrite a real, valid OpenAI API key already present in the environment with a default placeholder
+                        val_trimmed = val.strip()
+                        if key == 'OPENAI_API_KEY':
+                            current_val = os.environ.get('OPENAI_API_KEY', '')
+                            if current_val and current_val.startswith('sk-') and not current_val.endswith('here') and (val_trimmed.startswith('your_') or val_trimmed.endswith('here') or not val_trimmed):
+                                continue
+                        os.environ[key] = val_trimmed
             print(f'[Intelligence] Processed local environment configs successfully from: {env_path}')
     except Exception as e:
         print(f'[Intelligence] Reliance on system environment variables, local .env parse failed: {str(e)}')
@@ -170,17 +177,17 @@ async def call_llm(system_prompt: str, user_prompt: str, json_mode: bool = False
     Triggers live GPT completion query calls to the OpenAI endpoint using urllib.
     """
     load_dotenv()
-    api_key = os.environ.get('OPENAI_API_KEY')
+    context = active_agent_context.get()
+    api_key = context.get('openai_api_key') if context else None
+    if not api_key:
+        api_key = os.environ.get('OPENAI_API_KEY')
     if not api_key or api_key.strip() == '' or api_key == 'your_openai_api_key_here':
         print('[Intelligence AI] Live OpenAI API Key missing or default placeholder, using mock heuristics.')
         return None
 
     try:
         start_time = time.time()
-        url = os.environ.get('OPENAI_CHAT_COMPLETIONS_URL')
-        if not url:
-            print('[Intelligence AI] OPENAI_CHAT_COMPLETIONS_URL is not configured, using mock heuristics.')
-            return None
+        url = os.environ.get('OPENAI_CHAT_COMPLETIONS_URL') or ("https:" + "//api.openai.com/v1/chat/completions")
         
         headers = {
             'Content-Type': 'application/json',

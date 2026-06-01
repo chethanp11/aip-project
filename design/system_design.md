@@ -14,7 +14,7 @@ src/main.py
 
 src/shared/
   ├─ config/            centralized env and Infra path mapping
-  ├─ infra_client/      Postgres, Analytics, Neo4j, Redis, Storage, Retrieval clients
+  ├─ infra_client/      SQLite, Analytics, GraphDB, Redis, Storage, Retrieval clients
   ├─ capabilities/      stateless reusable intelligence functions
   ├─ intelligence.py    capability registry, LLM wrapper, contextvars audit logging
   └─ session.py         in-memory active token/session state
@@ -34,13 +34,14 @@ AIP uses Infra through configuration and client abstractions only.
 
 | Infra surface | Path/service | Accessing code |
 | --- | --- | --- |
-| Analytics PostgreSQL | `analytics-source-db`, port `5433` | `PostgresClient`, `AnalyticsClient` |
-| pgvector/platform PostgreSQL | `aip-postgres`, port `5432` when configured | `PostgresClient`, KMS metadata/vector tables |
-| Neo4j | `aip-neo4j`, port `7687` | `Neo4jClient`, KMS graph sync, monitoring lineage |
-| Redis | `aip-redis`, port `6379` | `RedisClient`, workflow state persistence |
+| Analytics Database | Local SQLite: `Infra/analytics-data/{db}.db` | `AnalyticsClient` |
+| KMS Database | Local SQLite: `Infra/kms/aipdb.db` | `SQLiteClient`, KMS metadata/relational tables |
+| Vector DB | FAISS (`index.faiss`) / SQLite fallback | `kms/index.py` |
+| Graph Lineage | SQLite Graph Mocks (`graph_nodes` & `graph_edges`) | `GraphDBClient`, Conversational BI, Lineage Explorer |
+| Redis | Optional (In-memory mock when Redis is absent) | `RedisClient` |
 | Reports | `Infra/storage/reports` | Report Builder, FastAPI `/reports` static mount |
 | Artifacts/archives | `Infra/storage/{artifacts,archives}` | `StorageClient`, workflow/report outputs |
-| Team KMS runtime | `Infra/kms/<Team>/runtime` | Team-specific KMS ingestion staging/runtime directories |
+| Team KMS runtime | `Infra/kms/<Team>/runtime` | Team-specific KMS staging/runtime directories |
 | Team KMS contexts | `Infra/kms/<Team>/context` | Login session context, retrieval context attachment |
 | Logs | `Infra/logs` | KMS ingestion logging and infra checks |
 
@@ -68,17 +69,24 @@ The middleware bypasses authentication for:
 - `/api/v1/auth/sme-login`
 - non-API static paths
 
-All other `/api/v1/*` requests require a bearer token starting with `AIP-`.
+All other `/api/v1/*` requests require a bearer token starting with `AIP-` or `sk-` (which acts as a direct live OpenAI API Key, automatically mapping to an authorized Analyst profile session).
+
+Alternatively, requests can supply the OpenAI API Key using standard headers (`X-OpenAI-API-Key`, `OpenAI-API-Key`, or `openai_api_key`).
 
 ### Request context
 
 After auth, middleware sets:
 
 ```python
-active_agent_context = {'agent': agent_name, 'api_key': api_key}
+active_agent_context = {
+    'agent': agent_name, 
+    'api_key': api_key, 
+    'openai_api_key': openai_api_key
+}
 ```
 
-Capability execution uses that context to log the active agent, mask the token, and attach execution traces.
+Capability and agent execution (e.g. `call_llm`, `get_openai_embedding`) prioritizes the request-scoped `openai_api_key` before falling back to `os.environ.get('OPENAI_API_KEY')` to maintain thread-safe multi-tenant isolation.
+
 
 ## 4. Auth and Session Model
 
@@ -107,41 +115,39 @@ The active session is stored in memory with:
 
 ### Security constraints
 
-- KMS auth is backed by the `kms_users` PostgreSQL table.
+- KMS auth is backed by the `kms_users` SQLite table.
 - Password comparison uses `hmac.compare_digest`.
 - Analytics table catalog and SQL execution use active session `allowed_tables`.
 - KMS retrieval filters canonical knowledge by status/security classification and active role/clearance.
 
 ## 5. Shared Infrastructure Clients
 
-### PostgresClient
+### SQLiteClient
 
-`src/shared/infra_client/postgres_client.py`
+`src/shared/infra_client/sqlite_client.py`
 
-- Opens connections with configured `POSTGRES_*` values.
-- Returns `RealDictCursor` dictionaries.
-- Converts `?` placeholders to `%s` to keep legacy SQLite-style call sites working.
-- Provides single-query and batch execution helpers.
+- Natively opens standard connections to the local SQLite `aipdb.db` file.
+- Returns dictionary rows matching the expected SQL schema structures.
+- Translates dynamic parameters gracefully, maintaining legacy queries compatibility.
+- Provides thread-safe single-query and batch execution helpers.
 
 ### AnalyticsClient
 
 `src/shared/infra_client/analytics_client.py`
 
-- Lists public schema tables.
+- Connects directly to local business SQLite database files `Infra/analytics-data/{db}.db`.
+- Lists tables dynamically using standard `sqlite_master` lookups.
 - Filters table catalog by active session `allowed_tables`.
-- Retrieves table schemas.
-- Builds safe parameterized visual queries.
-- Runs custom read-only SQL with DDL/DML keyword blocking.
-- Parses referenced table names and rejects unauthorized table access.
+- Inspects columns and schemas using `PRAGMA table_info`.
+- Builds safe parameterized visual queries and executes custom read-only SQL with DDL/DML blocking.
 
-### Neo4jClient
+### GraphDBClient
 
-`src/shared/infra_client/neo4j_client.py`
+`src/shared/infra_client/graphdb_client.py`
 
-- Creates Neo4j Bolt driver.
-- Verifies connectivity.
-- Executes Cypher queries and returns list-of-dict records.
-- Used by KMS graph sync and monitoring lineage.
+- Emulates GraphDB graph lineage lookups using our local relational SQLite graph tables.
+- Bypasses active server requirements, enabling Conversational BI graph lineage offline.
+- Handles graph Cypher sync writes as safe, robust no-ops.
 
 ### RedisClient
 
@@ -172,11 +178,11 @@ KMS is implemented in `src/kms/index.py`.
 
 On first KMS database access:
 
-1. Open PostgreSQL connection through `PostgresClient`.
+1. Open SQLite connection through `SQLiteClient`.
 2. Create graph, vector, canonical, candidate, governance, audit, connector, glossary, domain, user, and observability tables.
 3. Attach authenticated team context from `Infra/kms/<Team>/context`.
-4. Sync graph nodes/edges to Neo4j when available.
-5. Verify Neo4j connectivity without blocking KMS if Neo4j is unavailable.
+4. Sync graph nodes/edges to GRAPHDB when available.
+5. Verify GRAPHDB connectivity without blocking KMS if GRAPHDB is unavailable.
 
 ### Retrieval sequence
 
@@ -187,14 +193,16 @@ On first KMS database access:
 3. Canonical metadata enrichment.
 4. Analyst/SME approval and clearance filtering.
 5. Optional domain/source/type/SME/tag/freshness filters.
-6. Graph neighbor traversal through `graph_edges`/Neo4j-compatible wrappers.
+6. Graph neighbor traversal through `graph_edges`/GRAPHDB-compatible wrappers.
 7. Contradiction and missing-context diagnostics.
 8. Trace generation with latency metrics.
 9. Security audit log write.
 
 ### Governance sequence
 
-- `ingest_custom_file_to_kms` creates candidate knowledge from uploaded text.
+- `ingest_custom_file_to_kms` creates candidate knowledge from uploaded text under status 'Pending Review' (staged) or 'Approved' (if auto-approved). Chunks are only segmented and vector-indexed upon final approval or auto-approval.
+- Approved chunks are written to SQLite `vector_chunks` and the authenticated team vector folder: `Infra/kms/<Team>/runtime/vector_db/chunks.json` plus `index.faiss`. Retrieval searches the authenticated team's vector files first, then falls back to legacy SQLite rows only if file-backed search is unavailable.
+- Chunking is deterministic, sentence/bullet aware, token bounded, and uses small token overlap for long passages.
 - `sync_source_connector` simulates source connector ingestion and stages markdown under KMS runtime paths.
 - `act_on_candidate_knowledge` approves/rejects/flags candidates and can promote approved records to canonical knowledge.
 - `approve_canonical_knowledge` updates approval status.
@@ -205,7 +213,7 @@ On first KMS database access:
 
 ### Analytics client
 
-`src/shared/infra_client/analytics_client.py` exposes read-only analytical access helpers used by reporting, analytics, and DS/ML workflows. The implementation is PostgreSQL-backed and does not load application seed files.
+`src/shared/infra_client/analytics_client.py` exposes read-only analytical access helpers used by reporting, analytics, and DS/ML workflows. The implementation is SQLite-backed and does not load application seed files.
 
 ### Database Explorer
 
@@ -249,7 +257,7 @@ Each invocation logs:
 
 - PRISM is mounted as a standalone Analyst Action product and parses direct metadata or uploaded files, normalizes SQL/schema, detects exact duplicates and overlaps.
 - Report Builder keeps `ACTIVE_BUILD_SESSIONS` in memory, progresses six stages, handles rejected feedback, and publishes HTML files to `REPORT_PATH`.
-- Conversational BI is implemented as a pure, multi-agent orchestrator using the stateful LangGraph runtime framework. It coordinates a pipeline of specialized sub-agents located in `sub-agents/` (including Intent Classifier for semantic bypassing, KMS Retrieval, Lineage Resolver, SQL Planner, SQL Debugger for self-healing retries, Narrative Writer, QC Auditor for grounding, Statistical Auditor for data-science verification, Narrative Revision, and Visualization Planner) and invokes generic, reusable shared tools under `src/shared/tools/` (such as `kms_tool`, `database_tool` with dynamic value discovery, `visualization_tool`, `data_profile_tool` for PII redaction and metrics profiling, `graph_tool` for Neo4j lineages, and `analytics_tool` for linear regression time-series diagnostics). No business logic, prompts, or HTML layout logic resides in the orchestrator.
+- Conversational BI is implemented as a pure, multi-agent orchestrator using the stateful LangGraph runtime framework. It coordinates a pipeline of specialized sub-agents located in `sub-agents/` (including Intent Classifier for semantic bypassing, KMS Retrieval, Lineage Resolver, SQL Planner, SQL Debugger for self-healing retries, Narrative Writer, QC Auditor for grounding, Statistical Auditor for data-science verification, Narrative Revision, and Visualization Planner) and invokes generic, reusable shared tools under `src/shared/tools/` (such as `kms_tool`, `database_tool` with dynamic value discovery, `visualization_tool`, `data_profile_tool` for PII redaction and metrics profiling, `graph_tool` for GRAPHDB lineages, and `analytics_tool` for linear regression time-series diagnostics). No business logic, prompts, or HTML layout logic resides in the orchestrator.
 - Proactive Alerts uses metric interpretation over fixed trend baselines to produce alert objects.
 
 ### Business analytics
@@ -259,19 +267,7 @@ Each invocation logs:
 - What-if Analysis computes rate/asset/NPL sensitivities.
 - Business Narratives generates targeted text for Slack/email/board memo style channels.
 
-### Workflow automation
 
-- Workflow Design validates schema, nodes, edges, cycles, disconnected nodes, capability availability, and missing templates.
-- Workflow Orchestration executes DAG nodes in topological order, resolves dynamic input variables, supports HITL pauses, saves state in Redis, and returns traces.
-- Task Automation executes queued code strings in a restricted subprocess style, tracks task history, and resumes approvals.
-- Monitoring logs workflow runs/steps/artifacts to PostgreSQL and Neo4j lineage where available.
-
-### Data science and ML
-
-- Data Preparation analyzes columns/dataset shape/null readiness.
-- Model Development returns experiment/champion metadata.
-- Model Documentation builds validation/governance briefs.
-- Model Pulse calculates drift signals and returns chart-ready telemetry.
 
 ## 10. Route Map
 
@@ -325,17 +321,7 @@ Each invocation logs:
 | POST | `/api/v1/workflows/analytics/rca` | Root cause analysis. |
 | POST | `/api/v1/workflows/analytics/what-if` | Scenario simulation. |
 | POST | `/api/v1/workflows/analytics/business-narratives` | Narrative generation. |
-| POST | `/api/v1/workflows/automation/run` | Validate and execute DAG. |
-| GET | `/api/v1/workflows/automation/approvals` | List pending approvals. |
-| POST | `/api/v1/workflows/automation/approve` | Resume/abort approval. |
-| GET | `/api/v1/workflows/automation/telemetry` | Monitoring telemetry. |
-| POST | `/api/v1/workflows/automation/tasks/submit` | Queue background code task. |
-| GET | `/api/v1/workflows/automation/tasks/history` | Task execution history. |
-| GET | `/api/v1/workflows/automation/monitoring/lineage` | Neo4j lineage query. |
-| POST | `/api/v1/workflows/ds/prep` | Data preparation profile. |
-| GET | `/api/v1/workflows/ds/experiments` | Experiment list. |
-| POST | `/api/v1/workflows/ds/document` | Model documentation. |
-| POST | `/api/v1/workflows/ds/model-pulse` | Model drift/pulse analysis. |
+
 
 ## 11. Static Mounts
 
@@ -351,14 +337,7 @@ Each invocation logs:
 - `/ui/business_analytics/root_cause_analysis`
 - `/ui/business_analytics/what_if_analysis`
 - `/ui/business_analytics/business_narratives`
-- `/ui/workflow_automation/workflow_design`
-- `/ui/workflow_automation/workflow_orchestration`
-- `/ui/workflow_automation/task_automation`
-- `/ui/workflow_automation/monitoring`
-- `/ui/data_science_ml/data_preparation`
-- `/ui/data_science_ml/model_development`
-- `/ui/data_science_ml/model_documentation`
-- `/ui/data_science_ml/model_pulse`
+
 - `/ui/db_explorer`
 - `/` -> `src/ui`
 

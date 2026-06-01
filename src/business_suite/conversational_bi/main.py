@@ -610,7 +610,7 @@ async def run_conversational_bi_workflow(question: str) -> Dict[str, Any]:
         # Direct semantic path: bypass live database query plan & execution
         retrieve_result = await _safe_invoke_capability('knowledge_retrieval', {'question': question})
         
-        # Discover Neo4j lineage relations for semantic context package
+        # Discover GRAPHDB lineage relations for semantic context package
         lineage_data = retrieve_graph_lineage(question)
         
         schema_catalog = _schema_catalog()

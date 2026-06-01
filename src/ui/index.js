@@ -87,6 +87,8 @@ function getCurrentPersonaCategory() {
 }
 
 function getPersonaProductIds(category = getCurrentPersonaCategory()) {
+  const role = localStorage.getItem('AIP_USER_ROLE') || 'Analyst';
+  if (role === 'SME') return [];
   return PERSONA_PRODUCT_IDS[category] || PERSONA_PRODUCT_IDS['Business User'];
 }
 
@@ -95,35 +97,61 @@ function renderPersonaProducts(category = getCurrentPersonaCategory()) {
   const navContainer = document.getElementById('persona-product-nav');
   const grid = document.getElementById('persona-product-grid');
   const heading = document.getElementById('persona-product-heading');
-  const groupLabel = category === 'Business User' ? 'Business Suite' : 'Analyst Actions';
+  const navTitle = document.getElementById('persona-product-nav-title');
+  const role = localStorage.getItem('AIP_USER_ROLE') || 'Analyst';
 
-  if (heading) heading.innerText = `${groupLabel} Products`;
+  if (role === 'SME') {
+    if (navTitle) navTitle.classList.add('hide');
+    if (heading) heading.classList.add('hide');
+  } else {
+    if (navTitle) navTitle.classList.remove('hide');
+    if (heading) heading.classList.remove('hide');
+    const groupLabel = category === 'Business User' ? 'Business Suite' : 'Analyst Actions';
+    if (heading) heading.innerText = `${groupLabel} Products`;
+  }
 
   if (navContainer) {
-    navContainer.innerHTML = productIds.map(productId => {
-      const product = PRODUCT_CATALOG[productId];
-      return `<a href="#" class="nav-item persona-product-item" data-page="${productId}" data-product="true" data-tooltip="${product.label}">
-        <span class="nav-icon">${product.icon}</span> <span class="nav-text">${product.label}</span>
-      </a>`;
-    }).join('');
+    if (role === 'SME') {
+      navContainer.innerHTML = '';
+    } else {
+      navContainer.innerHTML = productIds.map(productId => {
+        const product = PRODUCT_CATALOG[productId];
+        return `<a href="#" class="nav-item persona-product-item" data-page="${productId}" data-product="true" data-tooltip="${product.label}">
+          <span class="nav-icon">${product.icon}</span> <span class="nav-text">${product.label}</span>
+        </a>`;
+      }).join('');
 
-    navContainer.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchPage(item.getAttribute('data-page'));
+      navContainer.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.preventDefault();
+          switchPage(item.getAttribute('data-page'));
+        });
       });
-    });
+    }
   }
 
   if (grid) {
-    grid.innerHTML = productIds.map(productId => {
-      const product = PRODUCT_CATALOG[productId];
-      return `<div class="product-card" onclick="switchPage('${productId}')">
-        <div class="product-icon">${product.icon}</div>
-        <h3>${product.label}</h3>
-        <p>${product.description}</p>
-      </div>`;
-    }).join('');
+    if (role === 'SME') {
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05); margin-top: 10px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">📚</div>
+          <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px; color: var(--text-primary);">SME Governance Dashboard</h3>
+          <p style="font-size: 14px; color: var(--text-secondary); max-width: 500px; margin: 0 auto 20px; line-height: 1.5;">
+            You are logged in as a Subject Matter Expert (SME). No business suite or analytics products are available to your profile. Please navigate to the KMS Workspace to manage and approve enterprise knowledge.
+          </p>
+          <button class="btn" style="background: var(--accent-color); font-weight: 600; padding: 10px 20px; border-radius: 6px; cursor: pointer; border: none; color: #fff; transition: opacity 0.2s;" onclick="switchPage('kms')">Go to KMS Workspace</button>
+        </div>
+      `;
+    } else {
+      grid.innerHTML = productIds.map(productId => {
+        const product = PRODUCT_CATALOG[productId];
+        return `<div class="product-card" onclick="switchPage('${productId}')">
+          <div class="product-icon">${product.icon}</div>
+          <h3>${product.label}</h3>
+          <p>${product.description}</p>
+        </div>`;
+      }).join('');
+    }
   }
 }
 
@@ -152,6 +180,7 @@ window.fetch = async function(url, options = {}) {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  initGlobalButtonFeedback();
   initSidebarCollapse();
   setupNavigation();
   setupAuthHandler();
@@ -261,22 +290,26 @@ function setupAuthHandler() {
     }
   }
  
-  // Configure logout button click handler
+
+
   const logoutBtn = document.getElementById('shell-logout-btn');
   if (logoutBtn && !logoutBtn.dataset.listenerBound) {
     logoutBtn.dataset.listenerBound = 'true';
     logoutBtn.addEventListener('click', async () => {
+      const originalHtml = setButtonBusy(logoutBtn, '⏳ Logout in progress...');
       try {
         await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
       } catch (err) {
         console.warn("Logout request failed:", err);
+      } finally {
+        localStorage.removeItem('AIP_API_KEY');
+        localStorage.removeItem('AIP_USER_ROLE');
+        localStorage.removeItem('AIP_USER_NAME');
+        localStorage.removeItem('AIP_USER_UNAME');
+        localStorage.removeItem('AIP_USER_CATEGORY');
+        restoreButton(logoutBtn, originalHtml);
+        checkAuthStatus();
       }
-      localStorage.removeItem('AIP_API_KEY');
-      localStorage.removeItem('AIP_USER_ROLE');
-      localStorage.removeItem('AIP_USER_NAME');
-      localStorage.removeItem('AIP_USER_UNAME');
-      localStorage.removeItem('AIP_USER_CATEGORY');
-      checkAuthStatus();
     });
   }
 
@@ -286,6 +319,7 @@ function setupAuthHandler() {
     clearCacheBtn.dataset.listenerBound = 'true';
     clearCacheBtn.addEventListener('click', async () => {
       if (confirm('Are you sure you want to clear session caches and reset all logged-in credentials?')) {
+        const originalHtml = setButtonBusy(clearCacheBtn, '⏳ Clearing session...');
         try {
           await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
         } catch (err) {
@@ -298,12 +332,44 @@ function setupAuthHandler() {
             .replace(/^ +/, "")
             .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
         });
+        restoreButton(clearCacheBtn, originalHtml);
         window.location.reload();
       }
     });
   }
  
   checkAuthStatus();
+}
+
+function setButtonBusy(button, busyText) {
+  const originalHtml = button.innerHTML;
+  button.dataset.originalHtml = originalHtml;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.classList.add('is-busy');
+  button.innerHTML = busyText;
+  return originalHtml;
+}
+
+function restoreButton(button, originalHtml) {
+  button.disabled = false;
+  button.removeAttribute('aria-busy');
+  button.classList.remove('is-busy');
+  button.innerHTML = originalHtml || button.dataset.originalHtml || button.innerHTML;
+  delete button.dataset.originalHtml;
+}
+
+function initGlobalButtonFeedback() {
+  if (document.body.dataset.buttonFeedbackBound) return;
+  document.body.dataset.buttonFeedbackBound = 'true';
+  document.addEventListener('click', (event) => {
+    const target = event.target.closest('button, .btn, .nav-item, .product-card');
+    if (!target || target.disabled || target.getAttribute('aria-disabled') === 'true') return;
+    target.classList.remove('is-clicked');
+    void target.offsetWidth;
+    target.classList.add('is-clicked');
+    window.setTimeout(() => target.classList.remove('is-clicked'), 220);
+  }, true);
 }
 
 // ==========================================================================
@@ -453,4 +519,3 @@ function initSidebarCollapse() {
     });
   }
 }
-

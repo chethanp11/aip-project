@@ -373,8 +373,8 @@ Serve as the enterprise intelligence backbone for AIP.
 
 ### Technology
 
-- PostgreSQL + pgvector
-- Neo4j Knowledge Graph
+- SQLite + FAISS
+- GRAPHDB Knowledge Graph
 - Git-managed canonical knowledge assets
 
 ### Design Principle
@@ -746,7 +746,7 @@ storage/analyses/
 
 ### Knowledge Assets
 
-Lives in PostGres+pgvector and neo4j 
+Lives in SQLite+FAISS and GRAPHDB 
 
 ---
 

@@ -1,0 +1,549 @@
+================================================================================
+AIM ENTERPRISE TREASURY & LIQUIDITY MANAGEMENT: METADATA & ARCHITECTURE MANUAL
+================================================================================
+Document ID: AIM-TRE-2026-METADATA-001
+Version: 10.0.1
+Classification: Internal Architectural & Analytical Context
+Last Updated: June 1, 2026
+Approved By: Treasury Data Governance Board & Enterprise Metadata Committee
+Domain: Treasury & Capital Management / Cash Management
+SME Lead: Marcus Vance (Principal Liquidity Architect)
+Primary Grounding Target: Conversational BI Agent / SQL Planner / Grounding Engine
+================================================================================
+
+--------------------------------------------------------------------------------
+1. CORE BUSINESS TERMINOLOGY & GLOSSARY
+--------------------------------------------------------------------------------
+The following glossary defines the authoritative business terminology and theoretical
+formulas for the Treasury and Liquidity Management domains. These definitions
+serve as semantic anchors for analytical agents.
+
+TERM: Liquidity Coverage Ratio (LCR)
+- Definition: An enterprise metric measuring the adequacy of high-quality liquid 
+  assets to survive a severe 30-day market stress scenario.
+- Formula: LCR = Stock of HQLA / Total Net Cash Outflows over 30 days
+- Impact: Governed by Basel III. A ratio below 100% indicates a severe breach.
+
+TERM: Net Stable Funding Ratio (NSFR)
+- Definition: A regulatory metric measuring the availability of stable funding 
+  relative to the liquidity profile of assets over a one-year horizon.
+- Formula: NSFR = Available Stable Funding (ASF) / Required Stable Funding (RSF)
+- Impact: Enforces structural balance sheet funding stability.
+
+TERM: High-Quality Liquid Assets (HQLA)
+- Definition: Unencumbered liquid assets that can be converted to cash easily 
+  and immediately in private markets under stress.
+- Sub-Classifications: Level 1 HQLA (no cap, 0% haircut), Level 2A HQLA (max 40%, 
+  15% haircut), Level 2B HQLA (max 15%, 50% haircut).
+
+TERM: Zero-Balance Account (ZBA)
+- Definition: A corporate cash management account structure in which the balance 
+  is automatically transferred to a master concentration account at the end of 
+  each business day.
+- Operational Rule: Day-end balance must always resolve to exactly zero.
+
+TERM: Target-Balance Account (TBA)
+- Definition: A corporate cash management account that maintains a predetermined 
+  monetary floor. Any funds exceeding this target cushion are swept to the central pool.
+- Operational Rule: Day-end balance must equal the defined cushion balance.
+
+TERM: Nostro Account
+- Definition: An account that AIM holds in foreign currency with a correspondent 
+  bank in another country (literally "our account on your books").
+- Scope: Used for clearing foreign currency payments and managing cross-border trade.
+
+TERM: Vostro Account
+- Definition: An account that a foreign correspondent bank holds on AIM's books 
+  in our local currency (literally "your account on our books").
+- Scope: Facilitates local settlement for offshore banking partners.
+
+TERM: Secured Overnight Financing Rate (SOFR)
+- Definition: A broad measure of the cost of borrowing cash overnight collateralized 
+  by U.S. Treasury securities. Sourced from the repo market.
+- Scope: Serves as the primary reference index for floating leg interest rate swaps.
+
+TERM: Sterling Overnight Index Average (SONIA)
+- Definition: The effective overnight interest rate paid by banks for unsecured 
+  sterling transactions in the British market.
+- Scope: Sourced as the reference rate for sterling-denominated derivative structures.
+
+TERM: Euro Short-Term Rate (€STR)
+- Definition: The reference rate reflecting the wholesale euro unsecured overnight 
+  borrowing costs of banks located in the euro area.
+- Scope: Used to discount and value euro-denominated cleared interest rate swaps.
+
+TERM: Tokyo Overnight Average Rate (TONAR)
+- Definition: The risk-free reference rate measuring unsecured overnight call rate 
+  transactions within Japanese Yen financial markets.
+- Scope: Primary floating rate benchmark utilized in Tokyo capital markets hedging.
+
+TERM: Overnight Index Swap (OIS)
+- Definition: An interest rate swap contract where the floating leg is tied to a 
+  risk-free overnight reference rate (e.g., SOFR, SONIA, €STR).
+- Scope: Minimizes counterparty credit risk and interest rate revaluation spikes.
+
+TERM: Mark-to-Market (MTM)
+- Definition: The valuation of a financial asset or derivative contract based on 
+  the current prevailing market rates or closing prices.
+- Scope: IRS and FX forward positions are revalued daily for collateral margin calls.
+
+TERM: Variation Margin
+- Definition: The daily collateral exchange between trading counterparties to 
+  cover fluctuations in the Mark-to-Market valuation of cleared derivative contracts.
+- SLA: Must settle prior to the daily clearing window cutoffs.
+
+TERM: Initial Margin
+- Definition: The collateral deposit required to open a derivative position or 
+  participate in a cleared repo transaction to mitigate potential future exposure.
+- Scope: Locked at the central clearinghouse (CCP) until contract termination.
+
+TERM: Haircut
+- Definition: The percentage discount applied to the market value of an asset 
+  when utilized as collateral in a repo transaction or derivative margin pool.
+- Purpose: Protects the lender against downward movements in asset valuation.
+
+TERM: Tri-Party Repo
+- Definition: A repurchase agreement in which a neutral third-party agent 
+  (the custodian) manages collateral allocation, valuation, settlement, and margin.
+- Scope: Minimizes counterparty risk through automated clearing matching.
+
+TERM: Intraday Drawdown
+- Definition: The maximum cumulative net negative cash flow occurring within a 
+  single business day before standard end-of-day concentration sweeps are executed.
+- Purpose: Used to monitor intraday settlement liquidity limits.
+
+TERM: Foreign Exchange Exposure (FX Exposure)
+- Definition: The risk of loss due to fluctuations in exchange rates when holding
+  assets, liabilities, or derivatives in non-functional currencies.
+- Scope: Tracked against the Net Asset Value (NAV) of regional corporate entities.
+
+TERM: Variation Margin Dispute Resolution
+- Definition: The protocol activated when counterparties disagree on daily closing 
+  MTM valuations or applied haircut rates for collateral margins.
+- Scope: Requires manual SME review and exchange of valuation calculations.
+
+--------------------------------------------------------------------------------
+2. TREASURY CORE PRODUCTS CATALOG
+--------------------------------------------------------------------------------
+This section documents the specific financial and corporate structures managed
+by the Treasury department, along with their logical constraints and scopes.
+
+PRODUCT: Zero-Balance Concentration Sweep
+- Purpose: Consolidate idle balances from subsidiary accounts into the central pool.
+- Execution Frequency: Daily, post-standard clearing network window closes.
+- Constraints: Requires functional SWIFT MT940 statement integration.
+
+PRODUCT: Target-Balance Concentration Sweep
+- Purpose: Preserve localized working capital while harvesting excess yield.
+- Execution Frequency: Daily, at predetermined account cutoffs.
+- Constraints: Requires active TBA floor value configuration in the account registry.
+
+PRODUCT: Floating-to-Fixed Interest Rate Swap (IRS)
+- Purpose: Hedge liabilities issued with floating-rate coupons against rate hikes.
+- Underlyings: 3M SOFR, 3M SONIA, 3M EURIBOR, 3M TONAR.
+- Constraints: Cleared strictly through approved Central Counterparties (CCPs).
+
+PRODUCT: Sovereign Bond Repo Rollover
+- Purpose: Maintain short-term funding liquidity by continuously pledging treasuries.
+- Execution Frequency: Daily overnight rollover routing.
+- Constraints: Collateral must meet Level 1 HQLA quality thresholds.
+
+PRODUCT: Central Bank Discount Window Funding
+- Purpose: Sourcing emergency liquidity during extreme market clearing failures.
+- Execution Frequency: Discretionary/Emergency activation path.
+- Constraints: Subject to high discount rates and institutional stigma limits.
+
+PRODUCT: Cross-Currency Basis Swap
+- Purpose: Convert liquid funding from functional currency to foreign settlement currency.
+- Underlyings: Floating indexes across currency pairs (e.g., SOFR vs EURIBOR).
+- Constraints: Pledges collateral margin at both currency clearing gateways.
+
+PRODUCT: Tri-Party Collateral Substitution Sweep
+- Purpose: Replace pledged securities in a repo trade with alternative eligible bonds.
+- Execution Frequency: Ad-hoc as needed to release locked high-grade notes.
+- Constraints: Alternative assets must satisfy the tri-party custodian haircut schedule.
+
+PRODUCT: Overnight Repurchase Agreement (Repo)
+- Purpose: Secure short-term cash by pledging high-grade liquid assets.
+- Maturity: 1 Business Day (overnight rollover path).
+- Constraints: Collateral must fall strictly under Level 1 HQLA parameters.
+
+PRODUCT: Term Repurchase Agreement
+- Purpose: Manage multi-day liquidity shortfalls with stable collateralized cash.
+- Maturity: Pre-negotiated fixed term (typically 7 to 90 days).
+- Constraints: Pledged assets are locked in tri-party custodian pools.
+
+PRODUCT: Foreign Exchange Forward (FX Forward)
+- Purpose: Hedge upcoming foreign currency settlement exposures on Nostro transfers.
+- Settlement: Deliverable or non-deliverable at predetermined dates.
+- Constraints: Total unhedged exposure must remain below defined regulatory caps.
+
+--------------------------------------------------------------------------------
+3. DATA RELATIONSHIP SCHEMA (DATA DICTIONARY)
+--------------------------------------------------------------------------------
+Below is the definitive data dictionary for the 16 core tables in the Treasury
+and Cash Management relational schemas. All Conversational BI generated SQL queries
+must use these exact tables, column names, and data types.
+
+TABLE: accounts
+- Description: Stores primary master record information for all corporate bank accounts.
+- Columns:
+  * account_id (TEXT, PRIMARY KEY): Unique identifier for the corporate account.
+  * account_number (TEXT, UNIQUE): Physical bank account number.
+  * bank_name (TEXT): Correspondent or clearing bank name.
+  * currency (TEXT): Functional ISO currency code (USD, EUR, GBP, etc.).
+  * business_domain (TEXT): Operating domain (e.g., Treasury & Capital Management).
+  * account_type (TEXT): ZBA_Child, ZBA_Master, TBA_Child, Operating, Nostro, Vostro.
+  * balance_status (TEXT): Active, Frozen, Inactive.
+  * routing_transit_number (TEXT): Domestic clearing transit routing code.
+  * bic_swift_code (TEXT): Global SWIFT identification code.
+  * legal_entity_owner (TEXT): Holding entity or regional corporate subsidiary.
+
+TABLE: transactions
+- Description: Logs real-time transactional movements across all corporate accounts.
+- Columns:
+  * transaction_id (TEXT, PRIMARY KEY): Unique transaction identifier.
+  * account_id (TEXT, FOREIGN KEY REFERENCES accounts): Associated account.
+  * amount (NUMERIC): Monies transferred (positive for credit, negative for debit).
+  * value_date (DATE): Effective financial settlement date.
+  * execution_timestamp (TIMESTAMP): System timestamp of execution.
+  * payment_method (TEXT): Fedwire, CHIPS, Target2, SWIFT, SEPA.
+  * transaction_status (TEXT): Settled, Pending, Failed, Exception.
+  * clearing_ref_number (TEXT): Unique clearing network settlement reference number.
+  * initiator_user_id (TEXT): Platform username requesting execution.
+  * fee_amount_charged (NUMERIC): Settlement or clearing transaction fees.
+
+TABLE: liquidity_buffers
+- Description: Monitors historical and real-time HQLA stock valuations.
+- Columns:
+  * buffer_id (TEXT, PRIMARY KEY): Unique buffer measurement ID.
+  * hub_name (TEXT): Regional hub (US_East, UK_London, EU_Frankfurt, APAC_SG).
+  * hqla_level_1 (NUMERIC): Unencumbered central bank cash and sovereign bonds.
+  * hqla_level_2a (NUMERIC): Qualified corporate bonds and government debt.
+  * hqla_level_2b (NUMERIC): Investment-grade corporate debt and equities.
+  * net_outflows_30d (NUMERIC): Expected net cash outflows over a 30-day window.
+  * calculated_at (TIMESTAMP): Time of calculation.
+  * lcr_percentage (NUMERIC): Current LCR ratio (Formula HQLA/Outflows).
+  * nsfr_percentage (NUMERIC): Current NSFR ratio (Formula ASF/RSF).
+  * warning_flag_status (TEXT): Normal, Warning_Level, Critical_Breach.
+
+TABLE: liquidity_sweeps
+- Description: Defines concentration sweep paths and operational configurations.
+- Columns:
+  * sweep_id (TEXT, PRIMARY KEY): Unique sweep routing ID.
+  * source_account_id (TEXT, FOREIGN KEY REFERENCES accounts): Originating child node.
+  * target_account_id (TEXT, FOREIGN KEY REFERENCES accounts): Receiving master node.
+  * sweep_method (TEXT): ZBA (Zero-Balance), TBA (Target-Balance).
+  * target_floor_amount (NUMERIC): Minimum balance cushion (for TBA sweeps).
+  * daily_cutoff_time (TEXT): Designated cutoff window (e.g., 16:30 EST).
+  * sweep_status (TEXT): Active, Suspended, Manual.
+  * currency_sweep_limit (NUMERIC): Max allowable monetary transfer volume per sweep.
+  * auto_reverse_limit (NUMERIC): Max cushion limit for negative balance relief.
+  * instruction_priority (TEXT): High, Medium, Low clearing priority.
+
+TABLE: sweep_executions
+- Description: Records historical execution instances of daily concentration sweeps.
+- Columns:
+  * execution_id (TEXT, PRIMARY KEY): Unique execution instance ID.
+  * sweep_id (TEXT, FOREIGN KEY REFERENCES liquidity_sweeps): Associated sweep route.
+  * amount_swept (NUMERIC): Amount transferred during the sweep execution.
+  * execution_timestamp (TIMESTAMP): Exact settlement timestamp.
+  * execution_status (TEXT): Completed, Failed, Adjusted.
+  * error_message (TEXT): Details on failures or adjustments.
+  * transfer_reference (TEXT): Clearing reference ID mapped to transactions.
+  * reversing_execution_id (TEXT): Linked ID if sweep was counter-adjusted.
+  * operator_comments (TEXT): Review logs from Treasury operations desks.
+
+TABLE: treasury_positions
+- Description: Tracks aggregate day-end liquidity holdings across functional sectors.
+- Columns:
+  * position_id (TEXT, PRIMARY KEY): Unique position snapshot ID.
+  * business_domain (TEXT): Associated business division.
+  * currency (TEXT): Currency of the held position.
+  * cash_balance (NUMERIC): Total cleared overnight cash holdings.
+  * short_term_investments (NUMERIC): Commercial paper and money market fund balances.
+  * locked_collateral (NUMERIC): Capital pledged in active derivative or repo trades.
+  * position_date (DATE): Date of the position snapshot.
+  * unallocated_cash_balance (NUMERIC): Residual balance awaiting sector investment.
+  * repo_collateral_reinvested (NUMERIC): Cash collateral received and reinvested.
+  * position_type (TEXT): Settlement, Operational, Investment, Custody.
+
+TABLE: cash_forecasts
+- Description: Stores projected inflows and outflows across rolling horizons.
+- Columns:
+  * forecast_id (TEXT, PRIMARY KEY): Unique forecast run ID.
+  * account_id (TEXT, FOREIGN KEY REFERENCES accounts): Targeted account.
+  * horizon_days (INTEGER): Rolling projection window (e.g., 7, 30, 90).
+  * projected_inflow (NUMERIC): Estimated incoming settlements.
+  * projected_outflow (NUMERIC): Estimated outgoing payments.
+  * confidence_interval (NUMERIC): Statistical margin of forecast accuracy.
+  * run_timestamp (TIMESTAMP): System timestamp of forecast generation.
+  * forecast_model_version (TEXT): Predictive engine code release version.
+  * model_type_name (TEXT): Linear_Regression, ARIMA, Neural_Network, Monte_Carlo.
+  * error_metric_value (NUMERIC): Calculated Mean Absolute Percentage Error (MAPE).
+
+TABLE: funding_plans
+- Description: Records institutional wholesale capital sourcing strategies.
+- Columns:
+  * plan_id (TEXT, PRIMARY KEY): Unique plan identifier.
+  * business_domain (TEXT): Targeted operating domain.
+  * commercial_paper_issuance (NUMERIC): Sourced capital from CP programs.
+  * cd_issuance (NUMERIC): Sourced capital from Certificates of Deposit.
+  * interbank_borrowing (NUMERIC): Unsecured short-term interbank borrowings.
+  * plan_status (TEXT): Approved, In_Progress, Superseded.
+  * creation_date (DATE): Planning phase initialization date.
+  * funding_cost_basis (TEXT): Benchmark index (SOFR, €STR, FedFunds).
+  * issuance_tenor_days (INTEGER): Plan duration (e.g., 30, 60, 90, 180).
+  * target_investor_class (TEXT): Asset_Managers, Central_Banks, Corporations.
+
+TABLE: collateral_positions
+- Description: Tracks pledged and received collateral across clearing registries.
+- Columns:
+  * collateral_id (TEXT, PRIMARY KEY): Unique collateral booking ID.
+  * clearing_house_name (TEXT): CCP or custodian (LCH, Euroclear, DTCC).
+  * collateral_type (TEXT): Sovereign_Bonds, Corporate_Bonds, Cash_USD, Cash_EUR.
+  * market_value (NUMERIC): Valued asset price before discount.
+  * applied_haircut (NUMERIC): Percentage discount applied to market value.
+  * collateral_status (TEXT): Pledged, Received, Released.
+  * last_valuation_time (TIMESTAMP): Timestamp of last revaluation.
+  * margin_type_name (TEXT): Initial_Margin, Variation_Margin, Liquidity_Cushion.
+  * dispute_status_flag (TEXT): Normal, Disputed, Unresolved.
+  * valuation_haircut_source (TEXT): CCP_Standard, Custom_CSA, Federal_Reserve.
+
+TABLE: fx_exposures
+- Description: Monitors multi-currency translation and hedging exposures.
+- Columns:
+  * exposure_id (TEXT, PRIMARY KEY): Unique exposure tracker ID.
+  * entity_name (TEXT): Regional subsidiary or business entity.
+  * foreign_currency (TEXT): Non-functional exposure currency.
+  * gross_exposure (NUMERIC): Sum of all foreign currency assets and liabilities.
+  * hedged_amount (NUMERIC): Value offset by FX forwards or options contracts.
+  * net_exposure (NUMERIC): Residual unhedged exposure.
+  * calculation_date (DATE): Date of exposure compilation.
+  * functional_currency (TEXT): Local book accounting currency (e.g., USD).
+  * hedged_instrument_type (TEXT): Forward, Option, Cross_Currency_Swap, Spot.
+  * delta_exposure_hedged (NUMERIC): Sensitivity adjusted hedging metric.
+
+TABLE: interest_rate_swaps
+- Description: Catalogs active derivative interest rate swap contracts.
+- Columns:
+  * swap_contract_id (TEXT, PRIMARY KEY): Unique derivative contract ID.
+  * counterparty_name (TEXT): Financial institution counterparty.
+  * fixed_rate (NUMERIC): Fixed payout rate (e.g., 0.0345 for 3.45%).
+  * floating_index (TEXT): SOFR, SONIA, EURIBOR, TONAR.
+  * floating_spread (NUMERIC): Spread added to floating benchmark.
+  * maturity_date (DATE): Expiration date of swap agreement.
+  * mark_to_market_value (NUMERIC): Real-time portfolio valuation (gain/loss).
+  * clearing_broker_name (TEXT): Institutional broker routing the trade.
+  * valuation_frequency (TEXT): Daily, Weekly, Monthly revaluation cycles.
+  * reset_frequency_months (INTEGER): Payment coupon recalculation intervals.
+
+TABLE: investment_securities
+- Description: Holds inventory metadata for longer-duration investment books.
+- Columns:
+  * security_id (TEXT, PRIMARY KEY): Unique asset register ID.
+  * cusip_isin (TEXT, UNIQUE): Standardized security code.
+  * asset_class (TEXT): Treasury_Bills, Sovereign_Bonds, Corporate_Notes.
+  * coupon_rate (NUMERIC): Annual coupon payout rate.
+  * amortized_cost (NUMERIC): Valuation under cost auditing.
+  * market_value (NUMERIC): Valuation under mark-to-market.
+  * classification (TEXT): HFS (Held for Sale), HTM (Held to Maturity), AFS.
+  * yield_to_maturity (NUMERIC): Expected annual return if held to expiration.
+  * rating_moodys (TEXT): Moody's long-term credit rating (Aaa, Aa1, Baa3).
+  * rating_sp (TEXT): S&P credit rating (AAA, AA+, BBB-).
+
+TABLE: intraday_liquidity_events
+- Description: Tracks intraday payment and settlement drawdown anomalies.
+- Columns:
+  * event_id (TEXT, PRIMARY KEY): Unique alert tracker ID.
+  * account_id (TEXT, FOREIGN KEY REFERENCES accounts): Target account.
+  * peak_drawdown_amount (NUMERIC): Highest cumulative negative balance.
+  * limit_threshold_amount (NUMERIC): Internal warning cutoff.
+  * notification_status (TEXT): Triggered, SME_Assigned, Resolved.
+  * event_timestamp (TIMESTAMP): Timestamp of the breach.
+  * drawdown_duration_minutes (INTEGER): Length of time balance remained below threshold.
+  * clearing_agent_bank (TEXT): Clearing agent monitoring the node.
+  * escalation_level (TEXT): Minor_Alert, Major_Breach, Systemic_Crisis.
+
+TABLE: nostro_balances
+- Description: Monitors reconciled and raw balances with offshore correspondents.
+- Columns:
+  * balance_id (TEXT, PRIMARY KEY): Unique ledger entry ID.
+  * account_id (TEXT, FOREIGN KEY REFERENCES accounts): Associated Nostro account.
+  * correspondent_ledger_balance (NUMERIC): Balance reported by foreign bank (SWIFT MT950).
+  * internal_ledger_balance (NUMERIC): Balance tracked in internal ERP ledger.
+  * variance_amount (NUMERIC): Reconciliation mismatch (MT950 vs ERP).
+  * reconciliation_status (TEXT): Reconciled, Mismatch, Pending.
+  * run_date (DATE): Date of ledger reconciliation run.
+  * mt940_statement_number (TEXT): Serial index of processed SWIFT file.
+  * unreconciled_items_count (INTEGER): Outstanding transaction mismatch quantity.
+  * last_matching_rule_id (TEXT): Automated rule used in matching reconciliations.
+
+TABLE: repo_transactions
+- Description: Logs repurchase and reverse-repurchase lending executions.
+- Columns:
+  * repo_id (TEXT, PRIMARY KEY): Unique repo transaction ID.
+  * counterparty_name (TEXT): Borrower or lender counterparty.
+  * repo_type (TEXT): Repurchase (borrow cash), Reverse_Repurchase (lend cash).
+  * principal_amount (NUMERIC): Primary cash borrowed or lent.
+  * repo_rate (NUMERIC): Annual lending rate charged on cash.
+  * collateral_security_id (TEXT, FOREIGN KEY REFERENCES investment_securities): Pledged asset.
+  * settlement_date (DATE): Start of repurchase transaction.
+  * maturity_date (DATE): Repurchase transaction rollover or expiration date.
+  * repo_agent_name (TEXT): Tri-party clearing broker (BNY Mellon, State Street).
+  * margin_cushion_required (NUMERIC): Mandatory excess collateral required (margin margin).
+  * collateral_substitution_flag (TEXT): Yes, No depending on replacement rules.
+
+TABLE: stress_test_scenarios
+- Description: Defines stress-testing scenario metadata and contingency rules.
+- Columns:
+  * scenario_code (TEXT, PRIMARY KEY): Standardized stress scenario identifier.
+  * scenario_name (TEXT): Descriptive scenario name.
+  * haircut_impact_factor (NUMERIC): Shift in collateral hair cut levels under stress.
+  * outflow_surge_multiplier (NUMERIC): Shift in expected net outflows under stress.
+  * critical_action_plan (TEXT): Summary of contingency actions to run.
+  * sme_escalation_name (TEXT): SME lead to notify immediately.
+  * shock_intensity_grade (TEXT): Severe, Extreme, Catastrophic ratings.
+  * historical_anchor_date (DATE): Historical crisis modeled (e.g., 2008-09-15).
+  * macro_variable_shock_pct (NUMERIC): Target shift applied to macroeconomic variables.
+
+--------------------------------------------------------------------------------
+4. LOGICAL JOIN CONDITIONS AND ENTITY RELATIONSHIPS
+--------------------------------------------------------------------------------
+This section documents the explicit logical join maps required to traverse the 
+Treasury relational databases. All SQL generation engines must adhere to these
+joining bridges.
+
+JOIN PATH: Accounts & Transactions (Core Statement Reconstruction)
+- Relationship: One-to-Many
+- Join Condition:
+  `accounts.account_id = transactions.account_id`
+- Purpose: Retrieve transaction flows and values for specific accounts.
+
+JOIN PATH: Accounts & Nostro Balances (Nostro Reconciliation Flow)
+- Relationship: One-to-Many
+- Join Condition:
+  `accounts.account_id = nostro_balances.account_id`
+- Filtering Constraint: `accounts.account_type = 'Nostro'`
+- Purpose: Identify foreign correspondent reconciliation exceptions.
+
+JOIN PATH: Liquidity Sweeps & Executions (Concentration Harvesting Performance)
+- Relationship: One-to-Many
+- Join Condition:
+  `liquidity_sweeps.sweep_id = sweep_executions.sweep_id`
+- Purpose: Audit target balance vs zero balance sweep transfer efficiency.
+
+JOIN PATH: Accounts & Liquidity Sweeps (Source and Target Resolution)
+- Relationship: Many-to-One
+- Join Condition (Source Account):
+  `accounts.account_id = liquidity_sweeps.source_account_id`
+- Join Condition (Target Account):
+  `accounts.account_id = liquidity_sweeps.target_account_id`
+- Purpose: Map geographic child accounts to their respective master aggregation nodes.
+
+JOIN PATH: Repo Transactions & Investment Securities (Collateral Pledging Details)
+- Relationship: Many-to-One
+- Join Condition:
+  `repo_transactions.collateral_security_id = investment_securities.security_id`
+- Purpose: Audit credit eligibility, haircuts, and ISIN registrations on repos.
+
+JOIN PATH: Accounts & Intraday Liquidity Events (Anomalous Drawdown Auditing)
+- Relationship: One-to-Many
+- Join Condition:
+  `accounts.account_id = intraday_liquidity_events.account_id`
+- Purpose: Report peak drawdown events against corporate entity profiles.
+
+--------------------------------------------------------------------------------
+5. DATA LINEAGE & TRANSFORMATION PIPELINES
+--------------------------------------------------------------------------------
+This lineage catalog maps the data flow from source transaction platforms into
+analytical stores and final business intelligence report briefs.
+
+LINEAGE PIPE: Daily Concentration Sweep Lineage
+1. Upstream Source System:
+   - Platform: Core Banking Ledger / Subsidiary Clearing Nodes.
+   - Captured Event: EOD Child Account balance sweeps.
+   - Raw Fields: `source_acc`, `target_acc`, `amount_transferred`, `time_stamp`.
+2. Intermediate Integration Layer:
+   - Ingestion Job: `sweep_extractor_daily` (ETL).
+   - Validation Rule: Verify child day-end balance resolves to target floor cushion.
+   - Target Schema: Committed directly to `sweep_executions`.
+3. Downstream Reporting Layer:
+   - Aggregation Job: `harvested_liquidity_summary`.
+   - Business KPI: Total Harvested Yield / Concentration Performance.
+   - Target UI View: Business Suite - Dashboard Tiles & Conversational BI.
+
+LINEAGE PIPE: Nostro Settlement Exception Lineage
+1. Upstream Source System:
+   - Platform: SWIFT Messaging Gateway (Correspondent Accounts).
+   - Captured Event: Daily SWIFT MT940 / MT950 Customer Statements.
+   - Raw Fields: `correspondent_balance`, `value_date`, `account_iban`.
+2. Intermediate Integration Layer:
+   - Reconciliation Engine: `nostro_reconciler_pro` (ETL).
+   - Validation Rule: Matches correspondent balance against internal ERP ledger balance.
+   - Target Schema: Committed directly to `nostro_balances`.
+3. Downstream Reporting Layer:
+   - Alert Generator: `nostro_mismatch_alert_service`.
+   - Business KPI: Variance Exception Amount / Reconciled Ratio.
+   - Target UI View: Proactive Alerts Card (Critical vs Warning classification).
+
+LINEAGE PIPE: Derivative MTM Revaluation Lineage
+1. Upstream Source System:
+   - Platform: Central CCP Clearing Interface (LCH / DTCC).
+   - Captured Event: Daily Closing Yield Curve & Mark-to-Market Valuation.
+   - Raw Fields: `contract_id`, `mtm_valuation`, `variation_margin_requirement`.
+2. Intermediate Integration Layer:
+   - Valuation Engine: `derivative_mtm_runner` (ETL).
+   - Validation Rule: Mark-to-market revaluations must update in real-time.
+   - Target Schema: Committed to `interest_rate_swaps.mark_to_market_value`.
+3. Downstream Reporting Layer:
+   - Risk Engine: `hedging_exposure_monitor`.
+   - Business KPI: Net Open Derivative Risk Exposure / Variation Margin Call.
+   - Target UI View: Analyst Actions - Root Cause Analysis / Recommend Actions.
+
+--------------------------------------------------------------------------------
+6. CORE ANALYTICAL FORMULAS (PURE BUSINESS RULES)
+--------------------------------------------------------------------------------
+The following logical rules are hardcoded into the platform's calculation
+capabilities. Analytical agents must ground calculations in these strict schemas.
+
+RULE: High-Quality Liquid Asset Stock Compilation
+- HQLA_Stock = (HQLA_Level_1_Value) + (0.85 * HQLA_Level_2a_Value) + (0.50 * HQLA_Level_2b_Value)
+- Cap Rules:
+  - Level 2A + Level 2B HQLA must never exceed 40% of the total HQLA pool.
+  - Level 2B HQLA must never exceed 15% of the total HQLA pool.
+- Target Output: Sourced in `liquidity_buffers` database views.
+
+RULE: Daily Nostro Balance Reconciliation Mismatch
+- Variance = | correspondent_ledger_balance - internal_ledger_balance |
+- Action Logic:
+  - IF Variance > $10,000 AND Variance <= $100,000: Set status = 'Mismatch', Alert = 'Warning'.
+  - IF Variance > $100,000: Set status = 'Mismatch', Alert = 'Critical'.
+  - IF Variance <= $10,000: Set status = 'Reconciled', Alert = 'None'.
+- Target Output: Populates `nostro_balances.reconciliation_status`.
+
+RULE: Expected Variation Margin Call Allocation
+- Variation_Margin_Call = Day_T_MTM_Value - Day_T-1_MTM_Value
+- Action Logic:
+  - IF Variation_Margin_Call is negative: AIM must post collateral to CCP before 10:00 EST.
+  - IF Variation_Margin_Call is positive: Counterparty must post collateral to AIM.
+- Target Output: Populates `collateral_positions.market_value`.
+
+--------------------------------------------------------------------------------
+7. ESCALATION WORKFLOW SCHEMAS
+--------------------------------------------------------------------------------
+Operational workflows routing data triggers are governed by these schema pathways.
+
+PATHWAY: Intraday Drawdown Breaches
+1. Event Detection: `intraday_liquidity_events` logs a record where peak_drawdown_amount > limit_threshold_amount.
+2. Automated Routing: Alert forwarded to `sme_escalation_name` matching the regional hub in `liquidity_buffers`.
+3. SLA Verification: If `notification_status` remains 'Triggered' for > 2 hours, escalate to level 3 crisis contacts.
+
+PATHWAY: Failed Daily Concentration Sweeps
+1. Event Detection: `sweep_executions` logs a record where execution_status = 'Failed'.
+2. Automated Routing: Lock downstream sweep routing config to 'Manual' in `liquidity_sweeps`.
+3. SLA Verification: Alert generated to Treasury SME Team with source/target account detail to execute wire re-routing.
+
+================================================================================
+END OF AIM GLOBAL TREASURY METADATA & ARCHITECTURE MANUAL
+================================================================================

@@ -25,8 +25,8 @@ def handler(input_params: Dict[str, Any]) -> Dict[str, Any]:
     # Fetch template structure dynamically from the local database
     template_structure = "# Performance Briefing\n\nMetric Value: :metricValue\nSummary: :summaryText"
     try:
-        from src.kms.index import get_postgres_db
-        conn = get_postgres_db()
+        from src.kms.index import get_sqlite_db
+        conn = get_sqlite_db()
         cursor = conn.cursor()
         cursor.execute("SELECT structure FROM analytical_templates WHERE id = ?;", (template_id,))
         row = cursor.fetchone()

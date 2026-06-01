@@ -29,6 +29,8 @@ User opens `/`. The root shell in `src/ui/index.html` shows the login screen unt
 
 - **Logout Profile** calls `POST /api/v1/auth/logout`, clears local session fields, and returns to login.
 - **Clear Cache** calls logout, clears local/session storage and cookies, then reloads.
+- Logout and reset actions must put the initiating button into a visible busy state so users understand the request is in progress.
+- Shell and embedded workspace buttons provide immediate click feedback and busy/disabled styling for long-running actions.
 
 ## 2. Shell Navigation Flow
 
@@ -91,12 +93,35 @@ The KMS UI under `/ui/kms` supports search, governance, source connectors, candi
 3. API runs retrieval, generates package metadata, writes zip entries in memory, and returns an application zip response.
 4. Browser downloads `context_pack_*.zip`.
 
-### Candidate governance
+### Top-level KMS Sections & Tab Navigation
 
-1. UI loads candidates from `GET /api/v1/kms/candidates`.
+The KMS Workspace view is separated into two prominent sections accessible via tab buttons at the top of the interface:
+1. **Query Knowledge Base**: Allows users to input search queries, executing `POST /api/v1/kms/query` to perform hybrid dense semantic retrieval. Renders both **Matched Vector Chunks** (FAISS & SQLite score mappings) and **Matched Graph Lineage Entities** (GRAPHDB node descriptions) side-by-side.
+2. **Add Corporate Knowledge**: Stages new business parameters and rules, housing both uploader forms and staged review queues.
+
+KMS tab switching, query execution, candidate review, and corporate knowledge ingestion all provide immediate visual acknowledgement. Query and ingestion buttons are disabled and labeled with in-progress text until their API call completes.
+
+### Ingestion Input Methods & Copy-Paste
+
+Within the **Add Corporate Knowledge** tab, users select between two ingestion input methods:
+1. **Upload Local Document File**: Uses the standard `FileReader` pipeline to ingest `.txt`, `.csv`, `.md`, or `.json` assets.
+2. **Copy & Paste Raw Text**: Allows analysts to type/paste raw corporate policies, supplying a custom document title. Creates a virtual text file on submission.
+
+Both input modes post unified JSON payloads (including the `autoApprove` flag) to `POST /api/v1/kms/upload`.
+
+### SME Persona Restrictions
+
+When a Subject Matter Expert (SME) logs in:
+1. **Unified Shell Sidebar**: The dynamic products title and analytical/business suite links are hidden from view.
+2. **Home Screen Grid**: The core product catalog tiles are omitted. A dedicated, glassmorphic **SME Governance Dashboard** is rendered in the grid, welcoming the SME and offering a direct button linking to the KMS Workspace.
+3. **KMS Workspace**: The SME has full access to the KMS Workspace, including the **Add Corporate Knowledge** queue and staged review card.
+
+### Candidate governance & Ingestion Approval
+
+1. UI loads staged candidates from `GET /api/v1/kms/candidates` inside the "Pending Candidate Ingestions" panel.
 2. SME edits metadata via `POST /api/v1/kms/candidates/edit`.
-3. SME takes action through `POST /api/v1/kms/candidates/action`.
-4. Approved candidates are promoted into canonical knowledge and synchronized to graph structures where available.
+3. SME clicks "Approve & Ingest" or "Reject", executing `POST /api/v1/kms/candidates/action`.
+4. Upon approval, the staged candidate is immediately decomposed into deterministic token-bounded chunks with overlap, written to the authenticated team's `Infra/kms/<Team>/runtime/vector_db/chunks.json` and `index.faiss`, committed to SQLite `vector_chunks`, promoted to canonical knowledge, and synced to graph structures where available.
 
 ### Source connectors
 
@@ -266,7 +291,7 @@ Flow:
 ### Monitoring and lineage
 
 - `GET /api/v1/workflows/automation/telemetry` returns run/step telemetry.
-- `GET /api/v1/workflows/automation/monitoring/lineage` returns Neo4j workflow lineage when graph infrastructure is available.
+- `GET /api/v1/workflows/automation/monitoring/lineage` returns GRAPHDB workflow lineage when graph infrastructure is available.
 
 ## 9. Data Science and ML Flows
 

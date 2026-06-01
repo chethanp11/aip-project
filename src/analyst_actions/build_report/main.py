@@ -161,7 +161,7 @@ Please generate the relevant agent decisions list."""
                 },
                 {
                     'agent': "Data Engineer Agent",
-                    'decision': "Ingested ledger transaction entries from the Infra PostgreSQL source.",
+                    'decision': "Ingested ledger transaction entries from the Infra SQLite source.",
                     'rationale': f"Calculated total resource balance averages across accounts for KPIs: {', '.join(kpis)}.",
                     'status': "Completed"
                 }

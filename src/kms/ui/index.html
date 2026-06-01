@@ -4,18 +4,162 @@
     <meta charset="UTF-8">
     <title>Knowledge Management System (KMS)</title>
     <link rel="stylesheet" href="index.css" />
+    <style>
+        .kms-tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+        .tab-btn {
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            padding: 12px 20px;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+        }
+        .tab-btn.active {
+            color: var(--accent-color);
+            font-weight: 700;
+        }
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--accent-color);
+            border-radius: 3px 3px 0 0;
+        }
+        .section-view {
+            display: none;
+        }
+        .section-view.active {
+            display: block;
+        }
+        textarea.input-select {
+            height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        .graph-match-box {
+            background: rgba(99, 102, 241, 0.04);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
     <div class="sub-portal">
-        
+        <!-- 🧭 KMS TOP TAB NAVIGATION -->
+        <div class="kms-tabs">
+            <button class="tab-btn active" id="tab-query-btn">🔍 Query Knowledge Base</button>
+            <button class="tab-btn" id="tab-add-btn">📥 Add Corporate Knowledge</button>
+        </div>
+
+        <!-- 🔍 SECTION 1: QUERY KNOWLEDGE -->
+        <div class="section-view active" id="section-query">
             <div class="card">
+                <h2>Query Central KMS Grounding</h2>
+                <p class="desc">Instantly query grounded regulations, glossary metrics, and associated knowledge graph connections.</p>
                 <div class="search-bar">
-                    <input type="text" id="kms-q" placeholder="Enter term (e.g., Performance, Ratio, Baseline)..." />
+                    <input type="text" id="kms-q" placeholder="Enter query term (e.g., LCR, Nostro, Sweep, Swap)..." />
                     <button class="btn" id="kms-btn">Query KMS</button>
                 </div>
                 <div class="results-box hide" id="kms-results"></div>
             </div>
-        
+        </div>
+
+        <!-- 📥 SECTION 2: ADD KNOWLEDGE -->
+        <div class="section-view" id="section-add">
+            <div class="card">
+                <h2>Add Corporate Knowledge</h2>
+                <p class="desc">Ingest new business rules, glossary terms, or policy documents into the central knowledge base.</p>
+                
+                <!-- Ingestion Input Mode Selection -->
+                <div style="margin-bottom: 16px;">
+                    <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">Ingestion Input Method</label>
+                    <select id="kms-input-mode" class="input-select" style="width:100%;">
+                        <option value="file" selected>📁 Upload Local Document File (.txt, .csv, .md, .json)</option>
+                        <option value="text">✍️ Copy & Paste Raw Text Context</option>
+                    </select>
+                </div>
+
+                <!-- 📁 Mode A: File Upload -->
+                <div id="wrapper-mode-file" style="margin-bottom: 16px;">
+                    <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">Select Document File</label>
+                    <input type="file" id="kms-file" accept=".txt,.csv,.md,.json" style="width:100%; font-size:12px;" />
+                </div>
+
+                <!-- ✍️ Mode B: Copy-Paste Text Area -->
+                <div id="wrapper-mode-text" class="hide" style="margin-bottom: 16px;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">Document Title / Label</label>
+                        <input type="text" id="kms-text-title" class="input-select" placeholder="e.g., Target Balance Account Settlement Policy" style="width:100%;" />
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">Text Content Body</label>
+                        <textarea id="kms-text-body" class="input-select" placeholder="Paste or type raw corporate rules, glossary terms, or definitions here..." style="width:100%;"></textarea>
+                    </div>
+                </div>
+
+                <!-- Common Metadata Fields -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div>
+                        <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">Business Domain</label>
+                        <select id="kms-domain" class="input-select" style="width:100%;">
+                            <option value="Treasury & Capital Management">Treasury & Capital Management</option>
+                            <option value="Regulatory Compliance">Regulatory Compliance</option>
+                            <option value="Wealth Management">Wealth Management</option>
+                            <option value="Credit Portfolio Risk">Credit Portfolio Risk</option>
+                            <option value="Enterprise Analytics" selected>Enterprise Analytics</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">SME Assignment</label>
+                        <input type="text" id="kms-sme" class="input-select" value="Marcus Vance" style="width:100%;" />
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                        <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">Security Classification</label>
+                        <select id="kms-security" class="input-select" style="width:100%;">
+                            <option value="Public">Public</option>
+                            <option value="Internal" selected>Internal</option>
+                            <option value="Confidential">Confidential</option>
+                            <option value="Restricted">Restricted</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; margin-bottom:4px; font-size:12px; font-weight:600;">Governance & Ingestion Policy</label>
+                        <select id="kms-auto-approve" class="input-select" style="width:100%;">
+                            <option value="false" selected>Requires Review & SME Approval (Staged)</option>
+                            <option value="true">Auto-Approve & Ingest Immediately (Production)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn" id="kms-upload-btn" style="width:100%;">Ingest & Index Corporate Knowledge</button>
+                <div class="results-box hide" id="kms-upload-results"></div>
+            </div>
+
+            <!-- Staged review queue inside Add Knowledge panel -->
+            <div class="card mt-20" id="candidate-reviews-card">
+                <h2>Pending Candidate Ingestions</h2>
+                <p class="desc">Review and approve staged document candidates before they are indexed into FAISS and stored in aipdb.</p>
+                <div id="candidates-list" style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
+                    <p class="loader">Loading pending candidates...</p>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script>

@@ -13,8 +13,9 @@ def run_whatif_workflow(earning_rate: str, resource_cost_rate: str, assets: str,
     print("[Workflow: Analytics - What-if] Simulating operational margins and portfolio profits.")
 
     # 1. Query Enterprise Ledger Tables to establish baseline balances if assets is omitted
-    deposits_data = get_lms_table('deposits')
-    loans_data = get_lms_table('loans')
+    existing_tables = [t.lower() for t in _analytics_client.list_tables()]
+    deposits_data = get_lms_table('deposits') if 'deposits' in existing_tables else []
+    loans_data = get_lms_table('loans') if 'loans' in existing_tables else []
 
     lms_deposits_total = sum(d.get('amount', d.get('balance', 0)) for d in deposits_data) / 1000000000.0 if deposits_data else 0.0
     

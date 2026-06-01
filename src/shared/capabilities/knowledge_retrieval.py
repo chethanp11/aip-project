@@ -6,7 +6,7 @@ from src.shared.infra_client.retrieval_client import RetrievalClient
 from typing import Dict, Any
 
 config = {
-    'description': 'Searches and compiles semantic regulations from the externalized PostgreSQL pgvector and Neo4j Graph databases.',
+    'description': 'Searches and compiles semantic regulations from the externalized FAISS and GRAPHDB databases.',
     'inputSchema': {
         'question': 'string'
     },

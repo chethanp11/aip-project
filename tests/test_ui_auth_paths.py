@@ -59,6 +59,38 @@ def test_shell_javascript_is_parseable():
     assert result.returncode == 0, result.stderr
 
 
+def test_kms_micro_frontend_javascript_is_parseable_and_avoids_api_base_collision():
+    """KMS external JS must not redeclare the inline auth interceptor API_BASE constant."""
+    if not shutil.which("node"):
+        pytest.skip("node is required for JavaScript syntax validation")
+
+    repo_root = Path(__file__).resolve().parents[1]
+    kms_js = repo_root / "src" / "kms" / "ui" / "index.js"
+    kms_html = (repo_root / "src" / "kms" / "ui" / "index.html").read_text()
+    kms_js_content = kms_js.read_text()
+
+    result = subprocess.run(
+        ["node", "--check", str(kms_js)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "const API_BASE" in kms_html
+    assert "const API_BASE" not in kms_js_content
+    assert "KMS_API_BASE" in kms_js_content
+
+
+def test_shell_logout_and_button_feedback_are_bound():
+    repo_root = Path(__file__).resolve().parents[1]
+    shell_js = (repo_root / "src" / "ui" / "index.js").read_text()
+
+    assert "shell-logout-btn" in shell_js
+    assert "Logout in progress" in shell_js
+    assert "initGlobalButtonFeedback" in shell_js
+    assert "is-clicked" in shell_js
+
+
 def test_shell_home_uses_revised_persona_products():
     """Shell home and nav should reflect revised AIP products instead of legacy suite tiles."""
     repo_root = Path(__file__).resolve().parents[1]

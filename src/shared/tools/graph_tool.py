@@ -1,17 +1,17 @@
 """
-Neo4j Graph Database Lineage exploration tools for AIP sub-agents.
+GRAPHDB Graph Database Lineage exploration tools for AIP sub-agents.
 """
 
 from typing import Dict, Any, List
 
 try:
-    from src.shared.infra_client.neo4j_client import Neo4jClient
+    from src.shared.infra_client.graphdb_client import GraphDBClient
 except ImportError:
-    from shared.infra_client.neo4j_client import Neo4jClient
+    from shared.infra_client.graphdb_client import GraphDBClient
 
 
 def retrieve_graph_lineage(metric_id: str) -> Dict[str, Any]:
-    """Retrieves upstream and downstream lineage connections for a metric node from Neo4j.
+    """Retrieves upstream and downstream lineage connections for a metric node from GRAPHDB.
 
     Args:
         metric_id: The ID of the target metric to retrieve lineage for (e.g. 'npl_rate').
@@ -20,7 +20,7 @@ def retrieve_graph_lineage(metric_id: str) -> Dict[str, Any]:
         A dictionary containing list of connection records and/or status flags.
     """
     try:
-        client = Neo4jClient()
+        client = GraphDBClient()
         # Verify connectivity first to prevent blocking in non-graph environments
         client.verify_connectivity()
         
@@ -42,7 +42,7 @@ def retrieve_graph_lineage(metric_id: str) -> Dict[str, Any]:
             'connections': records
         }
     except Exception as exc:
-        print(f"[Shared Tools - Graph] Neo4j lineage check bypassed or failed: {str(exc)}")
+        print(f"[Shared Tools - Graph] GRAPHDB lineage check bypassed or failed: {str(exc)}")
         # Safe fallback: return empty trace without failing the workflow
         return {
             'metric_id': metric_id,
